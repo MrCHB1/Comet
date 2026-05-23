@@ -1,0 +1,136 @@
+﻿cmake_minimum_required(VERSION 3.8)
+
+project(UMPRevanced LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
+set(FETCHCONTENT_QUIET OFF)
+
+include(FetchContent)
+
+FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG docking
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(imgui)
+
+FetchContent_Declare(
+    glfw
+    GIT_REPOSITORY https://github.com/glfw/glfw.git
+    GIT_TAG 3.3.9
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(glfw)
+
+FetchContent_Declare(
+    nfd
+    GIT_REPOSITORY https://github.com/mlabbe/nativefiledialog.git
+    GIT_TAG master
+    GIT_SHALLOW TRUE
+)
+
+FetchContent_MakeAvailable(nfd)
+
+FetchContent_Declare(
+    yaml-cpp
+    GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+    GIT_TAG master
+)
+
+FetchContent_MakeAvailable(yaml-cpp)
+
+FetchContent_Declare(
+    glad
+    GIT_REPOSITORY https://github.com/Dav1dde/glad.git
+    GIT_TAG v0.1.36
+)
+
+FetchContent_MakeAvailable(glad)
+
+FetchContent_Declare(
+	glm
+	GIT_REPOSITORY	https://github.com/g-truc/glm.git
+	GIT_TAG 1.0.3
+)
+
+FetchContent_MakeAvailable(glm)
+
+file(GLOB IMGUI_SRC
+    ${imgui_SOURCE_DIR}/*.cpp
+)
+
+add_library(imgui STATIC
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/imgui_demo.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+)
+
+target_include_directories(imgui PUBLIC
+    ${imgui_SOURCE_DIR}
+    ${imgui_SOURCE_DIR}/backends
+)
+
+target_link_libraries(imgui PUBLIC glfw opengl32)
+
+add_library(nfd STATIC
+    ${nfd_SOURCE_DIR}/src/nfd_common.c)
+
+if (WIN32)
+    target_sources(nfd PRIVATE ${nfd_SOURCE_DIR}/src/nfd_win.cpp)
+endif()
+
+target_include_directories(nfd PUBLIC
+    ${nfd_SOURCE_DIR}/src/include
+)
+
+add_executable(Comet
+    "Comet.cpp"
+    App/MainWindow.cpp
+    App/MIDIApp.cpp
+    MIDI/SavedInputStream.cpp
+    MIDI/ProgressInputStream.cpp
+    Inter.hpp
+    MIDI/Diagnosis/ADiagnosis.h
+    MIDI/Diagnosis/ADiagnosis.cpp
+    MIDI/Diagnosis/BasicDiagnosis.cpp
+    App/Diagnosis/DiagnosisDialog.cpp
+    App/Diagnosis/DiagnosisDialog.h
+    App/UI/Dialog.h
+ "MIDI/Diagnosis/DiagnosisField.cpp" "Utils.cpp" "MIDI/Diagnosis/Diagnoses.h" "MIDI/Diagnosis/Diagnoses.cpp" "App/Diagnosis/DiagnosisPanel.h" "App/Diagnosis/DiagnosisPanel.cpp" "App/Diagnosis/DiagnosisFieldView.h" "App/Diagnosis/DiagnosisFieldView.cpp"  "IntervalThread.h" "IntervalThread.cpp" "MIDI/AbstractMIDILoader.h" "MIDI/MIDISequence.h" "MIDI/Events/MIDIMessageEvent.h" "MIDI/Events/TrackEvent.h" "MIDI/Events/TempoEvent.h" "MIDI/Events/NoteEvent.h" "MIDI/MIDISequence.cpp" "MIDI/Diagnosis/BlackMIDIDiagnosis.h" "MIDI/Diagnosis/BlackMIDIDiagnosis.cpp" "MIDI/Diagnosis/DiagnosisMessage.h" "MIDI/Diagnosis/DiagnosisException.h" "IO/BufferedByteReader.h" "IO/BufferedByteReader.cpp" "IO/InputStream.h" "IO/InputStream.cpp" "ResourcePack/ResourcePack.h" "Render/RenderUtils.h" "ResourcePack/ResourcePackInfo.h" "ResourcePack/SignatureState.h" "ResourcePack/ResourcePack.cpp" "ResourcePack/FolderResourcePack.h" "ResourcePack/FolderResourcePack.cpp" "Config/ConfigSection.h" "Config/ConfigSection.cpp" "ResourcePack/ResourcePackVerifier.h" "ResourcePack/DefaultResourcePack.h" "ResourcePack/DefaultResourcePack.cpp" "Config/MIDIPlayerConfig.h" "Render/ColorAsset.h" "Render/GPUImage.h" "Render/GPUImage.cpp" "Render/ColorAsset.cpp" "Render/MIDIRenderer.h" "Render/MIDIRenderer.cpp" "Render/RenderEngine/Shaders.h" "Render/RenderEngine/Shaders.cpp" "Render/RenderEngine/Buffers.h" "Render/RenderEngine/Buffers.cpp" "Render/Renderer/QuadDrawer.h" "Render/Renderer/PrimitiveDrawer.h" "Render/Renderer/PrimitiveDrawer.cpp" "MIDI/MIDILoader.h" "MIDI/MIDILoader.cpp" "App/Dialog/LoadingDialog.h" "App/Dialog/LoadingDialog.cpp")
+
+ target_include_directories(Comet PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+ )
+
+target_link_libraries(Comet PRIVATE
+    imgui
+    nfd
+    glad
+    glfw
+    opengl32
+    yaml-cpp
+    glm::glm
+)
+
+target_compile_options(Comet PRIVATE /O2 /GL /Ot /Ob3)
+target_link_options(Comet PRIVATE /LTCG)
+
+add_custom_command(
+    TARGET Comet POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/assets
+            $<TARGET_FILE_DIR:Comet>/assets
+)
+
+if (CMAKE_VERSION VERSION_GREATER 3.12)
+  set_property(TARGET Comet PROPERTY CXX_STANDARD 20)
+endif()
