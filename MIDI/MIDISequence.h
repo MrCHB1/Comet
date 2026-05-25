@@ -3,7 +3,11 @@
 #include <vector>
 #include "MIDITrack.h"
 #include "Events/TempoEvent.h"
+#include "Events/NoteEvent.h"
 #include <fstream>
+#include <memory>
+
+class TempoMap;
 
 class MIDISequence
 {
@@ -12,20 +16,27 @@ public:
 	uint16_t resolution;
 	std::vector<MIDITrack> tracks;
 	std::vector<TempoEvent> tempos;
+	std::vector<std::vector<NoteEvent>> mergedNotes{};
+	std::shared_ptr<TempoMap> tempoMap = nullptr;
 	size_t noteTrackCount;
 	long notes = 0;
 	long length = 0;
 
-	MIDISequence() : MIDISequence("Unnamed") { }
+	MIDISequence() : MIDISequence("Unnamed") {}
 	MIDISequence(const char* name)
-		: name(name), tracks({}), tempos({}) { }
+		: name(name), tracks({}), tempos({}) {}
 	~MIDISequence()
 	{
 		tracks.clear();
 		tempos.clear();
+		mergedNotes.clear();
+		if (tempoMap) tempoMap.reset();
 	}
 
-	int GetAudioPosition(long tick, int frequency);
+	TempoMap* GetTempoMap()
+	{
+		return tempoMap.get();
+	}
 	
 	long GetNotes()
 	{

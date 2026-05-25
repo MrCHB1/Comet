@@ -5,6 +5,8 @@
 #include "IO/BufferedByteReader.h"
 #include "Comet.h"
 #include <algorithm>
+#include "Sequence/SequenceFuncs.h"
+#include "TempoMap.h"
 
 MIDILoader::MIDILoader(const char* file) : AbstractMIDILoader(file)
 {
@@ -160,11 +162,31 @@ std::shared_ptr<MIDISequence> MIDILoader::Load()
 		auto& track = seq->tracks[i];
 		std::sort(track.notes.begin(), track.notes.end(), [](auto& a, auto& b) { return a.tick < b.tick; });
 	}
-	SetName("Finishing up!");
 	prog = -1;
-	#pragma endregion
 
 	seq->tracks.shrink_to_fit();
+
+	#pragma endregion
+
+	#pragma region Merge events
+
+	SetName("Merging events");
+	std::cout << "  Parsing finished! Merging events..." << std::endl;
+	std::vector<std::vector<NoteEvent>> toMerge(seq->tracks.size());
+	// gather notes from tracks
+	i = 0;
+	for (auto& tracks : seq->tracks)
+	{
+		toMerge[i++] = std::move(tracks.notes);
+	}
+	std::vector<NoteEvent> mergedNotes = SequenceFuncs::FlattenSequence(std::move(toMerge));
+	SetName("Finishing up!");
+	std::cout << "  Finishing up" << std::endl;
+	seq->mergedNotes = SequenceFuncs::DistributeNotes(std::move(mergedNotes));
+	// really weird way to do this but ok
+	seq->tempoMap = std::make_shared<TempoMap>();
+	seq->tempoMap->RebuildTempoMap(seq.get());
+	#pragma endregion
 
 #ifdef COMET_DEBUG
 	std::cout << "MIDI has successfully loaded." << std::endl;
@@ -183,7 +205,7 @@ std::shared_ptr<MIDISequence> MIDILoader::Load()
 			}
 			std::cout << illegalTracks[i];
 		}
-		std::cout << ". This means this MIDI can't load in Domino :(" << std::endl;
+		std::cout << ". This means this MIDI can't be loaded in Domino :(" << std::endl;
 	}
 #endif
 
@@ -315,6 +337,7 @@ void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 				{
 					if (p >= end) break;
 					++p; // velocity, ignored
+					if (data1 >= 0x80) continue; // disregard of notes above key 127
 					NoteOff(channel, data1, tick);
 					continue;
 				}
@@ -325,6 +348,7 @@ void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 						if (p >= end) break;
 						uint8_t vel = *p++;
 
+						if (data1 >= 0x80) continue; // disregard of notes above key 127
 						if (vel == 0)
 						{
 							NoteOff(channel, data1, tick);

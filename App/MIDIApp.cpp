@@ -3,10 +3,13 @@
 #include <iostream>
 #include "../MIDI/AbstractMIDILoader.h"
 #include <thread>
+#include <memory>
 
 MIDIApp::MIDIApp()
 {
 	config = MIDIPlayerConfig{};
+	renderView = std::make_shared<RenderView>();
+	timer = std::make_shared<MIDITimer>();
 }
 
 void MIDIApp::LoadMIDI(const char* path)
@@ -42,6 +45,8 @@ void MIDIApp::LoadMIDI(const char* path)
 		if (seq)
 		{
 			std::cout << "MIDI should start playing from here on." << std::endl;
+			this->timer->Start();
+			this->renderer->LoadSequence(seq);
 		}
 	}).detach();
 	return;
@@ -53,7 +58,7 @@ void MIDIApp::LoadResources()
 	auto defaultPack = &DefaultResourcePack::Instance();
 	defaultPack->Init();
 
-	renderer = std::make_unique<MIDIRenderer>();
+	renderer = std::make_unique<MIDIRenderer>(this);
 	renderer->LoadResourcePack(defaultPack);
 	renderer->OnResize(config.render.GetWidth(), config.render.GetHeight());
 #ifdef COMET_DEBUG

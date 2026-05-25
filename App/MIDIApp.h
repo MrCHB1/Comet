@@ -3,6 +3,8 @@
 #include "../ResourcePack/DefaultResourcePack.h"
 #include "../Render/MIDIRenderer.h"
 #include "../MIDI/MIDILoader.h"
+#include "../MIDI/Timer/MIDITimer.h"
+#include "../Render/RenderView.h"
 #include <memory>
 #include <mutex>
 #include <atomic>
@@ -21,6 +23,16 @@ public:
 	MIDIPlayerConfig* GetConfig()
 	{
 		return &config;
+	}
+
+	RenderView* GetRenderView()
+	{
+		return renderView.get();
+	}
+
+	MIDITimer* GetTimer()
+	{
+		return timer.get();
 	}
 
 	std::shared_ptr<Progress> GetProgress()
@@ -46,7 +58,9 @@ private:
 	MIDIPlayerConfig config;
 
 	std::unique_ptr<MIDIRenderer> renderer;
+	std::shared_ptr<RenderView> renderView;
 	std::shared_ptr<Progress> prog;
+	std::shared_ptr<MIDITimer> timer;
 	std::atomic_bool loading = false;
 
 	std::mutex appMutex;

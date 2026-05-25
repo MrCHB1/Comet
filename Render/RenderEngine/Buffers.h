@@ -42,6 +42,19 @@ public:
 		);
 	}
 
+	template <typename T, std::size_t N>
+	void SetData(const std::array<T, N>& data, GLenum usage)
+	{
+		Bind();
+
+		glBufferData(
+			target,
+			N * sizeof(T),
+			data.data(),
+			usage
+		);
+	}
+
 	template <typename T>
 	void SetSubData(size_t offsetBytes, const std::vector<T>& data)
 	{

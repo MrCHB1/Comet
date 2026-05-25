@@ -12,7 +12,11 @@ out vec4 fragColor;
 
 void main()
 {
-	vec3 color = vec3(meta & 0xFFFFFFu) / 255.0;
+	vec3 color = vec3(
+		float((meta & 0xFF0000u) >> 16u), 
+		float((meta & 0xFF00u) >> 8u),
+		float(meta & 0xFFu)
+	) / 255.0f;
 
 	bool pressed = (meta & (1u << 24)) != 0u;
     bool black   = (meta & (1u << 25)) != 0u;
