@@ -74,6 +74,7 @@ std::shared_ptr<MIDISequence> MIDILoader::Load()
 	uint16_t format = ToShort(hdrP);
 	hdrP += 2;
 	uint16_t tracks = ToShort(hdrP);
+	seq->trackCount = tracks;
 	hdrP += 2;
 	seq->resolution = ToShort(hdrP);
 	hdrP += 2;

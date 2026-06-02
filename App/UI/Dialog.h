@@ -12,6 +12,9 @@ class Dialog
 public:
 	virtual const char* GetTitle() = 0;
 	virtual void DrawContent() = 0;
+	virtual ImGuiWindowFlags GetWindowFlags() { return ImGuiWindowFlags_AlwaysAutoResize; }
+	virtual ImVec2 GetInitialSize() { return ImVec2(0, 0); }
+	virtual void OnOpen() {}
 
 	Dialog(const std::string& dlgId) : dlgId(dlgId) {}
 	virtual ~Dialog() = default;
@@ -24,9 +27,23 @@ public:
 		{
 			ImGui::OpenPopup(title);
 			openRequest = false;
+			OnOpen();
 		}
 
-		if (ImGui::BeginPopupModal(title, NULL, ImGuiWindowFlags_AlwaysAutoResize))
+		auto windowFlags = GetWindowFlags();
+		if (windowFlags & ImGuiWindowFlags_AlwaysAutoResize)
+		{
+			ImGui::SetNextWindowSize(ImVec2(0, 0), ImGuiCond_Always);
+			ImGui::SetNextWindowContentSize(ImVec2(0, 0));
+			ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, FLT_MAX));
+			ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+		}
+		else
+		{
+			ImGui::SetWindowSize(GetInitialSize(), ImGuiCond_Once);
+		}
+
+		if (ImGui::BeginPopupModal(title, NULL, windowFlags))
 		{
 			DrawContent();
 			ImGui::EndPopup();
@@ -48,6 +65,13 @@ public:
 	const std::string& GetID() const
 	{
 		return dlgId;
+	}
+
+	bool IsOpened()
+	{
+		auto title = GetTitle();
+		if (title == nullptr || title[0] == '\0') return false;
+		return ImGui::IsPopupOpen(title);
 	}
 private:
 	bool openRequest = false;
@@ -87,6 +111,15 @@ public:
 		{
 			dialog->DrawDialog();
 		}
+	}
+
+	bool IsAnyDialogOpened()
+	{
+		for (const auto& [_, dialog] : dialogRegistry)
+		{
+			if (dialog->IsOpened()) return true;
+		}
+		return false;
 	}
 private:
 	std::unordered_map<std::string, std::unique_ptr<Dialog>> dialogRegistry;

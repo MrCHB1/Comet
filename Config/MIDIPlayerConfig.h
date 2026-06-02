@@ -55,13 +55,16 @@ struct MIDIPlayerConfig
 		{
 			return background;
 		}
+
+		bool showCounter = true;
 	private:
 		int width = 1280;
 		int height = 720;
 		int fpsLimit = 120;
 		double renderInterval = 5.0;
-		ImVec4 background = ImVec4(0.75, 0.75, 0.75, 1.0);
+		ImVec4 background = ImVec4(0.0, 0.0, 0.0, 1.0);
 		bool usePFAColors = false;
+		
 		std::string resourcePack = "";
 		std::string font = "Monospaced";
 		MIDIPlayerConfig::ConfigOverlay overlay{};

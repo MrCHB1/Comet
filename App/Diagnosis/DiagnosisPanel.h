@@ -23,6 +23,7 @@ private:
 	MIDIApp* app;
 	std::unordered_map<ADiagnosis*, double> progs;
 	std::unordered_map<std::shared_ptr<DiagnosisField>, std::shared_ptr<DiagnosisFieldView>> fields;
+	std::vector<std::shared_ptr<DiagnosisFieldView>> topLevelViews;
 	std::shared_ptr<Diagnoses> diagnoses;
 	int lastRunningIdx = 0;
 	long started = 0;

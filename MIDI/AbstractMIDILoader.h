@@ -13,10 +13,6 @@ public:
 	{
 		is->read(reinterpret_cast<char*>(buf), size);
 	}
-	static inline uint32_t ReadVariableLengthValue(ProgressInputStream* is)
-	{
-		return ReadVariableLengthValue(is);
-	}
 	static inline uint32_t ReadVariableLengthValue(InputStream* is)
 	{
 		uint32_t value = 0;

@@ -66,6 +66,11 @@ void DiagnosisDialog::DrawContent()
 
 void DiagnosisDialog::Start(const char* path)
 {
+	if (diagnoses)
+	{
+		diagnoses->Stop();
+	}
+
 	if (worker.joinable()) worker.join();
 
 	auto filePath = std::filesystem::path(path);

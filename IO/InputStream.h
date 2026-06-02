@@ -41,7 +41,7 @@ public:
 			throw std::exception("End of Stream");
 		}
 	}
-	virtual void Seek(int offset, int whence)
+	virtual void Seek(int offset, std::ios::seekdir whence)
 	{
 		if (whence == std::ios::cur)
 		{

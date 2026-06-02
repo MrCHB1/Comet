@@ -278,6 +278,11 @@ void Track::ReadEvent(BlackMIDIDiagnosis& bmd)
 			if ((is->ReadByte() & 0xFF) != 4) is->Seek(-1, SEEK_CUR);
 		}
 	}
+	else if (meta == 240 || meta == 247)
+	{
+		int sysexLen = AbstractMIDILoader::ReadVariableLengthValue(is.get());
+		is->Seek(sysexLen, SEEK_CUR);
+	}
 
 	if (is->GetPosition() < is->GetSize())
 	{

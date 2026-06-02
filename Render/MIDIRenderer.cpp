@@ -1,5 +1,6 @@
 #include "MIDIRenderer.h"
 #include "Comet.h"
+#include "Render/Renderer/PrimitiveShaders.h"
 #include "../App/MIDIApp.h"
 #include "../MIDI/TempoMap.h"
 
@@ -32,6 +33,13 @@ void MIDIRenderer::LoadSequence(std::shared_ptr<MIDISequence> sequence)
 
 	colors.LoadColors();
 	seq = sequence;
+	lastTime = 0;
+	
+	for (auto& id : startRenderIDs)
+		id = 0;
+
+	for (auto& id : endRenderIDs)
+		id = 0;
 }
 
 void MIDIRenderer::UnloadSequence()
@@ -146,6 +154,18 @@ void MIDIRenderer::Initialize()
 
 	#pragma endregion
 
+	#pragma region Framebuffer creation
+
+	sceneFramebuffer = std::make_unique<Framebuffer>();
+	sceneFramebuffer->Setup(width, height);
+	fullscreenQuad = std::make_unique<Quad>();
+	fullscreenQuad->SetShader(SCENE_SHADER);
+	BLUR_SHADER->SetFloat("width", (float)width);
+	BLUR_SHADER->SetFloat("height", (float)height);
+	fullscreenQuad->SetTransform({glm::vec3(0.0f), glm::vec2(1.0f)}, false);
+
+	#pragma endregion
+
 	std::array<KeyboardMeta, MIDI_KEYS> kbMetas(KeyboardMeta(0, false, false));
 	std::vector<uint8_t> blackIDs;
 	blackIDs.reserve(53);
@@ -205,8 +225,9 @@ void MIDIRenderer::Initialize()
 	keyMetas = std::move(kbMetas);
 
 	keyboardBackground = std::make_unique<Quad>();
+	keyboardBackground->SetShader(SINGLE_COLOR_SHADER);
 	auto bgColor = pack->GetKeyboardInfo()->background;
-	keyboardBackground->SetColor(glm::vec3(bgColor.x, bgColor.y, bgColor.z));
+	keyboardBackground->SetColor(glm::vec3(0.0, 0.0, 0.0));
 
 	CalcKeyPosAndWidth();
 	UpdateKeyboardInstance();
@@ -243,8 +264,16 @@ void MIDIRenderer::Initialize()
 void MIDIRenderer::Render()
 {
 	if (!initialized) return;
+	sceneFramebuffer->Bind();
+	// lowkey forgot to clear the framebuffer at the start of each render, oops
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	RenderNotes();
 	RenderKeyboard();
+
+	sceneFramebuffer->Unbind();
+
+	if (!seq)
+		noteCounterInfo->tick.value = 0;
 }
 
 void MIDIRenderer::CalcKeyPosAndWidth()
@@ -273,7 +302,11 @@ void MIDIRenderer::CalcKeyPosAndWidth()
 			lastIdxWhite = j;
 		}
 	}
-	keyWidth[(int)(keyWidth.size() - 1)] = ((float)(width) - keyPos[lastIdxWhite]) / (float)width;
+	// keyWidth[lastIdxWhite] = ((float)(width) - keyPos[lastIdxWhite]) / (float)width;
+	if (lastIdxWhite != -1)
+	{
+		keyWidth[lastIdxWhite] = 1.0f - keyPos[lastIdxWhite];
+	}
 	float widthScale = (float)(width) / 1280.0f;
 	float unscaledWhiteKeyGap = pack->GetKeyboardInfo()->whiteKeyGap;
 	if (unscaledWhiteKeyGap > 0.0f)
@@ -337,6 +370,11 @@ void MIDIRenderer::OnResize(int width, int height)
 	this->width = width;
 	this->height = height;
 	CalcKeyPosAndWidth();
+
+	if (sceneFramebuffer)
+	{
+		sceneFramebuffer->Resize(width, height);
+	}
 }
 
 void MIDIRenderer::RenderKeyboard()
@@ -387,7 +425,14 @@ void MIDIRenderer::RenderNotes()
 	if (!renderView) return;
 
 	size_t notesToRender = 0;
-	long time = seq->GetTempoMap()->SecsToTicksFromMap(seq->resolution, app->GetTimer()->Elapsed());
+	double playbackSeconds = app->GetTimer()->Elapsed();
+
+	TempoMap* tempoMap = seq->GetTempoMap();
+	long time = tempoMap->SecsToTicksFromMap(seq->resolution, playbackSeconds);
+	double bpm = tempoMap->GetBPMAtTick(time);
+	noteCounterInfo->tick.value = time >= 0 ? time : 0;
+	noteCounterInfo->timeSeconds.value = playbackSeconds;
+	noteCounterInfo->bpm.value = bpm;
 
 	ShaderBind shaderBind(*notesProgram);
 
@@ -403,6 +448,9 @@ void MIDIRenderer::RenderNotes()
 	notesProgram->SetFloat("noteBorderWidth", noteBorderWidth);
 
 	size_t noteID = 0;
+	size_t notesPassed = 0;
+	size_t polyphony = 0;
+
 	for (uint8_t id : kbIDs)
 	{
 		std::vector<NoteEvent>& notesNote = notes[id];
@@ -439,6 +487,7 @@ void MIDIRenderer::RenderNotes()
 		size_t noteEnd = endIt - notesNote.begin();
 		startRenderIDs[id] = noteBegin;
 		endRenderIDs[id] = noteEnd;
+		notesPassed += noteBegin;
 
 		#pragma endregion
 
@@ -446,12 +495,19 @@ void MIDIRenderer::RenderNotes()
 		for (auto note = notesNote.begin() + noteBegin; note != notesNote.begin() + noteEnd; ++note)
 		{
 			auto& n = *note;
-			if (n.tick + n.gate <= time) continue;
+			if (n.tick + n.gate <= time)
+			{
+				notesPassed++;
+				continue;
+			}
 			if (n.tick <= time)
 			{
 				keyMetas[n.note].MarkPressed(true);
 				keyMetas[n.note].color = colors.GetColor(note->track, note->channel);
 				keyboardDirty = true;
+
+				notesPassed++;
+				polyphony++;
 			}
 
 			renderNotes[noteID++] = RenderNote(
@@ -475,6 +531,9 @@ void MIDIRenderer::RenderNotes()
 	{
 		UploadNoteBuffer(noteID);
 	}
+
+	noteCounterInfo->notesPassed.value = static_cast<uint64_t>(notesPassed);
+	noteCounterInfo->polyphony.value = static_cast<uint64_t>(polyphony);
 
 	lastTime = time;
 }

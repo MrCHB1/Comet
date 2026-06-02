@@ -54,6 +54,26 @@ double TempoMap::TicksToSecsFromMap(uint16_t ppq, long tick)
 	return p.GetSecsAtTick() + (double)(tick - p.tick) * 60.0 / (p.tempo * (double)ppq);
 }
 
+double TempoMap::GetBPMAtTick(long tick)
+{
+	auto it = std::upper_bound(
+		tempoMap.begin(),
+		tempoMap.end(),
+		tick,
+		[](long t, const TempoPoint& p)
+		{
+			return t < p.tick;
+		}
+	);
+
+	size_t idx = (it == tempoMap.begin())
+		? 0
+		: static_cast<size_t>(std::distance(tempoMap.begin(), it) - 1);
+
+	const TempoPoint& p = tempoMap[idx];
+	return p.tempo;
+}
+
 long TempoMap::SecsToTicksFromMap(uint16_t ppq, double secs)
 {
 	if (tempoMap.empty())

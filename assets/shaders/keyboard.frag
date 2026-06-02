@@ -24,11 +24,17 @@ void main()
 	vec3 texColor;
 	if (!pressed)
 	{
-		texColor = texture(black ? blackKey : whiteKey, uv).rgb;
+		if (black)
+			texColor = texture(blackKey, uv).rgb;
+		else
+			texColor = texture(whiteKey, uv).rgb;
 	}
 	else
 	{
-		texColor = texture(black ? blackKeyPressed : whiteKeyPressed, uv).rgb * color;
+		if (black)
+			texColor = texture(blackKeyPressed, uv).rgb * color;
+		else
+			texColor = texture(whiteKeyPressed, uv).rgb * color;
 	}
 
 	fragColor = vec4(texColor, 1.0);

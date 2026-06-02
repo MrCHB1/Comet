@@ -15,6 +15,7 @@ public:
 	{
 		return "Loading...";
 	}
+
 	void DrawContent() override;
 private:
 	std::shared_ptr<Progress> prog;

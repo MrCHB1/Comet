@@ -28,7 +28,7 @@ public:
 		long fileLength = fileStream->tellg();
 		fileStream->seekg(0, std::ios::beg);
 
-		pis = std::make_shared<SavedInputStream>(fileStream, fileLength);
+		pis = std::make_shared<ProgressInputStream>(fileStream, fileLength);
 	}
 
 	void Run() override;
@@ -42,7 +42,7 @@ public:
 		return (pis == nullptr) ? 0 : pis->GetProgress();
 	}
 private:
-	std::shared_ptr<SavedInputStream> pis;
+	std::shared_ptr<ProgressInputStream> pis;
 	int lastMeta;
 	std::vector<std::vector<int>> noteons;
 	bool reachedEoT = false;

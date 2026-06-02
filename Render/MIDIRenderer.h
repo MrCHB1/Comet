@@ -5,6 +5,7 @@
 #include "./RenderEngine/Buffers.h"
 #include <array>
 #include "Renderer/QuadDrawer.h"
+#include "NoteCounter/NoteCounterInfo.h"
 #include "../MIDI/MIDISequence.h"
 #include "RenderView.h"
 #include <mutex>
@@ -104,14 +105,24 @@ public:
 	void Render();
 	void LoadSequence(std::shared_ptr<MIDISequence> seq);
 	void UnloadSequence();
+	GLuint GetSceneTexture()
+	{
+		return sceneFramebuffer->GetSceneTexture();
+	}
+	void SetNoteCounter(std::shared_ptr<NoteCounterInfo> noteCounterInfo)
+	{
+		this->noteCounterInfo = noteCounterInfo;
+	}
 	void OnResize(int width, int height);
 private:
+	#pragma region Note textures
 	std::unique_ptr<GPUImage> textureNote;
 	std::unique_ptr<GPUImage> textureNoteEdge;
 	std::unique_ptr<GPUImage> textureKeyWhite;
 	std::unique_ptr<GPUImage> textureKeyBlack;
 	std::unique_ptr<GPUImage> textureKeyWhitePressed;
 	std::unique_ptr<GPUImage> textureKeyBlackPressed;
+	#pragma endregion
 
 	#pragma region Keyboard
 	std::unique_ptr<ShaderProgram> keyboardProgram;
@@ -138,6 +149,16 @@ private:
 	std::array<size_t, MIDI_KEYS> startRenderIDs;
 	std::array<size_t, MIDI_KEYS> endRenderIDs;
 	long lastTime = -1;
+	#pragma endregion
+
+	#pragma region Note counter
+	std::shared_ptr<NoteCounterInfo> noteCounterInfo;
+	#pragma endregion
+
+	// for special effects such as blurred background behind rects
+	#pragma region Framebuffers + fullscreen quad
+	std::unique_ptr<Framebuffer> sceneFramebuffer;
+	std::unique_ptr<Quad> fullscreenQuad;
 	#pragma endregion
 
 	std::unique_ptr<Quad> keyboardBackground;

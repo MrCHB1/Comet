@@ -10,6 +10,7 @@ void DiagnosisPanel::SetDiagnoses(std::shared_ptr<Diagnoses> diagnoses)
 	started = -1L;
 	progs.clear();
 	fields.clear();
+	topLevelViews.clear();
 
 	int i, l;
 
@@ -30,12 +31,13 @@ void DiagnosisPanel::SetDiagnoses(std::shared_ptr<Diagnoses> diagnoses)
 		{
 			std::shared_ptr<DiagnosisFieldView> view = DiagnosisFieldView::CreateView(app, d, field);
 			fields[field] = view;
+			topLevelViews.push_back(view);
 			for (auto& afield : field->additionalFields)
 			{
 				std::shared_ptr<DiagnosisFieldView> aview = DiagnosisFieldView::CreateView(app, d, afield);
 				view->additionalViews.push_back(aview);
 				// aview->Init();
-				fields[afield] = view;
+				fields[afield] = aview;
 			}
 		}
 	}
@@ -51,7 +53,7 @@ void DiagnosisPanel::Draw()
 	ImGui::Text(statusLabel.c_str());
 	ImGui::Separator();
 
-	for (auto &[field, field_view] : fields)
+	for (auto &field_view : topLevelViews)
 	{
 		field_view->Draw();
 		for (auto& afield : field_view->additionalViews)

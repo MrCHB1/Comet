@@ -31,6 +31,7 @@ public:
 	GPUImage& operator=(GPUImage&& other) noexcept;
 
 	bool LoadFromStream(std::ifstream& file);
+	GLuint GetRawTexture() const { return texture; }
 private:
 	GLuint texture = 0;
 
@@ -44,8 +45,19 @@ private:
 class TextureBind
 {
 public:
-	TextureBind(GPUImage& image, GLuint slot) : image(image) { image.Bind(slot); }
-	~TextureBind() { image.Unbind(); }
+	TextureBind(GPUImage& image, GLuint slot) : texture(image.GetRawTexture())
+	{
+		glActiveTexture(GL_TEXTURE0 + slot);
+		glBindTexture(GL_TEXTURE_2D, texture);
+	}
+
+	TextureBind(GLuint texture, GLuint slot) : texture(texture)
+	{
+		glActiveTexture(GL_TEXTURE0 + slot);
+		glBindTexture(GL_TEXTURE_2D, texture);
+	}
+
+	~TextureBind() { glBindTexture(GL_TEXTURE_2D, 0); }
 private:
-	GPUImage& image;
+	GLuint texture;
 };

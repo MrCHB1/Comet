@@ -1,0 +1,13 @@
+# Don't copy signature, it's not necessary for your pack!
+format: 1
+name: Synthesia Note Colors
+version: 2.0.0
+author: PipiraMine
+description: No random colors
+note:
+  borderWidth: 1.5
+  loopColors: true
+keyboard:
+  whiteKeyGap: 1
+  background: 0x494949
+signature: MEUCIBOXohgsaG6uR5GbOEV2mpLhPyGdsQeluPqyRq0skfgjAiEA8yr/Q3+tEbtr5Cbfy5Ccrnuy+WQxevxPP8AJG65Hv+U=

@@ -46,6 +46,23 @@ private:
 	std::function<void()> clickAction;
 };
 
+class MenuCheckbox : public MenuItem
+{
+public:
+	MenuCheckbox(const char* label, bool* valuePtr)
+	{
+		this->label = label;
+		this->valuePtr = valuePtr;
+	}
+
+	void Draw() override
+	{
+		ImGui::Checkbox(label, valuePtr);
+	}
+private:
+	bool* valuePtr;
+};
+
 class SubMenu : public MenuItem
 {
 public:

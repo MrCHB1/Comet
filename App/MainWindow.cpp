@@ -1,10 +1,11 @@
 #include "MainWindow.h"
 #include "Diagnosis/DiagnosisDialog.h"
 #include "Dialog/LoadingDialog.h"
-// #include <glad/glad.h>
+#include "Dialog/RenderVideoDialog.h"
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
+#include "Render/Renderer/PrimitiveShaders.h"
 
 #include <iostream>
 #include "nfd.h"
@@ -38,6 +39,8 @@ MainWindow::MainWindow(const char* title)
 #ifdef COMET_DEBUG
 	std::cout << "GL version: " << glGetString(GL_VERSION) << std::endl;
 #endif
+
+	PostInit();
 }
 
 MainWindow::~MainWindow()
@@ -56,6 +59,7 @@ void MainWindow::InitializeDialogs()
 {
 	dialogManager.RegisterDialog<DiagnosisDialog>(midiApp.get());
 	dialogManager.RegisterDialog<LoadingDialog>(midiApp.get());
+	dialogManager.RegisterDialog<RenderVideoDialog>(midiApp.get());
 }
 
 void MainWindow::InitializeUI()
@@ -63,24 +67,37 @@ void MainWindow::InitializeUI()
 	SubMenu& fileMenu = menuBuilder.CreateMenu("File");
 	fileMenu.AddItem(new MenuButton("Open...", [this]() {
 		std::string outPath;
-		Utils::ChooseFile(outPath);
+		Utils::ChooseFile(outPath, "mid");
 		if (outPath.empty()) return;
 		this->midiApp->LoadMIDI(outPath.c_str());
 		this->dialogManager.GetDialog<LoadingDialog>()->Open();
 	}));
-	fileMenu.AddItem(new MenuButton("Render to Video..."));
-	fileMenu.AddItem(new MenuButton("Play without Render..."));
+	fileMenu.AddItem(new MenuButton("Render to Video...", [this]() {
+		this->dialogManager.GetDialog<RenderVideoDialog>()->Open();
+	}));
+	// fileMenu.AddItem(new MenuButton("Play without Render..."));
 	fileMenu.AddItem(new MenuButton("Diagnose MIDI...", [this]() {
 		this->dialogManager.GetDialog<DiagnosisDialog>()->Open();
 	}));
-	fileMenu.AddItem(new MenuButton("Take Screenshot"));
+	fileMenu.AddItem(new MenuButton("Take Screenshot", [this]() {
+		std::cout << "Will be implemented soon" << std::endl;
+	}));
 	fileMenu.AddItem(new MenuButton("Quit", [this]() { glfwSetWindowShouldClose(window, GLFW_TRUE); }));
 
 	SubMenu& playMenu = menuBuilder.CreateMenu("Play");
-	playMenu.AddItem(new MenuButton("Stop"));
-	playMenu.AddItem(new MenuButton("Stop and Unload"));
+	playMenu.AddItem(new MenuButton("Stop", [this]() {
+		auto timer = midiApp->GetTimer();
+		timer->Stop();
+	}));
+	playMenu.AddItem(new MenuButton("Stop and Unload", [this]() {
+		auto timer = midiApp->GetTimer();
+		timer->Stop();
+		midiApp->UnloadMIDI();
+	}));
 
 	SubMenu& viewMenu = menuBuilder.CreateMenu("View");
+	viewMenu.AddItem(new MenuCheckbox("Show note counter", &midiApp->GetConfig()->render.showCounter));
+
 	SubMenu& optionMenu = menuBuilder.CreateMenu("Options");
 	SubMenu& helpMenu = menuBuilder.CreateMenu("Help");
 }
@@ -135,28 +152,89 @@ void MainWindow::InitializeAppResources()
 #ifdef COMET_DEBUG
 	std::cout << "Loading app resources" << std::endl;
 #endif
+	InitPrimitiveShaders();
 	midiApp->LoadResources();
+	midiApp->SetWindow(window);
 #ifdef COMET_DEBUG
 	std::cout << "App resources loaded" << std::endl;
 #endif
+}
+
+void MainWindow::PostInit()
+{
+
 }
 
 void MainWindow::Run()
 {
 	while (!glfwWindowShouldClose(window))
 	{
+		glfwPollEvents();
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
-		midiApp->Update();
-		menuBuilder.Draw();
-		dialogManager.DrawDialogs();
-		ImGui::Render();
-		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+		if (!midiApp->IsRendering())
+		{
+			ImGui::NewFrame();
+			DetectKeyPress();
+
+			midiApp->RunFrame();
+			RenderUI();
+			dialogManager.DrawDialogs();
+
+			ImGui::Render();
+			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+		}
+		else
+		{
+			ImGuiIO& io = ImGui::GetIO();
+			const auto& settings = midiApp->GetCurrentRenderSettings();
+			io.DisplaySize = ImVec2((float)settings.width, (float)settings.height);
+
+			ImGui::NewFrame();
+			midiApp->RunFrame();
+			if (!midiApp->IsRendering())
+			{
+				ImGui::EndFrame();
+				continue;
+			}
+
+			ImGui::Render();
+			// bake note counter into frame, etc.
+			midiApp->CaptureFrame();
+
+			// now its safe to draw dialogs
+			ImGui_ImplOpenGL3_NewFrame();
+			ImGui_ImplGlfw_NewFrame();
+			ImGui::NewFrame();
+
+			dialogManager.DrawDialogs(); 
+
+			ImGui::Render();
+			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+		}
 
 		glfwSwapBuffers(window);
-		glfwPollEvents();
 	}
+}
+
+void MainWindow::DetectKeyPress()
+{
+	// ignore key presses if any dialog is opened
+	if (dialogManager.IsAnyDialogOpened()) return;
+
+	ImGuiIO& io = ImGui::GetIO();
+	for (int key = ImGuiKey_NamedKey_BEGIN; key < ImGuiKey_NamedKey_END; key++)
+	{
+		if (!ImGui::IsKeyPressed((ImGuiKey)key)) continue;
+
+		ImGuiKey pressedKey = (ImGuiKey)key;
+		midiApp->RegisterKeyPress(pressedKey);
+	}
+}
+
+void MainWindow::RenderUI()
+{
+	menuBuilder.Draw();
 }
 
 void MainWindow::InitializeTheme()

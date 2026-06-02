@@ -1,23 +1,5 @@
 #include "PrimitiveDrawer.h"
-
-const char* primVert = "#version 330\n"
-"layout (location = 0) in vec2 aPos;\n"
-"layout (location = 1) in vec2 aUv;\n"
-"uniform mat4 model;\n"
-"out vec2 uv;\n"
-"void main() {\n"
-"    uv = aUv;\n"
-"    gl_Position = model * vec4(aPos, 0.0, 1.0);\n"
-"    gl_Position.xy = gl_Position.xy * 2.0 - 1.0;\n"
-"}";
-
-const char* primFrag = "#version 330\n"
-"in vec2 uv;\n"
-"out vec4 fragColor;\n"
-"uniform vec3 color;\n"
-"void main() {\n"
-"    fragColor = vec4(color, 1.0);\n"
-"}";
+#include "PrimitiveShaders.h"
 
 Primitive::Primitive(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices)
 {
@@ -25,7 +7,6 @@ Primitive::Primitive(const std::vector<Vertex>& vertices, const std::vector<uint
 
 	indexCount = (GLsizei)indices.size();
 
-	program = ShaderProgram::Create(primVert, primFrag);
 	vao = std::make_unique<VertexArray>();
 	vbo = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
 	ebo = std::make_unique<Buffer>(GL_ELEMENT_ARRAY_BUFFER);
@@ -49,8 +30,8 @@ void Primitive::SetTransform(const PrimitiveTransform& transform, bool resetTran
 {
 	if (resetTransform)
 		this->transform = glm::mat4(1.0f);
-	this->transform = glm::scale(this->transform, glm::vec3(transform.scale.x, transform.scale.y, 1.0f));
 	this->transform = glm::translate(this->transform, transform.position);
+	this->transform = glm::scale(this->transform, glm::vec3(transform.scale.x, transform.scale.y, 1.0f));
 }
 
 void Primitive::SetColor(const glm::vec3& color)

@@ -61,18 +61,95 @@ namespace Utils
         return stream.str();
     }
 
-    void ChooseFile(std::string& outPath)
+    std::string FormatDuration2(double ms)
     {
-        nfdchar_t* outPathRaw = nullptr;
-        if (NFD_OpenDialog(nullptr, nullptr, &outPathRaw) == NFD_OKAY)
+        if (ms < 0.0)
+            ms = 0.0;
+
+        long long totalTenths = static_cast<long long>(std::llround(ms / 100.0));
+        long long totalSeconds = totalTenths / 10;
+        long long tenths = totalTenths % 10;
+
+        long long hours = totalSeconds / 3600;
+        long long minutes = (totalSeconds % 3600) / 60;
+        long long secs = totalSeconds % 60;
+
+        std::ostringstream out;
+
+        out << std::setfill('0');
+
+        if (hours >= 10)
         {
-            outPath = outPathRaw;
-            free(outPathRaw);
+            out << std::setw(2) << hours << ":"
+                << std::setw(2) << minutes << ":"
+                << std::setw(2) << secs << "."
+                << tenths;
+        }
+        else if (hours > 0)
+        {
+            out << hours << ":"
+                << std::setw(2) << minutes << ":"
+                << std::setw(2) << secs << "."
+                << tenths;
+        }
+        else if (minutes >= 10)
+        {
+            out << std::setw(2) << minutes << ":"
+                << std::setw(2) << secs << "."
+                << tenths;
+        }
+        else if (minutes > 0)
+        {
+            out << minutes << ":"
+                << std::setw(2) << secs << "."
+                << tenths;
         }
         else
         {
-            std::cerr << "Failed to open file dialog: " << NFD_GetError() << std::endl;
+            out << secs << "."
+                << tenths;
         }
+
+        return out.str();
+    }
+
+    bool ChooseFile(std::string& outPath, const char* extension)
+    {
+        nfdchar_t* outPathRaw = nullptr;
+        auto result = NFD_OpenDialog(extension, nullptr, &outPathRaw);
+        if (result == NFD_OKAY)
+        {
+            outPath = outPathRaw;
+            free(outPathRaw);
+            return true;
+        }
+        else if (result == NFD_CANCEL)
+        {
+            return false;
+        }
+
+        std::cerr << "Open file dialog failed: " << NFD_GetError() << std::endl;
+        return false;
+    }
+
+    bool SaveFile(std::string& outPath, const char* extension)
+    {
+        nfdchar_t* outPathRaw = nullptr;
+        auto result = NFD_SaveDialog(extension, nullptr, &outPathRaw);
+
+        if (result == NFD_OKAY)
+        {
+            outPath = outPathRaw;
+            free(outPathRaw);
+            return true;
+        }
+        else if (result == NFD_CANCEL)
+        {
+            return false;
+        }
+
+        std::cerr << "Save file dialog failed: " << NFD_GetError() << std::endl;
+        return false;
     }
 
     bool EqualsIgnoreCase(const std::string& a, const std::string& b)

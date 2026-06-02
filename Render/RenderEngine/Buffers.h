@@ -132,3 +132,55 @@ private:
 };
 
 #pragma endregion
+
+#pragma region Framebuffers
+
+class Framebuffer
+{
+public:
+	Framebuffer()
+	{
+		glGenFramebuffers(1, &fbo);
+	}
+	~Framebuffer()
+	{
+		if (fbo != 0 && glIsFramebuffer(fbo)) glDeleteFramebuffers(1, &fbo);
+	}
+
+	// no copy, allow move
+	Framebuffer(const Framebuffer&) = delete;
+	Framebuffer& operator=(const Framebuffer&) = delete;
+
+	Framebuffer(Framebuffer&& other) noexcept;
+	Framebuffer& operator=(Framebuffer&& other) noexcept;
+
+	// generates the textures
+	void Setup(int width, int height);
+	// resizes framebuffer
+	void Resize(int width, int height);
+
+	int GetWidth() const { return width; }
+	int GetHeight() const { return height; }
+
+	GLuint GetSceneTexture() const { return sceneTexture; }
+
+	void Bind() const;
+	void Unbind() const;
+	friend class FramebufferBind;
+private:
+	GLuint fbo;
+	GLuint sceneTexture;
+	int width = 0;
+	int height = 0;
+};
+
+class FramebufferBind
+{
+public:
+	FramebufferBind(Framebuffer& framebuffer) : framebuffer(framebuffer) { framebuffer.Bind(); }
+	~FramebufferBind() { framebuffer.Unbind(); }
+private:
+	Framebuffer& framebuffer;
+};
+
+#pragma endregion

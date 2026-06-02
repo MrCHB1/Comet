@@ -24,6 +24,7 @@ public:
 	TempoMap() = default;
 	void RebuildTempoMap(MIDISequence* seq);
 	double TicksToSecsFromMap(uint16_t ppq, long tick);
+	double GetBPMAtTick(long tick);
 	long SecsToTicksFromMap(uint16_t ppq, double secs);
 private:
 	std::vector<TempoPoint> tempoMap{};

@@ -77,15 +77,23 @@ public:
 		std::shared_ptr<std::vector<long>> arr = field->GetValue();
 		if (!arr || arr->empty()) return;
 
-		ImVec2 p0 = ImGui::GetCursorScreenPos();
+		ImGui::PushID(field.get());
+
 		ImVec2 size = ImGui::GetContentRegionAvail();
+		if (size.x <= 0.0f) size.x = 100.0f;
+		if (size.y <= 0.0f) size.y = 80.0f;
+
+		ImGui::InvisibleButton("##graphBounds", size);
+
+		ImVec2 p0 = ImGui::GetItemRectMin();
+		ImVec2 p1 = ImGui::GetItemRectMax();
 
 		ImDrawList* draw = ImGui::GetWindowDrawList();
 
 		// background
 		draw->AddRectFilled(
 			p0,
-			ImVec2(p0.x + size.x, p0.y + size.y),
+			p1,
 			IM_COL32(30, 30, 30, 255)
 		);
 
@@ -132,6 +140,6 @@ public:
 			first = false;
 		}
 
-		ImGui::Dummy(size);
+		ImGui::PopID();
 	}
 };

@@ -10,7 +10,7 @@ public:
 	std::vector<ImVec4> colors{};
 
 	ColorAsset() : mt(rd()), random(0.0f, 1.0f) {}
-	void LoadColors();
+	void LoadColors(uint16_t trackCount = 16);
 	uint32_t GetColor(uint16_t track, uint8_t channel)
 	{
 		if (colors.empty()) return 0x000000;

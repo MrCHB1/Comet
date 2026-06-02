@@ -14,6 +14,7 @@ class MIDISequence
 public:
 	const char* name;
 	uint16_t resolution;
+	uint16_t trackCount;
 	std::vector<MIDITrack> tracks;
 	std::vector<TempoEvent> tempos;
 	std::vector<std::vector<NoteEvent>> mergedNotes{};

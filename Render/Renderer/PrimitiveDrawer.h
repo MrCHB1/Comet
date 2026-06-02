@@ -24,11 +24,15 @@ class Primitive
 {
 public:
 	Primitive(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
+	void SetShader(std::shared_ptr<ShaderProgram> program)
+	{
+		this->program = program;
+	}
 	void SetTransform(const PrimitiveTransform& transform, bool resetTransform = true);
 	void SetColor(const glm::vec3& color);
 	void Draw() const;
 private:
-	std::unique_ptr<ShaderProgram> program;
+	std::shared_ptr<ShaderProgram> program;
 	std::unique_ptr<VertexArray> vao;
 	std::unique_ptr<Buffer> vbo;
 	std::unique_ptr<Buffer> ebo;

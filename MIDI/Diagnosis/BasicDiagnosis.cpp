@@ -172,7 +172,7 @@ void BasicDiagnosis::ReadEvent()
 	if ((meta & 0x80) == 0)
 	{
 		meta = lastMeta;
-		pis->Seek(-1, std::ios::cur);
+		pis->Seek(-1, std::ios_base::cur);
 	}
 	lastMeta = meta;
 	if (meta == 0xFF)
