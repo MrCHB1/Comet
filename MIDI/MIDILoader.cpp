@@ -68,7 +68,7 @@ std::shared_ptr<MIDISequence> MIDILoader::Load()
 	hdrP += 4;
 	if (ToInt(hdrP) != 6)
 	{
-		throw std::exception("Invalid track length");
+		throw std::exception("Invalid header length");
 	}
 	hdrP += 4;
 	uint16_t format = ToShort(hdrP);

@@ -1,9 +1,11 @@
 #include "GPUImage.h"
 #include <vector>
 
-bool GPUImage::LoadFromStream(std::ifstream& file)
+bool GPUImage::LoadFromStream(std::shared_ptr<std::ifstream> file)
 {
-	std::vector<unsigned char> buffer((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+	if (!file) return false;
+
+	std::vector<unsigned char> buffer((std::istreambuf_iterator<char>(*file.get())), std::istreambuf_iterator<char>());
 	int channels;
 
 	unsigned char* pixels = stbi_load_from_memory(buffer.data(), buffer.size(), &width, &height, &channels, 4);
@@ -26,10 +28,12 @@ bool GPUImage::LoadFromStream(std::ifstream& file)
 		pixels
 	);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glBindTexture(GL_TEXTURE_2D, 0);
 
 	stbi_image_free(pixels);
 	pixels = nullptr;
@@ -66,13 +70,15 @@ void GPUImage::DeleteTexture()
 		glDeleteTextures(1, &texture);
 }
 
-void GPUImage::Bind(GLuint slot) const
+void GPUImage::Bind(GLuint slot)
 {
 	glActiveTexture(GL_TEXTURE0 + slot);
 	glBindTexture(GL_TEXTURE_2D, texture);
+	this->slot = slot;
 }
 
 void GPUImage::Unbind() const
 {
+	glActiveTexture(GL_TEXTURE0 + slot);
 	glBindTexture(GL_TEXTURE_2D, 0);
 }

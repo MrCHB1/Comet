@@ -1,7 +1,7 @@
 #include <string>
 #include <functional>
 #include <vector>
-#include "imgui.h";
+#include "imgui.h"
 
 class MenuItem
 {
@@ -10,6 +10,7 @@ public:
 	bool enabled = true;
 
 	virtual void Draw() = 0;
+	virtual ~MenuItem() = default;
 
 	void SetEnabled(bool isEnabled)
 	{
@@ -57,7 +58,7 @@ public:
 
 	void Draw() override
 	{
-		ImGui::Checkbox(label, valuePtr);
+		ImGui::MenuItem(label, nullptr, valuePtr, enabled);
 	}
 private:
 	bool* valuePtr;

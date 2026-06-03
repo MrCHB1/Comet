@@ -56,6 +56,11 @@ double TempoMap::TicksToSecsFromMap(uint16_t ppq, long tick)
 
 double TempoMap::GetBPMAtTick(long tick)
 {
+	if (tempoMap.empty())
+	{
+		return 120.0;
+	}
+
 	auto it = std::upper_bound(
 		tempoMap.begin(),
 		tempoMap.end(),

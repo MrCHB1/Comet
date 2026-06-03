@@ -45,8 +45,8 @@ void MIDIRenderer::LoadSequence(std::shared_ptr<MIDISequence> sequence)
 void MIDIRenderer::UnloadSequence()
 {
 	std::lock_guard<std::mutex> lock(renderMutex);
-
 	seq = nullptr;
+	noteCounterInfo->ResetCounter(); // this should probably belong in MIDIApp.cpp lol
 }
 
 void MIDIRenderer::LoadResourcePack(ResourcePack* pack)
@@ -57,12 +57,16 @@ void MIDIRenderer::LoadResourcePack(ResourcePack* pack)
 		return;
 	}
 
-	textureNote = std::make_unique<GPUImage>(*(pack->GetStream("note.png").get()));
-	textureNoteEdge = std::make_unique<GPUImage>(*(pack->GetStream("noteEdge.png").get()));
-	textureKeyWhite = std::make_unique<GPUImage>(*(pack->GetStream("keyWhite.png").get()));
-	textureKeyBlack = std::make_unique<GPUImage>(*(pack->GetStream("keyBlack.png").get()));
-	textureKeyWhitePressed = std::make_unique<GPUImage>(*(pack->GetStream("keyWhitePressed.png").get()));
-	textureKeyBlackPressed = std::make_unique<GPUImage>(*(pack->GetStream("keyBlackPressed.png").get()));
+	textureNote = std::make_unique<GPUImage>(pack->GetStream("note.png"));
+	textureNoteEdge = std::make_unique<GPUImage>(pack->GetStream("noteEdge.png"));
+	textureKeyWhite = std::make_unique<GPUImage>(pack->GetStream("keyWhite.png"));
+	textureKeyBlack = std::make_unique<GPUImage>(pack->GetStream("keyBlack.png"));
+	textureKeyWhitePressed = std::make_unique<GPUImage>(pack->GetStream("keyWhitePressed.png"));
+	textureKeyBlackPressed = std::make_unique<GPUImage>(pack->GetStream("keyBlackPressed.png"));
+	textureKeyWhiteMask = std::make_unique<GPUImage>(pack->GetStream("keyWhiteMask.png"));
+	textureKeyBlackMask = std::make_unique<GPUImage>(pack->GetStream("keyBlackMask.png"));
+	textureKeyWhiteMaskPressed = std::make_unique<GPUImage>(pack->GetStream("keyWhitePressedMask.png"));
+	textureKeyBlackMaskPressed = std::make_unique<GPUImage>(pack->GetStream("keyBlackPressedMask.png"));
 
 	std::cout << "Loaded pack " << pack->GetName() << std::endl;
 
@@ -214,6 +218,26 @@ void MIDIRenderer::Initialize()
 			TextureBind kbBlackPressedBind(*textureKeyBlackPressed, 3);
 			kbProgram->SetInt("blackKeyPressed", 3);
 		}
+
+		{
+			TextureBind kbWhiteMaskBind(*textureKeyWhiteMask, 4);
+			kbProgram->SetInt("whiteKeyMask", 4);
+		}
+
+		{
+			TextureBind kbBlackMaskBind(*textureKeyBlackMask, 5);
+			kbProgram->SetInt("blackKeyMask", 5);
+		}
+
+		{
+			TextureBind kbWhiteMaskPressedBind(*textureKeyWhiteMaskPressed, 6);
+			kbProgram->SetInt("whiteKeyPressedMask", 6);
+		}
+
+		{
+			TextureBind kbBlackMaskPressedBind(*textureKeyBlackMaskPressed, 7);
+			kbProgram->SetInt("blackKeyPressedMask", 7);
+		}
 	}
 
 	#pragma region Keyboard data setup
@@ -226,7 +250,6 @@ void MIDIRenderer::Initialize()
 
 	keyboardBackground = std::make_unique<Quad>();
 	keyboardBackground->SetShader(SINGLE_COLOR_SHADER);
-	auto bgColor = pack->GetKeyboardInfo()->background;
 	keyboardBackground->SetColor(glm::vec3(0.0, 0.0, 0.0));
 
 	CalcKeyPosAndWidth();
@@ -257,8 +280,21 @@ void MIDIRenderer::Initialize()
 	this->notesIBO = std::move(notesInstance);
 	this->notesEBO = std::move(notesEbo);
 	#pragma endregion
-	
+
 	initialized = true;
+
+	InitializeFromConfig();
+}
+
+void MIDIRenderer::InitializeFromConfig()
+{
+	auto config = app->GetConfig();
+
+	ImVec4 barColor = config->render.GetBarColor();
+	SetBarColor(barColor.x, barColor.y, barColor.z);
+
+	ImVec4 bgColor = config->render.GetBackground();
+	SetBackgroundColor(bgColor.x, bgColor.y, bgColor.z);
 }
 
 void MIDIRenderer::Render()
@@ -281,7 +317,7 @@ void MIDIRenderer::CalcKeyPosAndWidth()
 	float keyboardHeightScale = width / 75.0f / (float)textureKeyWhite->width;
 	keyboardHeightBlack = (textureKeyBlack->height * keyboardHeightScale) / (float)height;
 	keyboardHeightWhite = (textureKeyWhite->height * keyboardHeightScale) / (float)height;
-	keyboardHeight = std::max(keyboardHeightBlack, keyboardHeightWhite) + 2.0f / float(height);
+	keyboardHeight = max(keyboardHeightBlack, keyboardHeightWhite) + 1.0f / float(height);
 	float noteWidth = (float)width / 75.0f;
 	float noteWidthBlack = (float)width / 115.0f;
 	float pos = 0.0f;
@@ -311,7 +347,7 @@ void MIDIRenderer::CalcKeyPosAndWidth()
 	float unscaledWhiteKeyGap = pack->GetKeyboardInfo()->whiteKeyGap;
 	if (unscaledWhiteKeyGap > 0.0f)
 	{
-		whiteKeyGap = (float)std::max(1, (int)std::floor(unscaledWhiteKeyGap * widthScale)) / (float)width;
+		whiteKeyGap = (float)max(1, (int)std::floor(unscaledWhiteKeyGap * widthScale));
 	}
 	else
 	{
@@ -320,7 +356,7 @@ void MIDIRenderer::CalcKeyPosAndWidth()
 
 	float unscaledNoteBorderWidth = pack->GetNoteInfo()->borderWidth;
 	if (unscaledNoteBorderWidth > 0.0f)
-		noteBorderWidth = (float)std::max(1, (int)std::floor(unscaledNoteBorderWidth * widthScale)) / (float)height;
+		noteBorderWidth = (float)max(1, (int)std::floor(unscaledNoteBorderWidth * widthScale)) / (float)height;
 	else
 		noteBorderWidth = 0.0f;
 
@@ -352,7 +388,9 @@ void MIDIRenderer::UpdateKeyboardInstance()
 	{
 		keyboardProgram->SetFloat("kbWhiteHeight", keyboardHeightWhite);
 		keyboardProgram->SetFloat("kbBlackHeight", keyboardHeightBlack);
-		keyboardProgram->SetFloat("kbHeight", keyboardHeight - 2.0f / (float)height);
+		keyboardProgram->SetFloat("kbHeight", keyboardHeight - 1.0f / (float)height);
+		keyboardProgram->SetFloat("whiteKeyBorderPixelWidth", whiteKeyGap);
+		keyboardProgram->SetFloat("borderPercentageNorm", (float)pack->GetKeyboardInfo()->whiteKeyBorderPixels / (float)textureKeyWhite->width);
 	}
 
 	keyboardIBO->Bind();
@@ -388,6 +426,10 @@ void MIDIRenderer::RenderKeyboard()
 		TextureBind kbBlackBind(*textureKeyBlack, 1);
 		TextureBind kbWhitePressedBind(*textureKeyWhitePressed, 2);
 		TextureBind kbBlackPressedBind(*textureKeyBlackPressed, 3);
+		TextureBind kbWhiteMaskBind(*textureKeyWhiteMask, 4);
+		TextureBind kbBlackMaskBind(*textureKeyBlackMask, 5);
+		TextureBind kbWhiteMaskPressedBind(*textureKeyWhiteMaskPressed, 6);
+		TextureBind kbBlackMaskPressedBind(*textureKeyBlackMaskPressed, 7);
 
 		VertexArrayBind kbVAOBind(*keyboardVAO);
 		BufferBind kbIBOBind(*keyboardIBO);
@@ -444,7 +486,7 @@ void MIDIRenderer::RenderNotes()
 	BufferBind notesVBOBind(*notesVBO);
 	BufferBind notesEBOBind(*notesEBO);
 
-	notesProgram->SetFloat("kbHeight", keyboardHeight - 2.0f / (float)height);
+	notesProgram->SetFloat("kbHeight", keyboardHeight - 1.0f / (float)height);
 	notesProgram->SetFloat("noteBorderWidth", noteBorderWidth);
 
 	size_t noteID = 0;

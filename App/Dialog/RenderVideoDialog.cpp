@@ -142,15 +142,21 @@ void RenderVideoDialog::DrawContent()
 		if (ImGui::Button("Browse..."))
 		{
 			std::string inPath;
-			if (Utils::ChooseFile(inPath))
+			if (Utils::ChooseFile(inPath, "wav,mp3,ogg,flac"))
 			{
-				renderSettings.audioPath = inPath;
+#if defined(_WIN32) && defined(__cpp_lib_filesystem) && (__cplusplus >= 202002L || _MSVC_LANG >= 202002L)
+				renderSettings.audioPath = std::filesystem::path(std::u8string(inPath.begin(), inPath.end()));
+#else
+				renderSettings.audioPath = std::filesystem::u8path(inPath);
+#endif
 			}
 		}
 		ImGui::PopID();
 		ImGui::SameLine();
-		char* buf = renderSettings.audioPath.data();
-		ImGui::InputText("##audioInpath", buf, renderSettings.outputPath.size() + 1, ImGuiInputTextFlags_ReadOnly);
+
+		auto u8str = renderSettings.audioPath.u8string();
+		std::string buf(u8str.begin(), u8str.end());
+		ImGui::InputText("##audioInpath", buf.data(), buf.size(), ImGuiInputTextFlags_ReadOnly);
 	}
 
 	ImGui::Separator();
@@ -200,7 +206,7 @@ void RenderVideoDialog::DrawContent()
 
 		ImGui::Text("Preset");
 		ImGui::SameLine();
-		if (ImGui::BeginCombo("##presetCombo", nullptr))
+		if (ImGui::BeginCombo("##presetCombo", GetPreset(renderSettings.encodingPreset)))
 		{
 			for (int i = 0; i <= RenderEncodingPreset::PLACEBO; i++)
 			{
@@ -283,19 +289,31 @@ void RenderVideoDialog::DrawContent()
 			}
 			if (Utils::SaveFile(savePath, extension))
 			{
-				renderSettings.outputPath = savePath;
+#if defined(_WIN32) && defined(__cpp_lib_filesystem) && (__cplusplus >= 202002L || _MSVC_LANG >= 202002L)
+				renderSettings.outputPath = std::filesystem::path(std::u8string(savePath.begin(), savePath.end()));
+#else
+				renderSettings.outputPath = std::filesystem::u8path(savePath);
+#endif
 			}
 		}
 		ImGui::SameLine();
 		{
-			char* buf = renderSettings.outputPath.data();
-			ImGui::InputText("##videoOutpath", buf, renderSettings.outputPath.size() + 1, ImGuiInputTextFlags_ReadOnly);
+			auto u8str = renderSettings.outputPath.u8string();
+			std::string buf(u8str.begin(), u8str.end());
+			ImGui::InputText("##videoOutpath", buf.data(), buf.size(), ImGuiInputTextFlags_ReadOnly);
 		}
 		if (renderSettings.outputPath.empty())
 		{
 			ImGui::TextColored(ImVec4(0.5f, 0.0f, 0.0f, 1.0f), "Please specify the video's output path.");
 			canRender = false;
 		}
+
+		ImGui::BeginDisabled(true);
+		ImGui::Text("Also render transparency mask (WIP)");
+		ImGui::SameLine();
+		bool test = false;
+		ImGui::Checkbox("##transparencyMaskCheckbox", &test);
+		ImGui::EndDisabled();
 
 		ImGui::EndChild();
 	}

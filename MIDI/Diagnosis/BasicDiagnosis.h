@@ -10,12 +10,12 @@ public:
 		ADiagnosis(app, filePath),
 		noteons(16, std::vector<int>(128)),
 		tracksHuge(std::vector<int>(1)),
-		fFileSize(CreateField<FileSize>("filesize")),
-		fResolution(CreateField<Long>("resolution")),
-		fTracks(CreateField<Long>("tracks")),
-		fNotes(CreateField<Long>("notes")),
-		fMemory(CreateField<FileSize>("memory")),
-		fTempo(CreateField<Double>("tempo")),
+		fFileSize(CreateField<FileSize>("File Size")),
+		fResolution(CreateField<Long>("Resolution")),
+		fTracks(CreateField<Long>("Tracks")),
+		fNotes(CreateField<Long>("Notes")),
+		fMemory(CreateField<FileSize>("Memory to Open")),
+		fTempo(CreateField<Double>("Tempo")),
 		lastMeta(0),
 		reachedEoT(false),
 		foundUnexpectedStatusByte(false),
@@ -48,7 +48,7 @@ private:
 	bool reachedEoT = false;
 	bool foundUnexpectedStatusByte = false;
 	long notes;
-	long memory;
+	long long memory;
 	std::vector<int> tracksHuge;
 	std::vector<long> trackSizes;
 	long length;

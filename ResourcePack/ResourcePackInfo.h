@@ -19,6 +19,7 @@ struct ResourcePackInfo
 	struct KeyboardInfo
 	{
 		float whiteKeyGap = 0.0f;
+		int whiteKeyBorderPixels = 0;
 		ImVec4 background = ImVec4(0.0, 0.0, 0.0, 1.0);
 	};
 

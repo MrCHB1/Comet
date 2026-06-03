@@ -18,12 +18,12 @@ BlackMIDIDiagnosis::BlackMIDIDiagnosis(MIDIApp* app, const char* filePath)
 	overlap = std::make_unique<OverlapGraph>();
 	overlapStream = std::make_unique<OverlapGraph>();
 
-	fNps = CreateField<Long>("NPS");
+	fNps = CreateField<Long>("Moment Max NPS");
 	fNpsGraph = std::make_shared<LongList>();
 	fNpsGraph->SetValue(npsList);
 	fNps->additionalFields.push_back(fNpsGraph);
 
-	fOverlap = CreateField<Long>("Overlap");
+	fOverlap = CreateField<Long>("Overlapping Notes");
 	fOverlap->additionalFields.push_back(overlap->field);
 	fOverlap->additionalFields.push_back(overlapStream->field);
 }

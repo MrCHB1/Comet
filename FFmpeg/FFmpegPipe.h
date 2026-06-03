@@ -3,6 +3,10 @@
 #include <cstdio>
 #include <string>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 class FFmpegPipe
 {
 public:
@@ -15,7 +19,12 @@ public:
     bool Open(const std::string& command)
     {
 #ifdef _WIN32
-        pipe = _popen(command.c_str(), "wb");
+        if (command.empty()) return false;
+        int sizeNeeded = MultiByteToWideChar(CP_UTF8, 0, &command[0], (int)command.size(), NULL, 0);
+        std::wstring wcommand(sizeNeeded, 0);
+        MultiByteToWideChar(CP_UTF8, 0, &command[0], (int)command.size(), &wcommand[0], sizeNeeded);
+
+        pipe = _wpopen(wcommand.c_str(), L"wb");
 #else
         pipe = popen(command.c_str(), "w");
 #endif

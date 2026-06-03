@@ -102,6 +102,7 @@ public:
 	}
 	void LoadResourcePack(ResourcePack* pack);
 	void Initialize();
+	void InitializeFromConfig();
 	void Render();
 	void LoadSequence(std::shared_ptr<MIDISequence> seq);
 	void UnloadSequence();
@@ -113,15 +114,30 @@ public:
 	{
 		this->noteCounterInfo = noteCounterInfo;
 	}
+	void SetBarColor(float r, float g, float b)
+	{
+		if (!initialized) return;
+		ShaderBind bind(*keyboardProgram);
+		keyboardProgram->SetVec3("barColor", glm::vec3(r, g, b));
+	}
+	void SetBackgroundColor(float r, float g, float b)
+	{
+		if (!initialized) return;
+		keyboardBackground->SetColor(glm::vec3(r, g, b));
+	}
 	void OnResize(int width, int height);
 private:
-	#pragma region Note textures
+	#pragma region Keyboard and note textures
 	std::unique_ptr<GPUImage> textureNote;
 	std::unique_ptr<GPUImage> textureNoteEdge;
 	std::unique_ptr<GPUImage> textureKeyWhite;
 	std::unique_ptr<GPUImage> textureKeyBlack;
 	std::unique_ptr<GPUImage> textureKeyWhitePressed;
 	std::unique_ptr<GPUImage> textureKeyBlackPressed;
+	std::unique_ptr<GPUImage> textureKeyWhiteMask;
+	std::unique_ptr<GPUImage> textureKeyBlackMask;
+	std::unique_ptr<GPUImage> textureKeyWhiteMaskPressed;
+	std::unique_ptr<GPUImage> textureKeyBlackMaskPressed;
 	#pragma endregion
 
 	#pragma region Keyboard

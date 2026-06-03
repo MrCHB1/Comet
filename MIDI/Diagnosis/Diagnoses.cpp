@@ -1,7 +1,9 @@
 #include "Diagnoses.h"
+#include "DiagnosisField.h"
 #include <chrono>
 #include <stdexcept>
 #include <iostream>
+#include <sstream>
 
 void Diagnoses::RunAll()
 {
@@ -28,4 +30,20 @@ void Diagnoses::RunAll()
 	}
 
 	isRunning = false;
+}
+
+std::string Diagnoses::CreateSummaryText()
+{
+	std::stringstream summary;
+	for (int i = 0; i < diagnoses.size(); i++)
+	{
+		ADiagnosis* d = diagnoses[i].get();
+		for (const auto& f : d->GetFields())
+		{
+			auto kv = dynamic_cast<KeyValue*>(f.get());
+			if (!kv) continue;
+			summary << kv->name << ": " << kv->GetValue() << "\n";
+		}
+	}
+	return summary.str();
 }

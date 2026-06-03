@@ -36,6 +36,7 @@ public:
 	{
 		return timeStarted;
 	}
+	std::string CreateSummaryText();
 private:
 	std::vector<std::unique_ptr<ADiagnosis>> diagnoses;
 	int diagnosisIdx = 0;

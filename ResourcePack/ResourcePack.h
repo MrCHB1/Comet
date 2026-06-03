@@ -22,7 +22,7 @@ public:
 	const char* GetName() const { return (info == nullptr) ? "Unintialized Pack" : info->name.c_str(); }
 	const char* GetAuthor() const { return (info == nullptr) ? "???" : info->author.c_str(); }
 	const char* GetVersion() const { return (info == nullptr) ? "0" : info->version.c_str(); }
-	const char* GetDescription() const { return (info == nullptr) ? "This message shouldn't appear. Make sure this pack has a valid 'pack.yaml' file and UMP: BE is on the latest stable version." : info->description.c_str(); }
+	const char* GetDescription() const { return (info == nullptr) ? "This message shouldn't appear. Make sure this pack has a valid 'pack.yaml' file and Comet is on the latest stable version." : info->description.c_str(); }
 	virtual std::shared_ptr<SignatureState> GetSignature() const { return sign; }
 	ResourcePackInfo::NoteInfo* GetNoteInfo() const { return &(info->note); }
 	ResourcePackInfo::KeyboardInfo* GetKeyboardInfo() const { return &(info->keyboard); }

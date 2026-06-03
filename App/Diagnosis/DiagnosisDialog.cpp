@@ -27,6 +27,12 @@ void DiagnosisDialog::DrawContent()
 			{
 				isDiagnosing = false;
 			}
+			ImGui::SameLine();
+			if (ImGui::Button("Copy to clipboard"))
+			{
+				std::string toCopy = diagnoses->CreateSummaryText();
+				ImGui::SetClipboardText(toCopy.c_str());
+			}
 		}
 	}
 	else

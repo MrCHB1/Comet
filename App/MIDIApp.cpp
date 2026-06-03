@@ -135,13 +135,14 @@ void MIDIApp::Update()
 	if (config.render.showCounter)
 	{
 		glm::vec2 counterResolution = noteCounterRenderer->GetCounterResolution();
-		float heightOffset = rendering ? 0.0 : 50.0;
+		float heightOffset = rendering ? 0.0 : 56.0;
 		glm::vec2 counterPos = noteCounterRenderer->GetCounterPosition();
 		// the frosted glass effect, yay!
 		blurredQuadRenderer->Render({ glm::vec3(counterPos.x, counterPos.y, 0.0f), glm::vec2(counterResolution.x, counterResolution.y) });
 		noteCounterRenderer->Render(heightOffset);
-		renderFramebuffer->Unbind();
 	}
+
+	renderFramebuffer->Unbind();
 
 	// render what was in the framebuffer
 	{
@@ -159,7 +160,13 @@ void MIDIApp::Update()
 	}
 	
 	if (!rendering)
+	{
 		navigationBar->Draw();
+		if (hasSequence && timer->Elapsed() >= seqLength + 3.0 && !timer->IsPaused())
+		{
+			timer->Pause();
+		}
+	}
 }
 
 void MIDIApp::RegisterKeyPress(ImGuiKey key)

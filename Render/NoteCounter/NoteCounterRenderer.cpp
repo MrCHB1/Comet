@@ -45,9 +45,9 @@ void NoteCounterRenderer::Render(float heightOffset)
 
 	if (ImGui::Begin("noteCounter", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar))
 	{
-		if (ImGui::BeginTable("counterStats", 2))
+		if (ImGui::BeginTable("counterStats", 2, ImGuiTableFlags_SizingFixedFit))
 		{
-			char buf[64];
+			char buf[96];
 
 			ImGui::TableSetupColumn("Name");
 			ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);

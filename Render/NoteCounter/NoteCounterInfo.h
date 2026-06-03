@@ -21,4 +21,6 @@ struct NoteCounterInfo
 	NoteCounterField<double> bpm{ 120 };
 	NoteCounterField<uint64_t> tick{ 0 };
 	NoteCounterField<uint16_t> ppq{ 960 };
+
+	void ResetCounter();
 };

@@ -55,6 +55,23 @@ struct MIDIPlayerConfig
 		{
 			return background;
 		}
+		void SetBackground(float r, float g, float b)
+		{
+			background.x = r;
+			background.y = g;
+			background.z = b;
+		}
+
+		ImVec4 GetBarColor()
+		{
+			return barColor;
+		}
+		void SetBarColor(float r, float g, float b)
+		{
+			barColor.x = r;
+			barColor.y = g;
+			barColor.z = b;
+		}
 
 		bool showCounter = true;
 	private:
@@ -63,6 +80,7 @@ struct MIDIPlayerConfig
 		int fpsLimit = 120;
 		double renderInterval = 5.0;
 		ImVec4 background = ImVec4(0.0, 0.0, 0.0, 1.0);
+		ImVec4 barColor = ImVec4(0.8, 0.0, 0.0, 1.0);
 		bool usePFAColors = false;
 		
 		std::string resourcePack = "";

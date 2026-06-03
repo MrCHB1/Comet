@@ -2,6 +2,7 @@
 #include "Diagnosis/DiagnosisDialog.h"
 #include "Dialog/LoadingDialog.h"
 #include "Dialog/RenderVideoDialog.h"
+#include "Dialog/SettingsDialog.h"
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
@@ -60,6 +61,7 @@ void MainWindow::InitializeDialogs()
 	dialogManager.RegisterDialog<DiagnosisDialog>(midiApp.get());
 	dialogManager.RegisterDialog<LoadingDialog>(midiApp.get());
 	dialogManager.RegisterDialog<RenderVideoDialog>(midiApp.get());
+	dialogManager.RegisterDialog<SettingsDialog>(midiApp.get());
 }
 
 void MainWindow::InitializeUI()
@@ -96,9 +98,12 @@ void MainWindow::InitializeUI()
 	}));
 
 	SubMenu& viewMenu = menuBuilder.CreateMenu("View");
-	viewMenu.AddItem(new MenuCheckbox("Show note counter", &midiApp->GetConfig()->render.showCounter));
+	viewMenu.AddItem(new MenuCheckbox("Show note counter", &(midiApp->GetConfig()->render.showCounter)));
 
 	SubMenu& optionMenu = menuBuilder.CreateMenu("Options");
+	optionMenu.AddItem(new MenuButton("Settings...", [this]() {
+		this->dialogManager.GetDialog<SettingsDialog>()->Open();
+	}));
 	SubMenu& helpMenu = menuBuilder.CreateMenu("Help");
 }
 

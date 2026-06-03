@@ -11,6 +11,7 @@ void DefaultResourcePack::Init()
 	info->description = "The default Comet look";
 	info->note.borderWidth = 1.5f;
 	info->keyboard.whiteKeyGap = 1.0f;
+	info->keyboard.whiteKeyBorderPixels = 1;
 	info->keyboard.background = ImVec4(0.5, 0.5, 0.5, 1);
 }
 

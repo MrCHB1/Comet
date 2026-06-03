@@ -14,6 +14,8 @@ uniform float kbHeight;
 uniform float kbWhiteHeight;
 uniform float kbBlackHeight;
 
+out float kWidth;
+
 void main()
 {
 	bool black   = (kMeta & (1u << 25)) != 0u;
@@ -24,4 +26,5 @@ void main()
 	gl_Position = vec4(x * 2.0f - 1.0f, (y * 2.0f - 1.0f), 0.0f, 1.0f);
 	uv = aPos;
 	meta = kMeta;
+	kWidth = kRight - kLeft;
 }

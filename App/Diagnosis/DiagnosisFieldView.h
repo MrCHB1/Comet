@@ -81,8 +81,7 @@ public:
 
 		ImVec2 size = ImGui::GetContentRegionAvail();
 		if (size.x <= 0.0f) size.x = 100.0f;
-		if (size.y <= 0.0f) size.y = 80.0f;
-
+		size.y = 80.0f;
 		ImGui::InvisibleButton("##graphBounds", size);
 
 		ImVec2 p0 = ImGui::GetItemRectMin();

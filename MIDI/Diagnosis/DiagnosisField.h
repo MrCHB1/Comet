@@ -97,7 +97,7 @@ public:
 protected:
 	std::string Format(const long long& val) override
 	{
-		return std::to_string(val);
+		return Utils::FormatWithCommas(val);
 	}
 };
 

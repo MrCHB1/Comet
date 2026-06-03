@@ -44,14 +44,14 @@ struct RenderSettings
 
 	double midiStartDelay = 3.0;
 	bool includeAudio = false;
-	std::string audioPath = "";
-	std::string outputPath = "";
+	std::filesystem::path audioPath = "";
+	std::filesystem::path outputPath = "";
 
 	RenderOutputFormat outputFormat = RenderOutputFormat::MP4;
 	RenderCodec codec = RenderCodec::H264;
 	RenderEncodingPreset encodingPreset = RenderEncodingPreset::VERYFAST;
 	RenderEncodingBitrate encodingBitrate = RenderEncodingBitrate::VARIABLE;
-	int crf = 23; // for variable bitrate encoding, lower means better quality but larger file size. typically ranges from 18 to 28.
+	int crf = 20; // for variable bitrate encoding, lower means better quality but larger file size. typically ranges from 18 to 28.
 	
 	bool allowAdvancedEncoding = false;
 	std::string advancedEncodingOptions = "";
@@ -72,7 +72,13 @@ static std::string GetOutputPath(const RenderSettings& settings)
 {
 	std::filesystem::path path(settings.outputPath);
 	path.replace_extension(GetExtension(settings.outputFormat));
+
+#ifdef _WIN32
+	auto u8str = path.u8string();
+	return std::string(u8str.begin(), u8str.end());
+#else
 	return path.string();
+#endif
 }
 
 static const char* GetCodec(RenderCodec codec)
@@ -127,8 +133,14 @@ inline std::string BuildFFmpegCommand(const RenderSettings& settings)
 	// attach audio, if possible
 	if (settings.includeAudio)
 	{
+#ifdef _WIN32
+		auto u8path = settings.audioPath.u8string();
+		std::string audioPath(u8path.begin(), u8path.end());
+#else
+		std::string audioPath = settings.audioPath.string();
+#endif
 		cmd << "-itsoffset " << settings.midiStartDelay << " "
-			<< "-i \"" << settings.audioPath << "\" ";
+			<< "-i \"" << audioPath << "\" ";
 	}
 
 	// codec
