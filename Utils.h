@@ -25,7 +25,7 @@ namespace Utils
 		"0123456789+/";
 	std::string DecodeBase64(const std::string& encoded);
 	void OpenURL(const std::string& url);
-
+	bool FolderExists(const std::string& path);
 	template <typename T>
 	std::string FormatWithCommas(T value)
 	{

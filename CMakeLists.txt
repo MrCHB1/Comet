@@ -69,6 +69,14 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(miniz)
 
+FetchContent_Declare(
+    rtmidi
+    GIT_REPOSITORY https://github.com/thestk/rtmidi.git
+    GIT_TAG master
+)
+
+FetchContent_MakeAvailable(rtmidi)
+
 file(GLOB IMGUI_SRC
     ${imgui_SOURCE_DIR}/*.cpp
 )
@@ -108,15 +116,16 @@ add_executable(Comet
     MIDI/SavedInputStream.cpp
     MIDI/ProgressInputStream.cpp
     Inter.hpp
+    FiraCode.hpp
     MIDI/Diagnosis/ADiagnosis.h
     MIDI/Diagnosis/ADiagnosis.cpp
     MIDI/Diagnosis/BasicDiagnosis.cpp
     App/Diagnosis/DiagnosisDialog.cpp
     App/Diagnosis/DiagnosisDialog.h
     App/UI/Dialog.h
-    
-    
- "MIDI/Diagnosis/DiagnosisField.cpp" "Utils.cpp" "MIDI/Diagnosis/Diagnoses.h" "MIDI/Diagnosis/Diagnoses.cpp" "App/Diagnosis/DiagnosisPanel.h" "App/Diagnosis/DiagnosisPanel.cpp" "App/Diagnosis/DiagnosisFieldView.h" "App/Diagnosis/DiagnosisFieldView.cpp"  "IntervalThread.h" "IntervalThread.cpp" "MIDI/AbstractMIDILoader.h" "MIDI/MIDISequence.h" "MIDI/Events/MIDIMessageEvent.h" "MIDI/Events/TrackEvent.h" "MIDI/Events/TempoEvent.h" "MIDI/Events/NoteEvent.h" "MIDI/MIDISequence.cpp" "MIDI/Diagnosis/BlackMIDIDiagnosis.h" "MIDI/Diagnosis/BlackMIDIDiagnosis.cpp" "MIDI/Diagnosis/DiagnosisMessage.h" "MIDI/Diagnosis/DiagnosisException.h" "IO/BufferedByteReader.h" "IO/BufferedByteReader.cpp" "IO/InputStream.h" "IO/InputStream.cpp" "ResourcePack/ResourcePack.h" "Render/RenderUtils.h" "ResourcePack/ResourcePackInfo.h" "ResourcePack/SignatureState.h" "ResourcePack/ResourcePack.cpp" "ResourcePack/FolderResourcePack.h" "ResourcePack/FolderResourcePack.cpp" "Config/ConfigSection.h" "Config/ConfigSection.cpp" "ResourcePack/ResourcePackVerifier.h" "ResourcePack/DefaultResourcePack.h" "ResourcePack/DefaultResourcePack.cpp" "Config/MIDIPlayerConfig.h" "Render/ColorAsset.h" "Render/GPUImage.h" "Render/GPUImage.cpp" "Render/ColorAsset.cpp" "Render/MIDIRenderer.h" "Render/MIDIRenderer.cpp" "Render/RenderEngine/Shaders.h" "Render/RenderEngine/Shaders.cpp" "Render/RenderEngine/Buffers.h" "Render/RenderEngine/Buffers.cpp" "Render/Renderer/QuadDrawer.h" "Render/Renderer/PrimitiveDrawer.h" "Render/Renderer/PrimitiveDrawer.cpp" "MIDI/MIDILoader.h" "MIDI/MIDILoader.cpp" "App/Dialog/LoadingDialog.h" "App/Dialog/LoadingDialog.cpp" "MIDI/Sequence/SequenceFuncs.h" "MIDI/Sequence/SequenceFuncs.cpp" "Render/RenderView.h" "MIDI/MIDIDefs.h" "MIDI/Timer/MIDITimer.h" "MIDI/Timer/MIDITimer.cpp" "MIDI/TempoMap.h" "MIDI/TempoMap.cpp" "App/UI/NavigationBar.h" "App/UI/NavigationBar.cpp" "Render/NoteCounter/NoteCounterInfo.h" "Render/NoteCounter/NoteCounterRenderer.h" "Render/NoteCounter/NoteCounterStyles.h" "Render/NoteCounter/NoteCounterRenderer.cpp" "Render/Renderer/PrimitiveShaders.h" "Render/BlurredQuadRenderer.h" "App/Dialog/RenderVideoDialog.h" "App/Dialog/RenderVideoDialog.cpp" "App/VideoRender/RenderSettings.h" "FFmpeg/FFmpegPipe.h" "Render/NoteCounter/NoteCounterInfo.cpp" "App/Dialog/SettingsDialog.h" "App/Dialog/SettingsDialog.cpp" "ResourcePack/ZipResourcePack.h" "ResourcePack/ZipResourcePack.cpp" "ResourcePack/ResourcePackList.h" "ResourcePack/ResourcePackList.cpp")
+    stb_image_write.h
+    ColorPalette/ColorPaletteList.h
+ "MIDI/Diagnosis/DiagnosisField.cpp" "Utils.cpp" "MIDI/Diagnosis/Diagnoses.h" "MIDI/Diagnosis/Diagnoses.cpp" "App/Diagnosis/DiagnosisPanel.h" "App/Diagnosis/DiagnosisPanel.cpp" "App/Diagnosis/DiagnosisFieldView.h" "App/Diagnosis/DiagnosisFieldView.cpp"  "IntervalThread.h" "IntervalThread.cpp" "MIDI/AbstractMIDILoader.h" "MIDI/MIDISequence.h" "MIDI/Events/MIDIMessageEvent.h" "MIDI/Events/TrackEvent.h" "MIDI/Events/TempoEvent.h" "MIDI/Events/NoteEvent.h" "MIDI/MIDISequence.cpp" "MIDI/Diagnosis/BlackMIDIDiagnosis.h" "MIDI/Diagnosis/BlackMIDIDiagnosis.cpp" "MIDI/Diagnosis/DiagnosisMessage.h" "MIDI/Diagnosis/DiagnosisException.h" "IO/BufferedByteReader.h" "IO/BufferedByteReader.cpp" "IO/InputStream.h" "IO/InputStream.cpp" "ResourcePack/ResourcePack.h" "Render/RenderUtils.h" "ResourcePack/ResourcePackInfo.h" "ResourcePack/SignatureState.h" "ResourcePack/ResourcePack.cpp" "ResourcePack/FolderResourcePack.h" "ResourcePack/FolderResourcePack.cpp" "Config/ConfigSection.h" "Config/ConfigSection.cpp" "ResourcePack/ResourcePackVerifier.h" "ResourcePack/DefaultResourcePack.h" "ResourcePack/DefaultResourcePack.cpp" "Config/MIDIPlayerConfig.h" "Render/ColorAsset.h" "Render/GPUImage.h" "Render/GPUImage.cpp" "Render/ColorAsset.cpp" "Render/MIDIRenderer.h" "Render/MIDIRenderer.cpp" "Render/RenderEngine/Shaders.h" "Render/RenderEngine/Shaders.cpp" "Render/RenderEngine/Buffers.h" "Render/RenderEngine/Buffers.cpp" "Render/Renderer/QuadDrawer.h" "Render/Renderer/PrimitiveDrawer.h" "Render/Renderer/PrimitiveDrawer.cpp" "MIDI/MIDILoader.h" "MIDI/MIDILoader.cpp" "App/Dialog/LoadingDialog.h" "App/Dialog/LoadingDialog.cpp" "MIDI/Sequence/SequenceFuncs.h" "MIDI/Sequence/SequenceFuncs.cpp" "Render/RenderView.h" "MIDI/MIDIDefs.h" "MIDI/Timer/MIDITimer.h" "MIDI/Timer/MIDITimer.cpp" "MIDI/TempoMap.h" "MIDI/TempoMap.cpp" "App/UI/NavigationBar.h" "App/UI/NavigationBar.cpp" "Render/NoteCounter/NoteCounterInfo.h" "Render/NoteCounter/NoteCounterRenderer.h" "Render/NoteCounter/NoteCounterStyles.h" "Render/NoteCounter/NoteCounterRenderer.cpp" "Render/Renderer/PrimitiveShaders.h" "Render/BlurredQuadRenderer.h" "App/Dialog/RenderVideoDialog.h" "App/Dialog/RenderVideoDialog.cpp" "App/VideoRender/RenderSettings.h" "FFmpeg/FFmpegPipe.h" "Render/NoteCounter/NoteCounterInfo.cpp" "App/Dialog/SettingsDialog.h" "App/Dialog/SettingsDialog.cpp" "ResourcePack/ZipResourcePack.h" "ResourcePack/ZipResourcePack.cpp" "ResourcePack/ResourcePackList.h" "ResourcePack/ResourcePackList.cpp" "FFmpeg/FFmpegGPU.h" "FFmpeg/FFmpegGPU.cpp" "FFmpeg/FFmpegCommandBuilder.h" "FFmpeg/FFmpegCommandBuilder.cpp" "App/Fonts.h" "App/Fonts.cpp" "ColorPalette/ColorPaletteList.cpp" "MIDI/Audio/MIDIOut.h" "MIDI/Audio/MIDIOut.cpp" "MIDI/Audio/AudioThread.h" "MIDI/Audio/AudioThread.cpp")
 
  target_include_directories(Comet PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -131,6 +140,7 @@ target_link_libraries(Comet PRIVATE
     yaml-cpp
     glm::glm
     miniz
+    rtmidi
 )
 
 target_compile_options(Comet PRIVATE 

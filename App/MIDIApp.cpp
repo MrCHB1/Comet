@@ -6,7 +6,9 @@
 #include <memory>
 #include "imgui.h"
 #include "backends/imgui_impl_opengl3.h"
+#include "FFmpeg/FFmpegCommandBuilder.h"
 #include "Utils.h"
+
 MIDIApp::MIDIApp()
 {
 	config = MIDIPlayerConfig{};
@@ -32,8 +34,9 @@ void MIDIApp::LoadMIDI(const char* path)
 		std::shared_ptr<MIDISequence> seq;
 		try
 		{
+			auto* config = this->GetConfig();
 			long startMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-			seq = loader->Load();
+			seq = loader->Load(config->midi.timeBasedLoading);
 			long endMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
 			std::cout << "Loaded in " << (endMs - startMs) << "ms" << std::endl;
@@ -41,6 +44,7 @@ void MIDIApp::LoadMIDI(const char* path)
 		catch (const std::runtime_error& e)
 		{
 			std::cout << "An error occured while loading the MIDI.\n" << e.what() << std::endl;
+			this->loading.store(false);
 			return;
 		}
 		this->loading.store(false);
@@ -56,6 +60,8 @@ void MIDIApp::LoadMIDI(const char* path)
 			this->noteCounterInfo->ppq.value = seq->resolution;
 			this->hasSequence = true;
 			this->seqLength = seq->CalcLengthMilliseconds() / 1000.0;
+
+			this->audioThread->Start(seq, this->timer);
 		}
 	}).detach();
 	return;
@@ -66,6 +72,7 @@ void MIDIApp::UnloadMIDI()
 	if (!hasSequence) return;
 	renderer->UnloadSequence();
 	hasSequence = false;
+	audioThread->Reset();
 }
 
 // called after glfw/glad initialization has finished, and is safe to load stuff, such as images, for rendering
@@ -73,6 +80,9 @@ void MIDIApp::LoadResources()
 {
 	auto defaultPack = DefaultResourcePack::Instance();
 	defaultPack->Init();
+
+	// load color palettes
+	LoadColorPalettes();
 
 	// load resource packs
 	packList = std::make_unique<ResourcePackList>();
@@ -84,11 +94,12 @@ void MIDIApp::LoadResources()
 	renderer = std::make_unique<MIDIRenderer>(this);
 	if (auto pack = std::dynamic_pointer_cast<ResourcePack>(defaultPack))
 	{
-		renderer->LoadResourcePack(pack);
+		renderer->LoadResourcePack(pack, config.render.GetUseColorsFromImage());
 	}
 	renderer->OnResize(width, height);
 	renderer->SetNoteCounter(noteCounterInfo);
 	noteCounterRenderer->OnResize(width, height);
+
 #ifdef COMET_DEBUG
 	std::cout << std::endl << "[MIDIApp] Initializing render engine...\n" << std::endl;
 #endif
@@ -104,6 +115,16 @@ void MIDIApp::LoadResources()
 #ifdef COMET_DEBUG
 	std::cout << std::endl << "[MIDIApp] Render engine initialized\n" << std::endl;
 #endif
+
+	// load audio stuff
+	midiOut = std::make_shared<MIDIOut>();
+	audioThread = std::make_unique<AudioThread>(midiOut);
+}
+
+void MIDIApp::LoadColorPalettes()
+{
+	if (colorList == nullptr)
+		colorList = std::make_shared<ColorPaletteList>();
 }
 
 void MIDIApp::Update()
@@ -115,7 +136,9 @@ void MIDIApp::Update()
 	int height = renderFramebuffer->GetHeight();
 
 	glViewport(0, 0, width, height);
-	glClearColor(bgColor.x, bgColor.y, bgColor.z, 1.0f);
+
+	float bgAlpha = (rendering && currentRenderSettings.renderTransparencyMask) ? 0.0f : 1.0f;
+	glClearColor(bgColor.x, bgColor.y, bgColor.z, bgAlpha);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	renderer->Render();
@@ -265,7 +288,7 @@ void MIDIApp::CaptureFrame()
 	}
 
 	currentFrame++;
-	std::cout << "Rendered frame " << currentFrame << std::endl;
+	if (currentFrame % 10 == 0) std::cout << "Rendered frame " << currentFrame << std::endl;
 }
 
 // Will render to a video until cancelled
@@ -280,7 +303,7 @@ void MIDIApp::RenderMIDIVideo(const RenderSettings& renderSettings)
 	this->exportPixels.resize(renderSettings.width * renderSettings.height * 4);
 
 	// setup FFmpeg
-	std::string cmd = BuildFFmpegCommand(renderSettings);
+	std::string cmd = FFmpegCommandBuilder::BuildFFmpegCommand(renderSettings);
 	std::cout << "Running FFmpeg command: " << cmd << std::endl;
 	ffmpegPipe = std::make_unique<FFmpegPipe>();
 	if (!ffmpegPipe->Open(cmd))
@@ -306,6 +329,7 @@ void MIDIApp::PrepareRendering()
 
 	lastRenderStartTimeMs = (double)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
 	if (!timer->IsPaused()) timer->Pause();
+	audioThread->MuteAudio();
 }
 
 void MIDIApp::FinalizeRendering()
@@ -324,4 +348,6 @@ void MIDIApp::FinalizeRendering()
 
 	double endRenderTime = (double)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
 	std::cout << "Rendered MIDI in " << Utils::FormatDuration2(endRenderTime - lastRenderStartTimeMs) << "!" << std::endl;
+
+	audioThread->UnmuteAudio();
 }

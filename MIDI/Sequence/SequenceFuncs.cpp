@@ -4,18 +4,18 @@
 std::vector<std::vector<NoteEvent>> SequenceFuncs::DistributeNotes(std::vector<NoteEvent>&& notes)
 {
     std::vector<std::vector<NoteEvent>> result(128);
-    std::array<size_t, 128> counts{};
+    size_t counts[128]{0};
+    const size_t numNotes = notes.size();
+    NoteEvent* const rawNotes = notes.data();
 
-    for (const auto& note : notes)
-        counts[note.note]++;
+    for (size_t i = 0; i < numNotes; i++)
+        counts[rawNotes[i].note]++;
 
     for (int i = 0; i < 128; i++)
-        result[i].reserve(counts[i]);
+        if (counts[i] > 0) result[i].reserve(counts[i]);
 
-    for (NoteEvent& note : notes)
-    {
-        auto idx = note.note;
-        result[idx].push_back(std::move(note));
+    for (size_t i = 0; i < numNotes; ++i) {
+        result[rawNotes[i].note].emplace_back(std::move(rawNotes[i]));
     }
 
     return result;

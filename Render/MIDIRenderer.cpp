@@ -40,6 +40,8 @@ void MIDIRenderer::LoadSequence(std::shared_ptr<MIDISequence> sequence)
 
 	for (auto& id : endRenderIDs)
 		id = 0;
+
+	isTimeBased = seq->timeBased;
 }
 
 void MIDIRenderer::UnloadSequence()
@@ -49,7 +51,7 @@ void MIDIRenderer::UnloadSequence()
 	noteCounterInfo->ResetCounter(); // this should probably belong in MIDIApp.cpp lol
 }
 
-void MIDIRenderer::LoadResourcePack(std::shared_ptr<ResourcePack> pack)
+void MIDIRenderer::LoadResourcePack(std::shared_ptr<ResourcePack> pack, bool loadColors)
 {
 	if (pack == nullptr)
 	{
@@ -75,28 +77,44 @@ void MIDIRenderer::LoadResourcePack(std::shared_ptr<ResourcePack> pack)
 
 	// attempt to load note colors
 	// TODO: move this to its own function
-	auto noteColorStream = pack->GetStream("noteColors.png");
-	bool canLoadNoteColors = noteColorStream != nullptr;
-	if (!canLoadNoteColors)
+	if (loadColors)
 	{
+		auto noteColorStream = pack->GetStream("noteColors.png");
+		bool canLoadNoteColors = noteColorStream != nullptr;
+		if (!canLoadNoteColors)
+		{
 #ifdef COMET_DEBUG
-		std::cout << "Pack has no noteColors.png. Will use randomized colors" << std::endl;
+			std::cout << "Pack has no noteColors.png. Will use randomized colors" << std::endl;
 #endif
-		colors.ResetColors();
-	}
-	else
-	{
-		bool loopColors = pack->GetNoteInfo()->loopColors;
-		colors.LoadColors(noteColorStream, loopColors);
+			colors.ResetColors();
+		}
+		else
+		{
+			bool loopColors = pack->GetNoteInfo()->loopColors;
+			colors.LoadColors(noteColorStream, loopColors);
 #ifdef COMET_DEBUG
-		std::cout << "Loaded " << colors.GetNumLoadedColors() << " color(s) with looping " << (loopColors ? "enabled" : "disabled") << std::endl;
+			std::cout << "Loaded " << colors.GetNumLoadedColors() << " color(s) with looping " << (loopColors ? "enabled" : "disabled") << std::endl;
 #endif
+		}
 	}
 
 	this->pack = pack;
 
 	if (initialized) CalcKeyPosAndWidth();
 	std::cout << "Loaded pack " << pack->GetName() << std::endl;
+}
+
+void MIDIRenderer::LoadColors(const std::vector<std::array<float, 3>>& colors)
+{
+	if (colors.empty())
+	{
+		this->colors.ResetColors();
+		this->colors.LoadColors();
+	}
+	else
+	{
+		this->colors.LoadColors(colors, true);
+	}
 }
 
 void MIDIRenderer::LoadMaskTexture(ResourcePack* pack, std::unique_ptr<GPUImage>& mask, const char* name)
@@ -532,6 +550,9 @@ void MIDIRenderer::RenderNotes()
 	size_t polyphony = 0;
 	size_t batchCount = 0;
 
+	double accTime = isTimeBased ? playbackSeconds : time;
+	double viewRegion = isTimeBased ? (double)renderView->viewTicks / 1000 : (double)renderView->viewTicks;
+
 	for (uint8_t id : kbIDs)
 	{
 		std::vector<NoteEvent>& notesNote = notes[id];
@@ -539,31 +560,61 @@ void MIDIRenderer::RenderNotes()
 		#pragma region Note culling
 
 		size_t noteBegin = startRenderIDs[id];
+
 		if (lastTime < time)
 		{
-			while (noteBegin < notesNote.size() && notesNote[noteBegin].tick + notesNote[noteBegin].gate <= time)
+			while (noteBegin < notesNote.size())
 			{
+				auto& n = notesNote[noteBegin];
+				double noteEnd = isTimeBased
+					? (double)(n.tick + n.gate) / TIME_BASED_MULTIPLIER
+					: (double)(n.tick + n.gate);
+
+				if (noteEnd > accTime) break; // Note is still on screen
 				++noteBegin;
 			}
 		}
 		else if (lastTime > time)
 		{
-			while (noteBegin > 0 &&
-				notesNote[noteBegin - 1].tick + notesNote[noteBegin - 1].gate > time)
+			while (noteBegin > 0)
 			{
+				auto& n = notesNote[noteBegin - 1];
+				double noteEnd = isTimeBased
+					? (double)(n.tick + n.gate) / TIME_BASED_MULTIPLIER
+					: (double)(n.tick + n.gate);
+
+				if (noteEnd <= accTime) break;
 				--noteBegin;
 			}
 		}
-		
-		auto endIt = std::upper_bound(
-			notesNote.begin() + noteBegin,
-			notesNote.end(),
-			time + renderView->viewTicks,
-			[](long tick, const NoteEvent& n)
-			{
-				return tick < n.tick;
-			}
-		);
+
+		auto searchStart = notesNote.begin() + noteBegin;
+		auto endIt = notesNote.end();
+
+		if (isTimeBased)
+		{
+			double targetSecs = playbackSeconds + viewRegion;
+
+			long target10Us = static_cast<long>(targetSecs * TIME_BASED_MULTIPLIER);
+
+			endIt = std::upper_bound(searchStart, notesNote.end(), target10Us,
+				[](long target, const NoteEvent& n)
+				{
+					return target < n.tick;
+				}
+			);
+		}
+		else
+		{
+			long targetTick = time + renderView->viewTicks;
+
+			endIt = std::upper_bound(searchStart, notesNote.end(), targetTick,
+				[](long target, const NoteEvent& n)
+				{
+					return target < n.tick;
+				}
+			);
+		}
 
 		size_t noteEnd = endIt - notesNote.begin();
 		startRenderIDs[id] = noteBegin;
@@ -572,16 +623,31 @@ void MIDIRenderer::RenderNotes()
 
 		#pragma endregion
 
+
 		// actually render each note
 		for (auto note = notesNote.begin() + noteBegin; note != notesNote.begin() + noteEnd; ++note)
 		{
 			auto& n = *note;
-			if (n.tick + n.gate <= time)
+			double noteStart = 0.0;
+			double noteEnd = 0.0;
+
+			if (isTimeBased)
+			{
+				noteStart = (double)note->tick / (double)TIME_BASED_MULTIPLIER;
+				noteEnd = (double)(note->tick + note->gate) / (double)TIME_BASED_MULTIPLIER;
+			}
+			else
+			{
+				noteStart = note->tick;
+				noteEnd = note->tick + note->gate;
+			}
+
+			if (noteEnd <= accTime)
 			{
 				notesPassed++;
 				continue;
 			}
-			if (n.tick <= time)
+			if (noteStart <= accTime)
 			{
 				keyMetas[n.note].MarkPressed(true);
 				keyMetas[n.note].color = colors.GetColor(note->track, note->channel);
@@ -594,8 +660,8 @@ void MIDIRenderer::RenderNotes()
 			renderNotes[noteID++] = RenderNote(
 				keyPos[id],
 				keyPos[id] + keyWidth[id],
-				(float)(n.tick - time) / (float)renderView->viewTicks,
-				(float)(n.tick + n.gate - time) / (float)renderView->viewTicks,
+				(float)(noteStart - accTime) / (float)viewRegion,
+				(float)(noteEnd - accTime) / (float)viewRegion,
 				colors.GetColor(note->track, note->channel)
 			);
 			

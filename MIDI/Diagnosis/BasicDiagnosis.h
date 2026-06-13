@@ -25,7 +25,7 @@ public:
 	{
 		std::shared_ptr<std::ifstream> fileStream = std::make_shared<std::ifstream>(filePath, std::ios::binary);
 		fileStream->seekg(0, std::ios::end);
-		long fileLength = fileStream->tellg();
+		size_t fileLength = fileStream->tellg();
 		fileStream->seekg(0, std::ios::beg);
 
 		pis = std::make_shared<ProgressInputStream>(fileStream, fileLength);
@@ -47,7 +47,7 @@ private:
 	std::vector<std::vector<int>> noteons;
 	bool reachedEoT = false;
 	bool foundUnexpectedStatusByte = false;
-	long notes;
+	long long notes;
 	long long memory;
 	std::vector<int> tracksHuge;
 	std::vector<long> trackSizes;

@@ -7,10 +7,9 @@
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "Render/Renderer/PrimitiveShaders.h"
-
+#include "Fonts.h"
 #include <iostream>
 #include "nfd.h"
-#include "../Inter.hpp"
 #include "Comet.h"
 
 MainWindow::MainWindow(const char* title)
@@ -247,12 +246,7 @@ void MainWindow::RenderUI()
 
 void MainWindow::InitializeTheme()
 {
-	ImGuiIO& io = ImGui::GetIO();
-
-	ImFontConfig cfg;
-	cfg.FontDataOwnedByAtlas = false;
-	ImFont* font = io.Fonts->AddFontFromMemoryTTF((void*)Inter_18pt_Regular_ttf_data, Inter_18pt_Regular_ttf_size, 18.0f, &cfg);
-	io.FontDefault = font;
+	Fonts::LoadFonts();
 
 	ImGuiStyle& style = ImGui::GetStyle();
 

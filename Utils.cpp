@@ -3,6 +3,7 @@
 #include <iostream>
 #include <optional>
 #include <vector>
+#include <filesystem>
 
 #if defined(_WIN32)
     #include <windows.h>
@@ -277,5 +278,10 @@ namespace Utils
         std::string command = "xdg-open " + url;
         system(command.c_str());
 #endif
+    }
+
+    bool FolderExists(const std::string& path)
+    {
+        return std::filesystem::exists(path) && std::filesystem::is_directory(path);
     }
 }

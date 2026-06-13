@@ -13,7 +13,7 @@ public:
 	ColorAsset() : mt(rd()), random(0.0f, 1.0f) {}
 	void ResetColors();
 	void LoadColors(uint16_t trackCount = 16);
-	void LoadColors(const std::vector<std::array<float, 3>>& colors, bool loopColors = false);
+	void LoadColors(const std::vector<std::array<float, 3>>& colors, bool loopColors = false, size_t requiredCount = 16 * 32);
 	void LoadColors(std::shared_ptr<std::istream> paletteFile, bool loopColors = false);
 	size_t GetNumLoadedColors() { return numLoadedColors; }
 	uint32_t GetColor(uint16_t track, uint8_t channel);

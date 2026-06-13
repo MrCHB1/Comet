@@ -15,6 +15,20 @@ public:
 	void TogglePause();
 
 	void NavigateTo(double timeSeconds);
+	
+	bool HasNavigatedRecently()
+	{
+		bool nav = hasNavigated;
+		hasNavigated = false;
+		return nav;
+	}
+
+	bool PauseRequestedRecently()
+	{
+		bool pauseReq = pauseRequested;
+		pauseRequested = false;
+		return pauseReq;
+	}
 
 	bool IsRunning() const { return running; }
 	bool IsPaused() const { return paused; }
@@ -31,4 +45,6 @@ private:
 
 	bool running = false;
 	bool paused = true;
+	bool pauseRequested = false;
+	bool hasNavigated = false;
 };

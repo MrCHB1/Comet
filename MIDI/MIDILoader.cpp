@@ -24,7 +24,7 @@ MIDILoader::MIDILoader(std::shared_ptr<InputStream> is)
 	this->is = is;
 }
 
-std::shared_ptr<MIDISequence> MIDILoader::Load()
+std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 {
 	running = true;
 
@@ -49,10 +49,8 @@ std::shared_ptr<MIDISequence> MIDILoader::Load()
 		if (!channels[c]) channels[c] = std::make_unique<MIDITrack>();
 	}
 
-	unendedNotes.reserve(128 << 4);
-
 	SetName("Loading MIDI File");
-	unendedNotes.clear();
+	ClearUnendedNotes();
 	currNoteId = 0;
 	noteons.clear();
 
@@ -83,6 +81,11 @@ std::shared_ptr<MIDISequence> MIDILoader::Load()
 	#pragma endregion
 
 	#pragma region Track Parse
+
+	for (int c = 0; c < 16; c++)
+	{
+		if (!channels[c]) channels[c] = std::make_unique<MIDITrack>();
+	}
 
 	std::vector<int> illegalTracks{};
 	int noteTrackIdx = 0;
@@ -125,10 +128,9 @@ std::shared_ptr<MIDISequence> MIDILoader::Load()
 				c++;
 			}
 
-			if (channels[j])
+			if (!channelTrack->notes.empty() || !channelTrack->messages.empty())
 			{
-				seq->tracks.push_back(std::move(*channels[j]));
-				channels[j].reset();
+				seq->tracks.push_back(std::move(*channelTrack));
 			}
 		}
 		noteons.clear();
@@ -153,13 +155,15 @@ std::shared_ptr<MIDISequence> MIDILoader::Load()
 
 	seq->noteTrackCount = noteTrackIdx;
 	std::cout << "\nLoaded all tracks, sorting tempo events." << std::endl;
-	SetName(("Preprocessing events of " + std::string(GetName())).c_str());
+	SetName("Starting event preprocessing");
 	auto& tempos = seq->tempos;
 	std::sort(tempos.begin(), tempos.end(), [](auto& a, auto& b) { return a.tick < b.tick; });
 	for (int i = 0; i < seq->tracks.size(); i++)
 	{
 		prog = (double)i / (double)seq->tracks.size();
-		std::cout << "  Preprocessing notes of track " << (i + 1) << "/" << seq->tracks.size() << std::endl;
+		auto status = std::string("Preprocessing notes of track ") + std::to_string(i + 1) + "/" + std::to_string(seq->tracks.size());
+		std::cout << "  " << status << std::endl;
+		SetName(status.c_str());
 		auto& track = seq->tracks[i];
 		std::sort(track.notes.begin(), track.notes.end(), [](auto& a, auto& b) { return a.tick < b.tick; });
 	}
@@ -170,26 +174,45 @@ std::shared_ptr<MIDISequence> MIDILoader::Load()
 	#pragma endregion
 
 	#pragma region Merge events
-
-	SetName("Merging events");
+	SetName("Merging events...");
 	std::cout << "  Parsing finished! Merging events..." << std::endl;
 	std::vector<std::vector<NoteEvent>> toMerge(seq->tracks.size());
+	std::vector<std::vector<MIDIMessageEvent>> eventsToMerge(seq->tracks.size());
 	// gather notes from tracks
 	i = 0;
 	for (auto& tracks : seq->tracks)
 	{
+		eventsToMerge[i] = std::move(tracks.messages);
 		toMerge[i++] = std::move(tracks.notes);
 	}
 	std::vector<NoteEvent> mergedNotes = SequenceFuncs::FlattenSequence(std::move(toMerge));
+	std::vector<MIDIMessageEvent> mergedEvents = SequenceFuncs::FlattenSequence(std::move(eventsToMerge));
 	SetName("Finishing up!");
 	std::cout << "  Finishing up" << std::endl;
 	seq->mergedNotes = SequenceFuncs::DistributeNotes(std::move(mergedNotes));
+	seq->mergedEvents = std::move(mergedEvents);
 	// really weird way to do this but ok
 	seq->tempoMap = std::make_shared<TempoMap>();
 	seq->tempoMap->RebuildTempoMap(seq.get());
 	#pragma endregion
 
-#ifdef COMET_DEBUG
+	#pragma region Time-based loading if enabled
+	if (timeBasedLoading)
+	{
+		SetName("Applying tempo events...");
+		std::cout << "Applying tempo events..." << std::endl;
+		std::cout << "  Processing notes" << std::endl;
+		for (auto& notes : seq->mergedNotes)
+		{
+			SequenceFuncs::ApplyTempoEvents(seq->resolution, seq->GetTempoMap(), notes);
+		}
+		std::cout << "  Processing events" << std::endl;
+		SequenceFuncs::ApplyTempoEvents(seq->resolution, seq->GetTempoMap(), seq->mergedEvents);
+	}
+	#pragma endregion
+
+	seq->timeBased = timeBasedLoading;
+
 	std::cout << "MIDI has successfully loaded." << std::endl;
 	std::cout << "  " << seq->tempos.size() << " Tempo events" << std::endl;
 	std::cout << "  Notes: " << seq->notes << std::endl;
@@ -208,7 +231,6 @@ std::shared_ptr<MIDISequence> MIDILoader::Load()
 		}
 		std::cout << ". This means this MIDI can't be loaded in Domino :(" << std::endl;
 	}
-#endif
 
 	prog = 1;
 
@@ -217,7 +239,8 @@ std::shared_ptr<MIDISequence> MIDILoader::Load()
 
 void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 {
-	unendedNotes.clear();
+	ClearUnendedNotes();
+
 	currNoteId = 0;
 	noteons.clear();
 
@@ -230,10 +253,10 @@ void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 	is->Read(hdr, 4);
 	const uint32_t trackLength = ToInt(hdr);
 
-	std::vector<uint8_t> trackData(trackLength);
-	is->Read(trackData.data(), trackLength); // may take up more memory than the buffered reader approach but oh well
+	auto trackData = std::make_unique<uint8_t[]>(trackLength);
+	is->Read(trackData.get(), trackLength); // may take up more memory than the buffered reader approach but oh well
 
-	const uint8_t* p = trackData.data();
+	const uint8_t* p = trackData.get();
 	const uint8_t* end = p + trackLength;
 
 	bool read = true;
@@ -357,8 +380,8 @@ void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 						}
 
 						noteons.emplace_back(track, channel, tick, data1, 0, vel);
-						std::stack<size_t>& un = unendedNotes[((uint16_t)(data1) << 4) | (uint16_t)channel];
-						un.push(currNoteId);
+						uint16_t index = ((uint16_t)data1 << 4) | channel;
+						unendedNotes[index].push_back(currNoteId);
 						currNoteId++;
 						continue;
 					}
@@ -406,11 +429,13 @@ void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 
 void MIDILoader::NoteOff(uint8_t ch, uint8_t key, long tick)
 {
-	std::stack<size_t>& un = unendedNotes[((uint16_t)(key) << 4) | (uint16_t)ch];
+	// std::stack<size_t>& un = unendedNotes[((uint16_t)(key) << 4) | (uint16_t)ch];
+	uint16_t index = ((uint16_t)key << 4) | ch;
+	std::vector<size_t>& un = unendedNotes[index];
 	if (un.empty()) return;
 
-	size_t n = un.top();
-	un.pop();
+	size_t n = un.back();
+	un.pop_back();
 	if (n >= noteons.size()) return;
 
 	NoteEvent& note = noteons[n];
@@ -427,7 +452,5 @@ void MIDILoader::NoteOff(uint8_t ch, uint8_t key, long tick)
 
 MIDITrack* MIDILoader::GetChannelTrack(uint8_t ch)
 {
-	if (!(channels[ch]))
-		channels[ch] = std::make_unique<MIDITrack>();
 	return channels[ch].get();
 }

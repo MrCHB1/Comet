@@ -21,7 +21,8 @@ struct MIDIPlayerConfig
 
 	struct ConfigMIDI
 	{
-		int loaderThreads = 0;
+		bool multithreadedLoading = false;
+		bool timeBasedLoading = false;
 		bool loadNotesOnly = false;
 		bool usePlayThread = true;
 		std::string synth;
@@ -73,15 +74,21 @@ struct MIDIPlayerConfig
 			barColor.z = b;
 		}
 
+		bool GetUseColorsFromImage() { return useColorsFromImage; }
+		void SetUseColorsFromImage(bool useColors) { useColorsFromImage = useColors; }
+
 		bool showCounter = true;
+		bool loopColors = true;
 	private:
 		int width = 1280;
 		int height = 720;
 		int fpsLimit = 120;
 		double renderInterval = 5.0;
 		ImVec4 background = ImVec4(0.0, 0.0, 0.0, 1.0);
-		ImVec4 barColor = ImVec4(0.8, 0.0, 0.0, 1.0);
+		ImVec4 barColor = ImVec4(0.52, 0.0, 0.0, 1.0);
+		
 		bool usePFAColors = false;
+		bool useColorsFromImage = false;
 		
 		std::string resourcePack = "";
 		std::string font = "Monospaced";

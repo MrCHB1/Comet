@@ -1,4 +1,5 @@
 #include "RenderVideoDialog.h"
+#include "FFmpeg/FFmpegCommandBuilder.h"
 #include "Utils.h"
 #include <filesystem>
 
@@ -35,6 +36,11 @@ void RenderVideoDialog::OnOpen()
 	DetectFFmpeg();
 }
 
+void RenderVideoDialog::OnRegister()
+{
+	// gpuEncoder = std::make_unique<FFmpegGPU>();
+}
+
 void RenderVideoDialog::DetectFFmpeg()
 {
 	std::filesystem::path binDir = GetBinaryDirectory();
@@ -51,6 +57,33 @@ void RenderVideoDialog::DetectFFmpeg()
 #endif
 
 	hasFFmpeg = std::filesystem::exists(ffmpegPath) && std::filesystem::is_regular_file(ffmpegPath);
+}
+
+void RenderVideoDialog::AddFilePickerField(const char* label, std::filesystem::path& path, const char* extension, bool saving)
+{
+	ImGui::Text(label);
+	ImGui::SameLine();
+	ImGui::PushID(label);
+	if (ImGui::Button("Browse..."))
+	{
+		std::string filePath;
+		bool result = saving ? Utils::SaveFile(filePath, extension) : Utils::ChooseFile(filePath, extension);
+		if (result)
+		{
+#if defined(_WIN32) && defined(__cpp_lib_filesystem) && (__cplusplus >= 202002L || _MSVC_LANG >= 202002L)
+			path = std::filesystem::path(std::u8string(filePath.begin(), filePath.end()));
+#else
+			path = std::filesystem::u8path(filePath);
+#endif
+		}
+	}
+	
+	ImGui::SameLine();
+
+	auto u8str = path.u8string();
+	std::string buf(u8str.begin(), u8str.end());
+	ImGui::InputText("##pickedFilePath", buf.data(), buf.size(), ImGuiInputTextFlags_ReadOnly);
+	ImGui::PopID();
 }
 
 void RenderVideoDialog::DrawContent()
@@ -105,28 +138,9 @@ void RenderVideoDialog::DrawContent()
 	ImGui::Text("Include Audio");
 	ImGui::SameLine();
 	ImGui::Checkbox("##includeAudio", &renderSettings.includeAudio);
-	
 	if (renderSettings.includeAudio)
 	{
-		ImGui::PushID("btn_audioBrowse");
-		if (ImGui::Button("Browse..."))
-		{
-			std::string inPath;
-			if (Utils::ChooseFile(inPath, "wav,mp3,ogg,flac"))
-			{
-#if defined(_WIN32) && defined(__cpp_lib_filesystem) && (__cplusplus >= 202002L || _MSVC_LANG >= 202002L)
-				renderSettings.audioPath = std::filesystem::path(std::u8string(inPath.begin(), inPath.end()));
-#else
-				renderSettings.audioPath = std::filesystem::u8path(inPath);
-#endif
-			}
-		}
-		ImGui::PopID();
-		ImGui::SameLine();
-
-		auto u8str = renderSettings.audioPath.u8string();
-		std::string buf(u8str.begin(), u8str.end());
-		ImGui::InputText("##audioInpath", buf.data(), buf.size(), ImGuiInputTextFlags_ReadOnly);
+		AddFilePickerField("", renderSettings.audioPath, "mp3,ogg,wav,flac");
 	}
 
 	ImGui::Separator();
@@ -153,21 +167,71 @@ void RenderVideoDialog::DrawContent()
 		if (ImGui::RadioButton("avi", renderSettings.outputFormat == RenderOutputFormat::AVI))
 			renderSettings.outputFormat = RenderOutputFormat::AVI;
 
+		ImGui::Text("Use GPU-Accelerated Encoders");
+		ImGui::SameLine();
+		ImGui::Checkbox("##gpuEncoding", &renderSettings.useGPUEncoding);
+
 		ImGui::Text("Codec");
 
-		ImGui::SameLine();
-		if (ImGui::RadioButton("H.264", renderSettings.codec == RenderCodec::H264))
-			renderSettings.codec = RenderCodec::H264;
+		if (renderSettings.useGPUEncoding)
+		{
+			if (gpuEncoder == nullptr)
+			{
+				gpuEncoder = std::make_unique<FFmpegGPU>();
+				renderSettings.gpuEncoder = gpuEncoder->GetCurrentEncoder();
+			}
+			
+			bool gpuEncoderAvailable = true;
+			if (gpuEncoder != nullptr)
+			{
+				const std::vector<std::string>& encoderList = gpuEncoder->GetEncoderList();
+				if (encoderList.size() == 0)
+				{
+					gpuEncoderAvailable = false;
+				}
+				else
+				{
+					for (const auto& encoder : encoderList)
+					{
+						ImGui::SameLine();
+						if (ImGui::RadioButton(encoder.c_str(), encoder == renderSettings.gpuEncoder))
+							renderSettings.gpuEncoder = encoder;
+					}
+				}
+			}
+			else
+			{
+				gpuEncoderAvailable = false;
+			}
 
-		ImGui::SameLine();
-		if (ImGui::RadioButton("H.265", renderSettings.codec == RenderCodec::H265))
-			renderSettings.codec = RenderCodec::H265;
+			if (!gpuEncoderAvailable)
+			{
+				ImGui::SameLine();
+				ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.0f, 1.0f), "GPU Encoding is not currently available on your system. Ensure FFmpeg is installed properly and your drivers are updated.");
+			}
+		}
+		else
+		{
+			ImGui::SameLine();
+			if (ImGui::RadioButton("H.264", renderSettings.codec == RenderCodec::H264))
+				renderSettings.codec = RenderCodec::H264;
+
+			ImGui::SameLine();
+			if (ImGui::RadioButton("H.265", renderSettings.codec == RenderCodec::H265))
+				renderSettings.codec = RenderCodec::H265;
+		}
+		
 
 		ImGui::Checkbox("Type encoding options (for advanced FFMpeg users)", &renderSettings.allowAdvancedEncoding);
 		if (renderSettings.allowAdvancedEncoding)
 		{
-			char* buf = renderSettings.advancedEncodingOptions.data();
-			ImGui::InputTextMultiline("##advancedOptions", buf, renderSettings.advancedEncodingOptions.size() + 1);
+			// char* buf = renderSettings.advancedEncodingOptions.data();
+			static char buf[4096];
+			strncpy(buf, renderSettings.advancedEncodingOptions.c_str(), sizeof(buf));
+			if (ImGui::InputTextMultiline("##advancedOptions", buf, sizeof(buf)))
+			{
+				renderSettings.advancedEncodingOptions = buf;
+			}
 		}
 
 		ImGui::Separator();
@@ -176,7 +240,7 @@ void RenderVideoDialog::DrawContent()
 
 		ImGui::Text("Preset");
 		ImGui::SameLine();
-		if (ImGui::BeginCombo("##presetCombo", GetPreset(renderSettings.encodingPreset)))
+		if (ImGui::BeginCombo("##presetCombo", FFmpegCommandBuilder::GetPreset(renderSettings.encodingPreset)))
 		{
 			for (int i = 0; i <= RenderEncodingPreset::PLACEBO; i++)
 			{
@@ -245,45 +309,33 @@ void RenderVideoDialog::DrawContent()
 		ImGui::InputInt("##framerate", &renderSettings.fps, 0, 0);
 		if (renderSettings.fps < 1) renderSettings.fps = 1;
 
-		ImGui::Text("Output path");
-		ImGui::SameLine();
-		if (ImGui::Button("Browse..."))
+		const char* extension;
+		switch (renderSettings.outputFormat)
 		{
-			std::string savePath = "";
-			const char* extension;
-			switch (renderSettings.outputFormat)
-			{
-				case RenderOutputFormat::MP4: extension = "mp4"; break;
-				case RenderOutputFormat::MOV: extension = "mov"; break;
-				case RenderOutputFormat::AVI: extension = "avi"; break;
-			}
-			if (Utils::SaveFile(savePath, extension))
-			{
-#if defined(_WIN32) && defined(__cpp_lib_filesystem) && (__cplusplus >= 202002L || _MSVC_LANG >= 202002L)
-				renderSettings.outputPath = std::filesystem::path(std::u8string(savePath.begin(), savePath.end()));
-#else
-				renderSettings.outputPath = std::filesystem::u8path(savePath);
-#endif
-			}
+			case RenderOutputFormat::AVI: extension = "avi"; break;
+			case RenderOutputFormat::MP4: extension = "mp4"; break;
+			case RenderOutputFormat::MOV: extension = "mov"; break;
 		}
-		ImGui::SameLine();
-		{
-			auto u8str = renderSettings.outputPath.u8string();
-			std::string buf(u8str.begin(), u8str.end());
-			ImGui::InputText("##videoOutpath", buf.data(), buf.size(), ImGuiInputTextFlags_ReadOnly);
-		}
+
+		AddFilePickerField("Output path", renderSettings.outputPath, extension, true);
 		if (renderSettings.outputPath.empty())
 		{
 			ImGui::TextColored(ImVec4(0.5f, 0.0f, 0.0f, 1.0f), "Please specify the video's output path.");
 			canRender = false;
 		}
 
-		ImGui::BeginDisabled(true);
-		ImGui::Text("Also render transparency mask (WIP)");
+		ImGui::Text("Render transparency mask");
 		ImGui::SameLine();
-		bool test = false;
-		ImGui::Checkbox("##transparencyMaskCheckbox", &test);
-		ImGui::EndDisabled();
+		ImGui::Checkbox("##transparencyMaskCheckbox", &renderSettings.renderTransparencyMask);
+		if (renderSettings.renderTransparencyMask)
+		{
+			AddFilePickerField("Mask output path", renderSettings.maskOutputPath, extension, true);
+			if (renderSettings.maskOutputPath.empty())
+			{
+				ImGui::TextColored(ImVec4(0.5f, 0.0f, 0.0f, 1.0f), "Please specify the transparency mask's output path.");
+				canRender = false;
+			}
+		}
 
 		ImGui::EndChild();
 	}

@@ -88,7 +88,7 @@ void ColorAsset::LoadColors(uint16_t trackCount)
 	}
 }
 
-void ColorAsset::LoadColors(const std::vector<std::array<float, 3>>& colors, bool loopColors)
+void ColorAsset::LoadColors(const std::vector<std::array<float, 3>>& colors, bool loopColors, size_t requiredCount)
 {
 	this->loopColors = loopColors;
 	this->colors.clear();
@@ -99,6 +99,12 @@ void ColorAsset::LoadColors(const std::vector<std::array<float, 3>>& colors, boo
 	}
 	numLoadedColors = colors.size();
 	hasColors = !colors.empty();
+
+	if (!loopColors)
+	{
+		while (this->colors.size() < requiredCount)
+			this->colors.push_back(CreateRandomColor());
+	}
 }
 
 void ColorAsset::LoadColors(std::shared_ptr<std::istream> paletteFile, bool loopColors)

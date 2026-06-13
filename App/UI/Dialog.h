@@ -15,6 +15,7 @@ public:
 	virtual ImGuiWindowFlags GetWindowFlags() { return ImGuiWindowFlags_AlwaysAutoResize; }
 	virtual ImVec2 GetInitialSize() { return ImVec2(0, 0); }
 	virtual void OnOpen() {}
+	virtual void OnRegister() {}
 
 	Dialog(const std::string& dlgId) : dlgId(dlgId) {}
 	virtual ~Dialog() = default;
@@ -89,6 +90,7 @@ public:
 		static_assert(std::is_base_of_v<Dialog, T>);
 
 		auto dialog = std::make_unique<T>(std::forward<Args>(args)...);
+		dialog->OnRegister();
 		dialogRegistry[dialog->GetID()] = std::move(dialog);
 	}
 	

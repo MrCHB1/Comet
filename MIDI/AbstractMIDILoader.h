@@ -26,13 +26,16 @@ public:
 	}
 	static inline uint32_t ReadVariableLengthValue(const uint8_t*& p, const uint8_t* end)
 	{
-		uint32_t value = 0;
-		for (int i = 0; i < 4; i++)
+		uint32_t value = *p++;
+		if (value & 0x80)
 		{
-			if (p >= end) throw std::runtime_error("Unexpected end of track while reading VLQ");
-			uint8_t b = *p++;
-			value = (value << 7) | (b & 0x7F);
-			if ((b & 0x80) == 0) return value;
+			value &= 0x7F;
+			uint8_t c;
+			do
+			{
+				c = *p++;
+				value = (value << 7) | (c & 0x7F);
+			} while (c & 0x80);
 		}
 		return value;
 	}
@@ -70,7 +73,7 @@ public:
 	{
 		this->loadOnlyNotes = loadOnlyNotes;
 	}
-	virtual std::shared_ptr<MIDISequence> Load() = 0;
+	virtual std::shared_ptr<MIDISequence> Load(bool timeBasedLoading = false) = 0;
 protected:
 	bool loadOnlyNotes = false;
 	struct MIDIStreamInfo

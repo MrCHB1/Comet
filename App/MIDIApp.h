@@ -3,6 +3,7 @@
 #include "../ResourcePack/DefaultResourcePack.h"
 #include "../Render/MIDIRenderer.h"
 #include "../ResourcePack/ResourcePackList.h"
+#include "ColorPalette/ColorPaletteList.h"
 #include "../MIDI/MIDILoader.h"
 #include "../MIDI/Timer/MIDITimer.h"
 #include "App/UI/NavigationBar.h"
@@ -12,6 +13,8 @@
 #include "Render/BlurredQuadRenderer.h"
 #include "VideoRender/RenderSettings.h"
 #include "FFmpeg/FFmpegPipe.h"
+#include "MIDI/Audio/MIDIOut.h"
+#include "MIDI/Audio/AudioThread.h"
 #include <memory>
 #include <mutex>
 #include <atomic>
@@ -27,6 +30,8 @@ public:
 	}
 
 	void LoadResources();
+
+	void LoadColorPalettes();
 	void LoadMIDI(const char* path);
 	void UnloadMIDI();
 	void RenderMIDIVideo(const RenderSettings& renderSettings);
@@ -34,6 +39,16 @@ public:
 	void SetWindow(GLFWwindow* window)
 	{
 		this->window = window;
+	}
+
+	NoteCounterInfo* GetNoteCounterInfo()
+	{
+		return noteCounterInfo.get();
+	}
+
+	NoteCounterRenderer* GetNoteCounterRenderer()
+	{
+		return noteCounterRenderer.get();
 	}
 
 	MIDIPlayerConfig* GetConfig()
@@ -59,6 +74,11 @@ public:
 	ResourcePackList* GetPackList()
 	{
 		return packList.get();
+	}
+
+	ColorPaletteList* GetColorList()
+	{
+		return colorList.get();
 	}
 
 	const RenderSettings& GetCurrentRenderSettings() const { return currentRenderSettings; }
@@ -98,9 +118,12 @@ private:
 	std::unique_ptr<NoteCounterRenderer> noteCounterRenderer;
 	std::unique_ptr<BlurredQuadRenderer> blurredQuadRenderer; // for everything including note counter background, etc.
 	std::unique_ptr<ResourcePackList> packList;
+	std::shared_ptr<ColorPaletteList> colorList;
 	std::shared_ptr<RenderView> renderView;
 	std::shared_ptr<Progress> prog;
 	std::shared_ptr<MIDITimer> timer;
+	std::shared_ptr<MIDIOut> midiOut;
+	std::unique_ptr<AudioThread> audioThread;
 	std::atomic_bool loading = false;
 
 	#pragma region Framebuffer for rendering

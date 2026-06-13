@@ -5,8 +5,8 @@
 
 struct NoteEvent : public TrackEvent
 {
+	uint32_t gate;
 	uint8_t note;
-	uint16_t gate;
 	uint8_t vel;
 
 	NoteEvent(uint16_t track, uint8_t channel, long tick, uint8_t note, uint16_t gate, uint8_t vel)

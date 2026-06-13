@@ -9,8 +9,10 @@ public:
 	SettingsDialog(MIDIApp* app) : Dialog("settingsDialog"), app(app) {}
 	const char* GetTitle() override { return "Settings"; }
 	void DrawContent() override;
+	ImVec2 GetInitialSize() override { return ImVec2(450, 0); }
 private:
 	MIDIApp* app;
 
 	void DrawVisualTab();
+	void DrawMIDITab();
 };

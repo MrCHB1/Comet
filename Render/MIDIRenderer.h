@@ -13,7 +13,7 @@
 #include "ColorAsset.h"
 #include <queue>
 
-#define NOTE_BUFFER_SIZE 8192
+#define NOTE_BUFFER_SIZE 32768
 #define NOTES_MAX_BATCHES 512
 
 class MIDIApp;
@@ -102,7 +102,9 @@ public:
 		keyboardData.fill(RenderKeyboardKey());
 		keyMetas.fill(KeyboardMeta());
 	}
-	void LoadResourcePack(std::shared_ptr<ResourcePack> pack);
+	void LoadResourcePack(std::shared_ptr<ResourcePack> pack, bool loadColors);
+	ColorAsset& GetColorAsset() { return colors; }
+	void LoadColors(const std::vector<std::array<float, 3>>& colors);
 	void Initialize();
 	void InitializeFromConfig();
 	void Render();
@@ -185,6 +187,7 @@ private:
 
 	bool initialized = false;
 	bool keyboardDirty = false;
+	bool isTimeBased = false;
 
 	float whiteKeyGap = 0.0f;
 	float keyboardHeightBlack = 0.0f;

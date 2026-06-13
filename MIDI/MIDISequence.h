@@ -18,10 +18,12 @@ public:
 	std::vector<MIDITrack> tracks;
 	std::vector<TempoEvent> tempos;
 	std::vector<std::vector<NoteEvent>> mergedNotes{};
+	std::vector<MIDIMessageEvent> mergedEvents{};
 	std::shared_ptr<TempoMap> tempoMap = nullptr;
 	size_t noteTrackCount;
-	long notes = 0;
+	long long notes = 0;
 	long length = 0;
+	bool timeBased = false;
 
 	MIDISequence() : MIDISequence("Unnamed") {}
 	MIDISequence(const char* name)

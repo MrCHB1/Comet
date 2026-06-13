@@ -1,4 +1,5 @@
 #include "NoteCounterRenderer.h"
+#include "App/Fonts.h"
 #include "imgui.h"
 #include <string>
 #include "Utils.h"
@@ -35,12 +36,24 @@ static void BeginNextCounterRow(const char* label)
 void NoteCounterRenderer::Render(float heightOffset)
 {
 	lastCounterYOffset = heightOffset;
-	ImGui::SetNextWindowPos(ImVec2(width - counterWidth, heightOffset));
+	switch (counterAlignment)
+	{
+		case NoteCounterAlignment::TopLeft:
+		{
+			ImGui::SetNextWindowPos(ImVec2(0, heightOffset));
+			break;
+		}
+		case NoteCounterAlignment::TopRight:
+		{
+			ImGui::SetNextWindowPos(ImVec2(width - counterWidth, heightOffset));
+			break;
+		}
+	}
+	
 	ImGui::SetNextWindowSize(ImVec2(counterWidth, 0.0f));
-	// ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(5.0f, 5.0f));
-	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.f, 0.f, 0.f, 0.6f));
-	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+	ImGui::PushStyleColor(ImGuiCol_WindowBg, noteCounterBackgroundCol);
+	ImGui::PushStyleColor(ImGuiCol_Text, noteCounterTextCol);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 
 	if (ImGui::Begin("noteCounter", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar))
@@ -51,31 +64,54 @@ void NoteCounterRenderer::Render(float heightOffset)
 
 			ImGui::TableSetupColumn("Name");
 			ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-			// these can be toggled, therefore height calculation may be tricky
-			BeginNextCounterRow("Tick");
-			auto ticks = noteCounterInfo->tick.value;
-			FormatText(buf, "%s/%u", Utils::FormatWithCommas(ticks > 0 ? ticks : 0).c_str(), noteCounterInfo->ppq.value);
-			RightAlignedTableText(buf);
 
-			BeginNextCounterRow("Time");
-			FormatText(buf, "%s", Utils::FormatDuration2(noteCounterInfo->timeSeconds.value * 1000).c_str());
-			RightAlignedTableText(buf);
+			ImGui::PushFont(Fonts::MonoFont);
 
-			BeginNextCounterRow("BPM");
-			FormatText(buf, "%.1f", noteCounterInfo->bpm.value);
-			RightAlignedTableText(buf);
+			// height calculation may be tricky lol
+			if (noteCounterInfo->tick.shown)
+			{
+				BeginNextCounterRow("Tick");
+				auto ticks = noteCounterInfo->tick.value;
+				FormatText(buf, "%s/%u", Utils::FormatWithCommas(ticks > 0 ? ticks : 0).c_str(), noteCounterInfo->ppq.value);
+				RightAlignedTableText(buf);
+			}
 
-			BeginNextCounterRow("Notes");
-			FormatText(buf, "%s", Utils::FormatWithCommas(noteCounterInfo->notesPassed.value).c_str());
-			RightAlignedTableText(buf);
+			if (noteCounterInfo->timeSeconds.shown)
+			{
+				BeginNextCounterRow("Time");
+				FormatText(buf, "%s", Utils::FormatDuration2(noteCounterInfo->timeSeconds.value * 1000).c_str());
+				RightAlignedTableText(buf);
+			}
 
-			BeginNextCounterRow("NPS");
-			FormatText(buf, "%s", Utils::FormatWithCommas(noteCounterInfo->notesPerSecond.value).c_str());
-			RightAlignedTableText(buf);
-
-			BeginNextCounterRow("Polyphony");
-			FormatText(buf, "%s", Utils::FormatWithCommas(noteCounterInfo->polyphony.value).c_str());
-			RightAlignedTableText(buf);
+			if (noteCounterInfo->bpm.shown)
+			{
+				BeginNextCounterRow("BPM");
+				FormatText(buf, "%.1f", noteCounterInfo->bpm.value);
+				RightAlignedTableText(buf);
+			}
+			
+			if (noteCounterInfo->notesPassed.shown)
+			{
+				BeginNextCounterRow("Notes");
+				FormatText(buf, "%s", Utils::FormatWithCommas(noteCounterInfo->notesPassed.value).c_str());
+				RightAlignedTableText(buf);
+			}
+			
+			if (noteCounterInfo->notesPerSecond.shown)
+			{
+				BeginNextCounterRow("NPS");
+				FormatText(buf, "%s", Utils::FormatWithCommas(noteCounterInfo->notesPerSecond.value).c_str());
+				RightAlignedTableText(buf);
+			}
+			
+			if (noteCounterInfo->polyphony.shown)
+			{
+				BeginNextCounterRow("Polyphony");
+				FormatText(buf, "%s", Utils::FormatWithCommas(noteCounterInfo->polyphony.value).c_str());
+				RightAlignedTableText(buf);
+			}
+			
+			ImGui::PopFont();
 
 			lastCounterHeight = ImGui::GetWindowHeight();
 
