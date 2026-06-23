@@ -7,6 +7,7 @@
 #include <vector>
 #include <algorithm>
 #include <iterator>
+#include <cmath>
 
 class SequenceFuncs
 {
@@ -116,12 +117,12 @@ public:
         {
             long tick = ev.tick;
             double secs = tempoMap->TicksToSecsFromMap(ppq, ev.tick);
-            ev.tick = static_cast<long>(std::min(secs, MAX_SAFE_SECS) * TIME_BASED_MULTIPLIER);
+            ev.tick = std::lround(std::min(secs, MAX_SAFE_SECS) * TIME_BASED_MULTIPLIER);
             if constexpr (std::is_same_v<T, NoteEvent>)
             {
                 double endSecs = tempoMap->TicksToSecsFromMap(ppq, tick + ev.gate);
                 double gate = endSecs - secs;
-                ev.gate = static_cast<long>(gate * TIME_BASED_MULTIPLIER);
+                ev.gate = std::lround(gate * TIME_BASED_MULTIPLIER);
             }
         }
     }

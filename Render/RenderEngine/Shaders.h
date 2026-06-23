@@ -11,6 +11,7 @@ class ShaderProgram
 {
 public:
 	static std::unique_ptr<ShaderProgram> CreateFromFiles(const std::string& filePath);
+	static std::unique_ptr<ShaderProgram> CreateFromFiles(const std::string& vertPath, const std::string& fragPath);
 	static std::unique_ptr<ShaderProgram> Create(const char* vertSrc, const char* fragSrc);
 	ShaderProgram(GLuint program) : program(program) {}
 
@@ -60,6 +61,12 @@ public:
 	{
 		if (!IsValidProgram()) return;
 		glUniformMatrix4fv(glGetUniformLocation(program, uniform), 1, GL_FALSE, glm::value_ptr(matrix));
+	}
+
+	void SetVec2(const char* uniform, const glm::vec2& vector)
+	{
+		if (!IsValidProgram()) return;
+		glUniform2f(glGetUniformLocation(program, uniform), vector.x, vector.y);
 	}
 
 	void SetVec3(const char* uniform, const glm::vec3& vector)

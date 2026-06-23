@@ -1,6 +1,7 @@
 #include "MIDIApp.h"
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include <algorithm>
 #include "../MIDI/AbstractMIDILoader.h"
 #include <thread>
 #include <memory>
@@ -12,12 +13,14 @@
 MIDIApp::MIDIApp()
 {
 	config = MIDIPlayerConfig{};
+	config.LoadConfigOrDefault();
+
 	renderView = std::make_shared<RenderView>();
 	timer = std::make_shared<MIDITimer>();
 	navigationBar = std::make_unique<NavigationBar>(timer, renderView.get());
 
 	noteCounterInfo = std::make_shared<NoteCounterInfo>();
-	noteCounterRenderer = std::make_unique<NoteCounterRenderer>(noteCounterInfo);
+	noteCounterRenderer = std::make_unique<NoteCounterRenderer>(noteCounterInfo, &config);
 }
 
 void MIDIApp::LoadMIDI(const char* path)
@@ -91,19 +94,16 @@ void MIDIApp::LoadResources()
 	int width = config.render.GetWidth();
 	int height = config.render.GetHeight();
 
-	renderer = std::make_unique<MIDIRenderer>(this);
-	if (auto pack = std::dynamic_pointer_cast<ResourcePack>(defaultPack))
-	{
-		renderer->LoadResourcePack(pack, config.render.GetUseColorsFromImage());
-	}
-	renderer->OnResize(width, height);
-	renderer->SetNoteCounter(noteCounterInfo);
-	noteCounterRenderer->OnResize(width, height);
-
 #ifdef COMET_DEBUG
 	std::cout << std::endl << "[MIDIApp] Initializing render engine...\n" << std::endl;
 #endif
-	renderer->Initialize();
+	SetRenderer<MIDIRenderer>();
+
+	// renderer = std::make_unique<MIDIRenderer>(this);
+	// renderer->OnResize(width, height);
+	// renderer->SetNoteCounter(noteCounterInfo);
+	// noteCounterRenderer->OnResize(width, height);
+	// renderer->Initialize();
 	blurredQuadRenderer = std::make_unique<BlurredQuadRenderer>();
 	blurredQuadRenderer->SetSceneTexture(renderer->GetSceneTexture());
 	
@@ -141,7 +141,17 @@ void MIDIApp::Update()
 	glClearColor(bgColor.x, bgColor.y, bgColor.z, bgAlpha);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	renderer->Render();
+	if (rendering)
+	{
+		renderer->Render(1.0 / (double)currentRenderSettings.fps);
+	}
+	else
+	{
+		double time = (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() / 1000000;
+		renderer->Render(time - lastFrameTime);
+		lastFrameTime = time;
+	}
+	
 
 	// make sure the render framebuffer is bound
 	renderFramebuffer->Bind();
@@ -199,14 +209,57 @@ void MIDIApp::Update()
 	}
 }
 
-void MIDIApp::RegisterKeyPress(ImGuiKey key)
+void MIDIApp::RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt)
 {
 	switch (key)
 	{
 		case ImGuiKey_Space:
 		{
+			if (IsRendering()) return;
 			// TODO: ignore when no sequence is loaded
 			timer->TogglePause();
+			break;
+		}
+		case ImGuiKey_LeftArrow:
+		{
+			if (IsRendering()) return;
+			double currTime = timer->Elapsed();
+			double seekTime = max(-3.0, currTime - 10.0);
+			timer->NavigateTo(seekTime);
+			break;
+		}
+		case ImGuiKey_RightArrow:
+		{
+			if (IsRendering()) return;
+			double currTime = timer->Elapsed();
+			double seekTime = min(seqLength + 5.0, currTime + 10.0);
+			timer->NavigateTo(seekTime);
+			break;
+		}
+		case ImGuiKey_Enter:
+		{
+			if (!alt) return;
+
+			if (!fullscreen)
+			{
+				glfwGetWindowPos(window, &lastWindowRect.x, &lastWindowRect.y);
+				glfwGetWindowSize(window, &lastWindowRect.width, &lastWindowRect.height);
+
+				GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+				const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+				glfwSetWindowAttrib(window, GLFW_DECORATED, GLFW_FALSE);
+				glfwSetWindowPos(window, 0, 0);
+				glfwSetWindowSize(window, mode->width, mode->height);
+			}
+			else
+			{
+				glfwSetWindowAttrib(window, GLFW_DECORATED, GLFW_TRUE);
+				glfwSetWindowPos(window, lastWindowRect.x, lastWindowRect.y);
+				glfwSetWindowSize(window, lastWindowRect.width, lastWindowRect.height);
+			}
+
+			fullscreen = !fullscreen;
 			break;
 		}
 		default:
@@ -330,6 +383,7 @@ void MIDIApp::PrepareRendering()
 	lastRenderStartTimeMs = (double)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
 	if (!timer->IsPaused()) timer->Pause();
 	audioThread->MuteAudio();
+	GetRenderer()->ResetRenderer();
 }
 
 void MIDIApp::FinalizeRendering()
@@ -350,4 +404,5 @@ void MIDIApp::FinalizeRendering()
 	std::cout << "Rendered MIDI in " << Utils::FormatDuration2(endRenderTime - lastRenderStartTimeMs) << "!" << std::endl;
 
 	audioThread->UnmuteAudio();
+	GetRenderer()->ResetRenderer();
 }

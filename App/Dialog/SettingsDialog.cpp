@@ -1,5 +1,6 @@
 #include "SettingsDialog.h"
 #include "Utils.h"
+#include "Render/MIDIRendererEnhanced.h"
 
 void SettingsDialog::DrawContent()
 {
@@ -37,30 +38,6 @@ void SettingsDialog::DrawVisualTab()
 	{
 		if (ImGui::BeginTabBar("VisualTabs"))
 		{
-			if (ImGui::BeginTabItem("Piano"))
-			{
-				auto colors = config->render.GetBarColor();
-				float barColor[3]{ colors.x, colors.y, colors.z };
-				if (ImGui::ColorPicker3("Bar Color", barColor))
-				{
-					config->render.SetBarColor(barColor[0], barColor[1], barColor[2]);
-					app->GetRenderer()->SetBarColor(barColor[0], barColor[1], barColor[2]);
-				}
-
-				colors = config->render.GetBackground();
-				float bgColor[3]{ colors.x, colors.y, colors.z };
-				if (ImGui::ColorPicker3("Background Color", bgColor))
-				{
-					config->render.SetBackground(bgColor[0], bgColor[1], bgColor[2]);
-					app->GetRenderer()->SetBackgroundColor(bgColor[0], bgColor[1], bgColor[2]);
-				}
-
-				ImGui::BeginDisabled(true);
-				ImGui::Button("Pick color palette");
-				ImGui::EndDisabled();
-
-				ImGui::EndTabItem();
-			}
 			if (ImGui::BeginTabItem("Note Colors"))
 			{
 				ColorPaletteList* colorList = app->GetColorList();
@@ -147,6 +124,7 @@ void SettingsDialog::DrawVisualTab()
 							0, cardSize))
 						{
 							colorList->SetPalette(i);
+							config->render.paletteID = i;
 							app->GetRenderer()->GetColorAsset().LoadColors(palette.palette, true);
 						}
 
@@ -221,6 +199,10 @@ void SettingsDialog::DrawVisualTab()
 				ImGui::SameLine();
 				ImGui::Checkbox("##showNoteCounter", &config->render.showCounter);
 
+				ImGui::Text("Scale");
+				ImGui::SameLine();
+				ImGui::SliderFloat("##counterScale", &config->overlayInfo.scale, config->overlayInfo.MIN_SCALE, config->overlayInfo.MAX_SCALE);
+
 				ImGui::Text("Alignment");
 				auto& alignment = counterRenderer->GetCounterAlignment();
 
@@ -265,50 +247,45 @@ void SettingsDialog::DrawVisualTab()
 
 				ImGui::EndTabItem();
 			}
-			if (ImGui::BeginTabItem("Resource Packs"))
+			if (ImGui::BeginTabItem("Renderer"))
 			{
-				ResourcePackList* packList = app->GetPackList();
-				auto* config = app->GetConfig();
-				if (packList != nullptr)
+				MIDIPlayerConfig* config = app->GetConfig();
+
+				ImGui::Text("Current Renderer");
+				RendererType currRenderer = config->render.GetCurrentRenderer();
+				if (ImGui::RadioButton("Default Textured", currRenderer == RendererType::Default))
 				{
-					if (ImGui::Button("Refresh Pack List"))
+					if (currRenderer != RendererType::Default)
 					{
-						packList->RefreshList();
-						std::shared_ptr<ResourcePack> activePack = packList->GetActivePack();
-						app->GetRenderer()->LoadResourcePack(activePack, !config->render.GetUseColorsFromImage());
-					}
-
-					auto& packs = packList->GetPackList();
-					size_t packIdx = 0;
-					for (const auto& pack : packs)
-					{
-						ImGui::BeginGroup();
-						ImGui::Text(pack->GetName());
-						ImGui::Text("By %s", pack->GetAuthor());
-						ImGui::Text(pack->GetDescription());
-
-						bool isActivePack = pack == packList->GetActivePack();
-						ImGui::BeginDisabled(isActivePack);
-						if (isActivePack) ImGui::Button("Pack in use");
-						else
-						{
-							ImGui::PushID(pack.get());
-							if (ImGui::Button("Use pack"))
-							{
-								packList->SwitchPack(packIdx);
-								app->GetRenderer()->LoadResourcePack(pack, !config->render.GetUseColorsFromImage());
-							}
-							ImGui::PopID();
-						}
-						ImGui::EndDisabled();
-
-						ImGui::EndGroup();
-						if (packIdx != packs.size() - 1)
-							ImGui::Separator();
-
-						packIdx++;
+						config->render.SetCurrentRenderer(RendererType::Default);
+						app->SetRenderer<MIDIRenderer>();
+						std::cout << "Switched to the default renderer" << std::endl;
 					}
 				}
+				if (ImGui::RadioButton("Enhanced Graphics", currRenderer == RendererType::Enhanced))
+				{
+					if (currRenderer != RendererType::Enhanced)
+					{
+						config->render.SetCurrentRenderer(RendererType::Enhanced);
+						app->SetRenderer<MIDIRendererEnhanced>();
+						std::cout << "Switched to the enhanced graphics renderer" << std::endl;
+					}
+				}
+
+				ImGui::BeginDisabled(true);
+				if (ImGui::RadioButton("MIDITrail (Unavailable)", currRenderer == RendererType::MIDITrail))
+				{
+					config->render.SetCurrentRenderer(RendererType::MIDITrail);
+				}
+				ImGui::EndDisabled();
+
+				ImGui::Spacing();
+
+				if (ImGui::CollapsingHeader("Renderer Settings", ImGuiTreeNodeFlags_DefaultOpen))
+				{
+					app->GetRenderer()->RenderSettings();
+				}
+
 				ImGui::EndTabItem();
 			}
 		}

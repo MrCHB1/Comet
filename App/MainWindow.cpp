@@ -234,8 +234,12 @@ void MainWindow::DetectKeyPress()
 	{
 		if (!ImGui::IsKeyPressed((ImGuiKey)key)) continue;
 
+		bool ctrl = io.KeyCtrl;
+		bool shift = io.KeyShift;
+		bool alt = io.KeyAlt;
+
 		ImGuiKey pressedKey = (ImGuiKey)key;
-		midiApp->RegisterKeyPress(pressedKey);
+		midiApp->RegisterKeyPress(pressedKey, ctrl, shift, alt);
 	}
 }
 

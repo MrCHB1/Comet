@@ -20,6 +20,7 @@ namespace Utils
 	bool SaveFile(std::string& outPath, const char* extension = nullptr);
 	bool EqualsIgnoreCase(const std::string& a, const std::string& b);
 	std::optional<ImVec4> ParseColor(std::variant<std::string, uint32_t> strOrInt, std::optional<ImVec4> def);
+	std::string EncodeColor(ImVec4 color);
 	static const std::string BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 		"abcdefghijklmnopqrstuvwxyz"
 		"0123456789+/";

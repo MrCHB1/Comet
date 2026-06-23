@@ -63,6 +63,8 @@ std::optional<ImVec4> ConfigSection::GetColor(const std::string& key) const
 
 	if (auto p = std::any_cast<uint32_t>(obj))
 		return Utils::ParseColor(*p, std::nullopt);
+	else if (auto p = std::any_cast<int>(obj))
+		return Utils::ParseColor(static_cast<uint32_t>(*p), std::nullopt);
 	else if (auto p = std::any_cast<std::string>(obj))
 		return Utils::ParseColor(*p, std::nullopt);
 	else

@@ -35,6 +35,9 @@ static void BeginNextCounterRow(const char* label)
 
 void NoteCounterRenderer::Render(float heightOffset)
 {
+	float counterScale = config->overlayInfo.scale;
+	float counterWidth = this->counterWidth * counterScale;
+
 	lastCounterYOffset = heightOffset;
 	switch (counterAlignment)
 	{
@@ -51,19 +54,20 @@ void NoteCounterRenderer::Render(float heightOffset)
 	}
 	
 	ImGui::SetNextWindowSize(ImVec2(counterWidth, 0.0f));
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(5.0f, 5.0f));
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(5.0f * counterScale, 5.0f * counterScale));
 	ImGui::PushStyleColor(ImGuiCol_WindowBg, noteCounterBackgroundCol);
 	ImGui::PushStyleColor(ImGuiCol_Text, noteCounterTextCol);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 
 	if (ImGui::Begin("noteCounter", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar))
 	{
-		if (ImGui::BeginTable("counterStats", 2, ImGuiTableFlags_SizingFixedFit))
+		ImGui::SetWindowFontScale(counterScale);
+		if (ImGui::BeginTable("counterStats", 2, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoClip))
 		{
 			char buf[64];
 
 			ImGui::TableSetupColumn("Name");
-			ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoClip);
 
 			ImGui::PushFont(Fonts::MonoFont);
 
@@ -117,6 +121,7 @@ void NoteCounterRenderer::Render(float heightOffset)
 
 			ImGui::EndTable();
 		}
+		ImGui::SetWindowFontScale(1.0f);
 		ImGui::End();
 	}
 	ImGui::PopStyleVar(2);

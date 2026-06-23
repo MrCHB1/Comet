@@ -2,15 +2,17 @@
 
 #include "NoteCounterInfo.h"
 #include "NoteCounterStyles.h"
+#include "Config/MIDIPlayerConfig.h"
 #include <memory>
 #include <array>
 #include <glm/glm.hpp>
 #include "imgui.h"
 
+
 class NoteCounterRenderer
 {
 public:
-	NoteCounterRenderer(std::shared_ptr<NoteCounterInfo> noteCounterInfo) : noteCounterInfo(noteCounterInfo) {}
+	NoteCounterRenderer(std::shared_ptr<NoteCounterInfo> noteCounterInfo, MIDIPlayerConfig* config) : noteCounterInfo(noteCounterInfo), config(config) {}
 	// we use heightOffset here because of the nagivation bar. when rendering a video, the navigation bar is hidden, so the counter should be rendered higher up to compensate for that. when not rendering a video, the navigation bar is visible, so the counter should be rendered lower down to avoid overlapping with it.
 	void Render(float heightOffset);
 	void OnResize(int width, int height);
@@ -51,6 +53,8 @@ public:
 	
 	glm::vec2 GetCounterPosition() const
 	{
+		float counterWidth = this->counterWidth * config->overlayInfo.scale;
+
 		float width = (float)counterWidth / (float)this->width;
 		float height = GetCounterHeight() / (float)this->height;
 
@@ -68,7 +72,9 @@ public:
 	}
 	glm::vec2 GetCounterResolution() const
 	{
-		float width = (float)counterWidth / (float)this->width;
+		float counterWidth = this->counterWidth * config->overlayInfo.scale;
+
+		float width = counterWidth * config->overlayInfo.scale / (float)this->width;
 		float height = GetCounterHeight() / (float)this->height;
 		return glm::vec2(width, height);
 	}
@@ -79,6 +85,7 @@ private:
 	NoteCounterAlignment counterAlignment = DEFAULT_NOTE_COUNTER_ALIGNMENT;
 	ImVec4 noteCounterBackgroundCol = ImVec4(0.f, 0.f, 0.f, 0.6f);
 	ImVec4 noteCounterTextCol = ImVec4(1.f, 1.f, 1.f, 1.f);
+	MIDIPlayerConfig* config;
 
 	int width = 0, height = 0;
 	int counterWidth = DEFAULT_NOTE_COUNTER_WIDTH;

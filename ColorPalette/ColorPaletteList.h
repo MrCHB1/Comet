@@ -21,7 +21,13 @@ public:
 	{
 		return palettes[currentPalette];
 	}
-	void SetPalette(size_t paletteIdx) { currentPalette = paletteIdx; }
+	void SetPalette(size_t paletteIdx)
+	{
+		currentPalette = paletteIdx;
+		// set to a safe index if necessary
+		if (currentPalette >= palettes.size()) currentPalette = palettes.size() - 1;
+	}
+	size_t GetCurrentPaletteID() { return currentPalette; }
 	std::vector<ColorPaletteEntry>& GetPalettes() { return palettes; }
 private:
 	std::vector<ColorPaletteEntry> palettes{};

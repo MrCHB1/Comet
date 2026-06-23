@@ -29,7 +29,8 @@ void MIDIRenderer::LoadSequence(std::shared_ptr<MIDISequence> sequence)
 {
 	std::lock_guard<std::mutex> lock(renderMutex);
 
-	if (seq != sequence) seq.reset();
+	if (seq != sequence) AbstractMIDIRenderer::UnloadSequence();
+	AbstractMIDIRenderer::LoadSequence(sequence);
 
 	colors.LoadColors();
 	seq = sequence;
@@ -47,8 +48,7 @@ void MIDIRenderer::LoadSequence(std::shared_ptr<MIDISequence> sequence)
 void MIDIRenderer::UnloadSequence()
 {
 	std::lock_guard<std::mutex> lock(renderMutex);
-	seq = nullptr;
-	noteCounterInfo->ResetCounter(); // this should probably belong in MIDIApp.cpp lol
+	AbstractMIDIRenderer::UnloadSequence();
 }
 
 void MIDIRenderer::LoadResourcePack(std::shared_ptr<ResourcePack> pack, bool loadColors)
@@ -104,19 +104,6 @@ void MIDIRenderer::LoadResourcePack(std::shared_ptr<ResourcePack> pack, bool loa
 	std::cout << "Loaded pack " << pack->GetName() << std::endl;
 }
 
-void MIDIRenderer::LoadColors(const std::vector<std::array<float, 3>>& colors)
-{
-	if (colors.empty())
-	{
-		this->colors.ResetColors();
-		this->colors.LoadColors();
-	}
-	else
-	{
-		this->colors.LoadColors(colors, true);
-	}
-}
-
 void MIDIRenderer::LoadMaskTexture(ResourcePack* pack, std::unique_ptr<GPUImage>& mask, const char* name)
 {
 	// load masks and fallback if they dont exist (backwards compatibility woah)
@@ -135,6 +122,18 @@ void MIDIRenderer::Initialize()
 	static_assert(offsetof(RenderKeyboardKey, left) == 0);
 	static_assert(offsetof(RenderKeyboardKey, right) == 4);
 	static_assert(offsetof(RenderKeyboardKey, meta) == 8);
+
+	AbstractMIDIRenderer::Initialize();
+
+	#pragma region Load resource pack
+	// we can load the resource pack
+	auto config = app->GetConfig();
+	auto defaultPack = DefaultResourcePack::Instance();
+	if (auto pack = std::dynamic_pointer_cast<ResourcePack>(defaultPack))
+	{
+		LoadResourcePack(pack, config->render.GetUseColorsFromImage());
+	}
+	#pragma endregion
 
 	#pragma region Keyboard shader creation
 
@@ -211,18 +210,6 @@ void MIDIRenderer::Initialize()
 		glVertexAttribDivisor(4, 1);
 		glVertexAttribDivisor(5, 1);
 	}
-
-	#pragma endregion
-
-	#pragma region Framebuffer creation
-
-	sceneFramebuffer = std::make_unique<Framebuffer>();
-	sceneFramebuffer->Setup(width, height);
-	fullscreenQuad = std::make_unique<Quad>();
-	fullscreenQuad->SetShader(SCENE_SHADER);
-	BLUR_SHADER->SetFloat("width", (float)width);
-	BLUR_SHADER->SetFloat("height", (float)height);
-	fullscreenQuad->SetTransform({glm::vec3(0.0f), glm::vec2(1.0f)}, false);
 
 	#pragma endregion
 
@@ -307,10 +294,6 @@ void MIDIRenderer::Initialize()
 	keyboardBackground = std::make_unique<Quad>();
 	keyboardBackground->SetShader(SINGLE_COLOR_SHADER);
 	keyboardBackground->SetColor(glm::vec3(0.0, 0.0, 0.0));
-
-	CalcKeyPosAndWidth();
-	UpdateKeyboardInstance();
-	keyboardDirty = true;
 	#pragma endregion
 
 	#pragma region Note data setup
@@ -339,6 +322,10 @@ void MIDIRenderer::Initialize()
 
 	initialized = true;
 
+	CalcKeyPosAndWidth();
+	UpdateKeyboardInstance();
+	keyboardDirty = true;
+
 	InitializeFromConfig();
 }
 
@@ -353,7 +340,7 @@ void MIDIRenderer::InitializeFromConfig()
 	SetBackgroundColor(bgColor.x, bgColor.y, bgColor.z);
 }
 
-void MIDIRenderer::Render()
+void MIDIRenderer::Render(double deltaTime)
 {
 	if (!initialized) return;
 	sceneFramebuffer->Bind();
@@ -366,6 +353,86 @@ void MIDIRenderer::Render()
 
 	if (!seq)
 		noteCounterInfo->tick.value = 0;
+}
+
+void MIDIRenderer::RenderSettings()
+{
+	MIDIPlayerConfig* config = app->GetConfig();
+
+	if (ImGui::BeginTabBar("##midiRenderSettings"))
+	{
+		if (ImGui::BeginTabItem("Piano"))
+		{
+			auto colors = config->render.GetBarColor();
+			float barColor[3]{ colors.x, colors.y, colors.z };
+			if (ImGui::ColorPicker3("Bar Color", barColor))
+			{
+				config->render.SetBarColor(barColor[0], barColor[1], barColor[2]);
+				SetBarColor(barColor[0], barColor[1], barColor[2]);
+			}
+
+			colors = config->render.GetBackground();
+			float bgColor[3]{ colors.x, colors.y, colors.z };
+			if (ImGui::ColorPicker3("Background Color", bgColor))
+			{
+				config->render.SetBackground(bgColor[0], bgColor[1], bgColor[2]);
+				SetBackgroundColor(bgColor[0], bgColor[1], bgColor[2]);
+			}
+
+			ImGui::BeginDisabled(true);
+			ImGui::Button("Pick color palette");
+			ImGui::EndDisabled();
+
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem("Resource Packs"))
+		{
+			ResourcePackList* packList = app->GetPackList();
+			auto* config = app->GetConfig();
+			if (packList != nullptr)
+			{
+				if (ImGui::Button("Refresh Pack List"))
+				{
+					packList->RefreshList();
+					std::shared_ptr<ResourcePack> activePack = packList->GetActivePack();
+					LoadResourcePack(activePack, !config->render.GetUseColorsFromImage());
+				}
+
+				auto& packs = packList->GetPackList();
+				size_t packIdx = 0;
+				for (const auto& pack : packs)
+				{
+					ImGui::BeginGroup();
+					ImGui::Text(pack->GetName());
+					ImGui::Text("By %s", pack->GetAuthor());
+					ImGui::Text(pack->GetDescription());
+
+					bool isActivePack = pack == packList->GetActivePack();
+					ImGui::BeginDisabled(isActivePack);
+					if (isActivePack) ImGui::Button("Pack in use");
+					else
+					{
+						ImGui::PushID(pack.get());
+						if (ImGui::Button("Use pack"))
+						{
+							packList->SwitchPack(packIdx);
+							LoadResourcePack(pack, !config->render.GetUseColorsFromImage());
+						}
+						ImGui::PopID();
+					}
+					ImGui::EndDisabled();
+
+					ImGui::EndGroup();
+					if (packIdx != packs.size() - 1)
+						ImGui::Separator();
+
+					packIdx++;
+				}
+			}
+			ImGui::EndTabItem();
+		}
+		ImGui::EndTabBar();
+	}
 }
 
 void MIDIRenderer::CalcKeyPosAndWidth()
@@ -463,12 +530,9 @@ void MIDIRenderer::OnResize(int width, int height)
 {
 	this->width = width;
 	this->height = height;
+	AbstractMIDIRenderer::OnResize(width, height);
+	if (!initialized) return;
 	CalcKeyPosAndWidth();
-
-	if (sceneFramebuffer)
-	{
-		sceneFramebuffer->Resize(width, height);
-	}
 }
 
 void MIDIRenderer::RenderKeyboard()

@@ -2,13 +2,20 @@
 
 #include "ConfigSection.h"
 
+enum class RendererType
+{
+	Default,
+	Enhanced, // the RTX renderer lol
+	MIDITrail
+};
+
 struct MIDIPlayerConfig
 {
 	struct ConfigOverlayInfo
 	{
-		const float MIN_SCALE = 0.25f;
-		const float MAX_SCALE = 8.0f;
-	private:
+		static constexpr float MIN_SCALE = 0.25f;
+		static constexpr float MAX_SCALE = 8.0f;
+
 		float scale = 1.0f;
 		bool showDuration = false;
 	};
@@ -25,7 +32,6 @@ struct MIDIPlayerConfig
 		bool timeBasedLoading = false;
 		bool loadNotesOnly = false;
 		bool usePlayThread = true;
-		std::string synth;
 	};
 
 	struct ConfigRender
@@ -77,8 +83,15 @@ struct MIDIPlayerConfig
 		bool GetUseColorsFromImage() { return useColorsFromImage; }
 		void SetUseColorsFromImage(bool useColors) { useColorsFromImage = useColors; }
 
+		RendererType GetCurrentRenderer() { return currentRenderer; }
+		void SetCurrentRenderer(RendererType renderer)
+		{
+			currentRenderer = renderer;
+		}
+
 		bool showCounter = true;
 		bool loopColors = true;
+		int paletteID = 0;
 	private:
 		int width = 1280;
 		int height = 720;
@@ -86,6 +99,7 @@ struct MIDIPlayerConfig
 		double renderInterval = 5.0;
 		ImVec4 background = ImVec4(0.0, 0.0, 0.0, 1.0);
 		ImVec4 barColor = ImVec4(0.52, 0.0, 0.0, 1.0);
+		RendererType currentRenderer = RendererType::Default;
 		
 		bool usePFAColors = false;
 		bool useColorsFromImage = false;
@@ -99,9 +113,8 @@ struct MIDIPlayerConfig
 	std::string language = "en";
 	ConfigMIDI midi{};
 	ConfigRender render{};
-	// ConfigInterface ui{};
-	// ConfigFiles files{};
-	// ConfigUpdate updateChecker{};
+	ConfigOverlayInfo overlayInfo{};
 
-	
+	void LoadConfigOrDefault();
+	void SaveConfig();
 };

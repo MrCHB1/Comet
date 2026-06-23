@@ -4,7 +4,8 @@
 #include "../Render/MIDIRenderer.h"
 #include "../ResourcePack/ResourcePackList.h"
 #include "ColorPalette/ColorPaletteList.h"
-#include "../MIDI/MIDILoader.h"
+#include "MIDI/MIDILoader.h"
+#include "MIDI/MultithreadedMIDILoader.h"
 #include "../MIDI/Timer/MIDITimer.h"
 #include "App/UI/NavigationBar.h"
 #include "../Render/RenderView.h"
@@ -20,13 +21,57 @@
 #include <atomic>
 #include <chrono>
 
+struct WindowRect
+{
+	int x, y;
+	int width, height;
+};
+
 class MIDIApp
 {
 public:
 	MIDIApp();
-	MIDIRenderer* GetRenderer()
+	~MIDIApp()
+	{
+		config.SaveConfig();
+	}
+
+	AbstractMIDIRenderer* GetRenderer()
 	{
 		return renderer.get();
+	}
+
+	template <typename T>
+	void SetRenderer()
+	{
+		static_assert(std::is_base_of_v<AbstractMIDIRenderer, T>, "T must derive from AbstractMIDIRenderer");
+
+		int width = config.render.GetWidth();
+		int height = config.render.GetHeight();
+		noteCounterRenderer->OnResize(width, height); // hacky but oh well
+
+		// get renderer's sequence so the new one can automatically load it
+		std::shared_ptr<MIDISequence> seq;
+		if (this->renderer) seq = GetRenderer()->GetSequence();
+
+		this->renderer = std::make_unique<T>(this);
+		this->renderer->OnResize(width, height);
+		this->renderer->SetNoteCounter(noteCounterInfo);
+		this->renderer->Initialize();
+
+		if (seq != nullptr) this->renderer->LoadSequence(seq);
+
+		if (blurredQuadRenderer)
+			blurredQuadRenderer->SetSceneTexture(this->renderer->GetSceneTexture());
+
+		// ensure the colors are properly loaded if using images for colors
+		auto* colorList = GetColorList();
+		if (config.render.GetUseColorsFromImage())
+		{
+			colorList->SetPalette(config.render.paletteID);
+			auto& palette = colorList->GetCurrentPalette();
+			this->renderer->GetColorAsset().LoadColors(palette.palette, config.render.loopColors);
+		}
 	}
 
 	void LoadResources();
@@ -35,7 +80,7 @@ public:
 	void LoadMIDI(const char* path);
 	void UnloadMIDI();
 	void RenderMIDIVideo(const RenderSettings& renderSettings);
-	void RegisterKeyPress(ImGuiKey key);
+	void RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt);
 	void SetWindow(GLFWwindow* window)
 	{
 		this->window = window;
@@ -100,7 +145,12 @@ public:
 
 	std::shared_ptr<AbstractMIDILoader> CreateLoader(const char* path)
 	{
-		std::shared_ptr<AbstractMIDILoader> loader = std::make_shared<MIDILoader>(path);
+		std::shared_ptr<AbstractMIDILoader> loader;
+		if (config.midi.multithreadedLoading)
+			loader = std::make_shared<MultithreadedMIDILoader>(path);
+		else
+			loader = std::make_shared<MIDILoader>(path);
+
 		loader->SetLoadOnlyNotes(config.midi.loadNotesOnly);
 		return loader;
 	}
@@ -112,7 +162,7 @@ private:
 	GLFWwindow* window;
 	MIDIPlayerConfig config;
 
-	std::unique_ptr<MIDIRenderer> renderer;
+	std::unique_ptr<AbstractMIDIRenderer> renderer;
 	std::unique_ptr<NavigationBar> navigationBar;
 	std::shared_ptr<NoteCounterInfo> noteCounterInfo;
 	std::unique_ptr<NoteCounterRenderer> noteCounterRenderer;
@@ -137,10 +187,14 @@ private:
 
 	double lastRenderStartTimeMs = 0;
 	double lastSavedTimeSecs = 0;
+	double lastFrameTime = 0;
 	RenderSettings currentRenderSettings;
 	int currentFrame = 0;
 	std::vector<uint8_t> exportPixels{};
 	std::unique_ptr<FFmpegPipe> ffmpegPipe;
+
+	WindowRect lastWindowRect;
+	bool fullscreen = false;
 
 	// prepares the app for rendering (disabling navigation, ui, etc.)
 	void PrepareRendering();

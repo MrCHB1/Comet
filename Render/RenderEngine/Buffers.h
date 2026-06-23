@@ -144,7 +144,16 @@ public:
 	}
 	~Framebuffer()
 	{
-		if (fbo != 0 && glIsFramebuffer(fbo)) glDeleteFramebuffers(1, &fbo);
+		if (fbo != 0 && glIsFramebuffer(fbo))
+		{
+			glDeleteFramebuffers(1, &fbo);
+		}
+
+		if (depthBuffer != 0)
+		{
+			glDeleteRenderbuffers(1, &depthBuffer);
+			depthBuffer = 0;
+		}
 	}
 
 	// no copy, allow move
@@ -155,7 +164,7 @@ public:
 	Framebuffer& operator=(Framebuffer&& other) noexcept;
 
 	// generates the textures
-	void Setup(int width, int height);
+	void Setup(int width, int height, GLint internalFormat = GL_RGBA, GLenum format = GL_RGBA, GLenum type = GL_UNSIGNED_BYTE);
 	// resizes framebuffer
 	void Resize(int width, int height);
 
@@ -170,6 +179,10 @@ public:
 private:
 	GLuint fbo;
 	GLuint sceneTexture;
+	GLuint depthBuffer;
+	GLint internalFormat;
+	GLenum format;
+	GLenum type;
 	int width = 0;
 	int height = 0;
 };

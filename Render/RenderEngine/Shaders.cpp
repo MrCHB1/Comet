@@ -83,6 +83,29 @@ std::unique_ptr<ShaderProgram> ShaderProgram::CreateFromFiles(const std::string&
 	return Create(vertSource->c_str(), fragSource->c_str());
 }
 
+std::unique_ptr<ShaderProgram> ShaderProgram::CreateFromFiles(const std::string& vertPath, const std::string& fragPath)
+{
+	std::optional<std::string> vertSource = ReadFile(vertPath + ".vert");
+	if (!vertSource.has_value())
+	{
+#ifdef COMET_DEBUG
+		std::cout << "Failed to open file. Returning nullptr" << std::endl;
+#endif
+		return nullptr;
+	}
+
+	std::optional<std::string> fragSource = ReadFile(fragPath + ".frag");
+	if (!fragSource.has_value())
+	{
+#ifdef COMET_DEBUG
+		std::cout << "Failed to open file. Returning nullptr" << std::endl;
+#endif
+		return nullptr;
+	}
+
+	return Create(vertSource->c_str(), fragSource->c_str());
+}
+
 std::unique_ptr<ShaderProgram> ShaderProgram::Create(const char* vertSrc, const char* fragSrc)
 {
 	std::cout << "---- Compiling Vertex Shader ----" << std::endl;

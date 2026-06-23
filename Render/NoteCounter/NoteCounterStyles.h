@@ -1,12 +1,12 @@
 #pragma once
 
-enum NoteCounterStyle
+enum class NoteCounterStyle
 {
 	UMP,
 	MIDITrail
 };
 
-enum NoteCounterAlignment
+enum class NoteCounterAlignment
 {
 	TopLeft,
 	TopRight

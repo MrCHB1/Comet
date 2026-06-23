@@ -4,6 +4,9 @@
 #include <optional>
 #include <vector>
 #include <filesystem>
+#include <sstream>
+#include <iomanip>
+#include <cmath>
 
 #if defined(_WIN32)
     #include <windows.h>
@@ -244,6 +247,35 @@ namespace Utils
             );
         }
         return def;
+    }
+
+    std::string EncodeColor(ImVec4 color)
+    {
+        std::stringstream enc;
+        enc << "0x";
+        
+        uint32_t red = static_cast<uint32_t>(std::round(color.x * 255));
+        uint32_t green = static_cast<uint32_t>(std::round(color.y * 255));
+        uint32_t blue = static_cast<uint32_t>(std::round(color.z * 255));
+        uint32_t alpha = static_cast<uint32_t>(std::round(color.w * 255));
+
+        red = std::clamp(red, 0u, 255u);
+        green = std::clamp(green, 0u, 255u);
+        blue = std::clamp(blue, 0u, 255u);
+        alpha = std::clamp(alpha, 0u, 255u);
+
+        uint32_t col = (red << 16u) | (green << 8u) | blue;
+        if (alpha == 255u)
+        {
+            enc << std::hex << std::uppercase << std::setw(6) << std::setfill('0') << col;
+        }
+        else
+        {
+            col = (col << 8u) | alpha;
+            enc << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << col;
+        }
+
+        return enc.str();
     }
 
     std::string DecodeBase64(const std::string& encoded)
