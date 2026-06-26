@@ -11,6 +11,11 @@ enum class RendererType
 
 struct MIDIPlayerConfig
 {
+	struct ConfigApp
+	{
+		size_t currThemeID = 0;
+	};
+
 	struct ConfigOverlayInfo
 	{
 		static constexpr float MIN_SCALE = 0.25f;
@@ -111,6 +116,7 @@ struct MIDIPlayerConfig
 
 	int version = 0;
 	std::string language = "en";
+	ConfigApp app{};
 	ConfigMIDI midi{};
 	ConfigRender render{};
 	ConfigOverlayInfo overlayInfo{};

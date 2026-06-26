@@ -312,6 +312,30 @@ namespace Utils
 #endif
     }
 
+    void OpenFolder(const std::string& path)
+    {
+        std::error_code ec;
+        std::filesystem::path absPath = std::filesystem::absolute(path, ec);
+        if (ec)
+        {
+            std::cerr << "Failed to resolve path: " << ec.message() << std::endl;
+            return;
+        }
+
+        std::string p = absPath.string();
+#if defined(_WIN32)
+        std::string command = "explorer \"" + p + "\"";
+#elif defined(__APPLE__)
+        std::string command = "open \"" + p + "\"";
+#elif defined(__linux__)
+        std::string command = "xdg-open \"" + p + "\"";
+#else
+        std::cerr << "Unsupported platform." << std::endl;
+        return;
+#endif
+        std::system(command.c_str());
+    }
+
     bool FolderExists(const std::string& path)
     {
         return std::filesystem::exists(path) && std::filesystem::is_directory(path);

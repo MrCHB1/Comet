@@ -4,12 +4,22 @@
 #include "MIDIApp.h"
 #include <GLFW/glfw3.h>
 
+struct WindowRect
+{
+	int x, y;
+	int width, height;
+};
+
 class MainWindow
 {
 public:
 	MainWindow(const char* title);
 	~MainWindow();
 	void Run();
+	bool CanShowNavigationBar();
+	bool IsFullscreen() { return fullscreen; }
+	void ToggleFullscreen();
+	GLFWwindow* GetInternalWindow() { return window; }
 private:
 	// called before glfw initialization
 	void InitializeApp();
@@ -20,9 +30,7 @@ private:
 	void InitializeDialogs();
 	void InitializeTheme();
 	void PostInit();
-
 	void DetectKeyPress();
-
 	void RenderUI();
 
 	std::unique_ptr<MIDIApp> midiApp;
@@ -30,5 +38,7 @@ private:
 	MenuBuilder menuBuilder;
 	DialogManager dialogManager;
 	GLFWwindow* window = nullptr;
+	WindowRect lastWindowRect;
 	const char* title = "Window";
+	bool fullscreen = false;
 };

@@ -113,6 +113,7 @@ public:
 	void UnloadSequence() override;
 	void Render(double deltaTime) override;
 	void RenderSettings() override;
+	void ResetSettings() override;
 	void OnResize(int width, int height) override;
 	void SetBarColor(float r, float g, float b)
 	{

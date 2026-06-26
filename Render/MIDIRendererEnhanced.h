@@ -7,11 +7,25 @@
 #include <glm/glm.hpp>
 
 #pragma region Renderer settings
+enum MSAASetting
+{
+    None,
+    AA2x2,
+    AA4x4,
+    AA6x6 
+};
+
 struct EnhancedRendererSettings
 {
+    // visual settings
+    MSAASetting msaa = MSAASetting::None;
+
     float exposure = 0.25f;
     float noteOutlineGlowFactor = 6.5f;
+
+    // keyboard settings
     float keyGlowFactor = 5.0f;
+    float keyboardFOV = 45.0f;
 
     // hsv shift settings
     bool hsvShiftEnabled = true;
@@ -31,6 +45,11 @@ struct EnhancedRendererSettings
 
     // particle settings
     bool particlesEnabled = true;
+
+    static EnhancedRendererSettings Default()
+    {
+        return EnhancedRendererSettings{};
+    }
 };
 #pragma endregion
 
@@ -56,6 +75,7 @@ struct KeyboardMeta3D
 	bool pressed = false;
 	bool black = false;
 	uint32_t color = 0x000000;
+    float velocity = 0.0f;
 
 	KeyboardMeta3D() = default;
 	KeyboardMeta3D(uint32_t color, bool pressed, bool black)
@@ -142,7 +162,7 @@ struct Particle3D
 
 #define NOTE_BUFFER_SIZE 32768
 #define NOTES_MAX_BATCHES 512
-#define PARTICLE_BUFFER_SIZE 16384
+#define PARTICLE_BUFFER_SIZE 32768
 
 class MIDIRendererEnhanced : public AbstractMIDIRenderer
 {
@@ -158,9 +178,26 @@ public:
     void Initialize() override;
     void Render(double deltaTime) override;
     void RenderSettings() override;
+    void ResetSettings() override;
     void OnResize(int width, int height) override;
     void ResetRenderer() override;
 private:
+    uint32_t msaaFBO = 0;
+    uint32_t msaaColorTexture = 0;
+    uint32_t msaaDepthRBO = 0;
+
+    int GetMSAASamples() const
+    {
+        switch (rendererSettings.msaa)
+        {
+            case MSAASetting::AA2x2: return 4;
+            case MSAASetting::AA4x4: return 8;
+            case MSAASetting::AA6x6: return 16;
+            default: return 1;
+        }
+    }
+    void UpdateMSAAFramebuffer();
+
     void CalcKeyPosAndWidth();
     void UpdateKeyboardInstance(double deltaTime);
     void UploadNoteBuffer(size_t count);
@@ -179,10 +216,20 @@ private:
 
     #pragma region Keyboard data
     std::unique_ptr<ShaderProgram> keyboardProgram;
-    std::unique_ptr<Buffer> keyboardVBO;
-    std::unique_ptr<VertexArray> keyboardVAO;
+
+    std::unique_ptr<VertexArray> whiteKeyVAO;
+    std::unique_ptr<Buffer> whiteKeyVBO;
+    std::unique_ptr<Buffer> whiteKeyEBO;
+
+    std::unique_ptr<VertexArray> blackKeyVAO;
+    std::unique_ptr<Buffer> blackKeyVBO;
+    std::unique_ptr<Buffer> blackKeyEBO;
+
+    // shared instance buffer used by both black and white keys
     std::unique_ptr<Buffer> keyboardIBO;
-    std::unique_ptr<Buffer> keyboardEBO;
+
+    size_t numWhiteKeys = 0;
+    size_t numBlackKeys = 0;
 
     std::array<float, 128> keyPos;
     std::array<float, 128> keyWidth;
@@ -251,10 +298,12 @@ private:
     float keyThickness = 0.2f;
 
     // animation speed for key presses
-    float pressSpeed = 15.0f;
+    float keyPressStiffness = 1600.0f;
+    float keyReleaseStiffness = 400.0f;
+    float keyDamping = 14.0f;
+    float keyTopBounce = 0.8f;
 
     float cameraDistance = 1.0f; // distance from keyboard
-    float cameraFOV = 45.0f;
     glm::vec3 camPos = glm::vec3(0.5f, 0.5f, 0.0f);
     glm::vec3 keyboardPosition = glm::vec3(0.5f, 0.0f, 0.0f); // center of keyboard
     float keyboardElevation = 0.5f; // height of keyboard in world space

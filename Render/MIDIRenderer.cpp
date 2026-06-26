@@ -3,6 +3,7 @@
 #include "Render/Renderer/PrimitiveShaders.h"
 #include "../App/MIDIApp.h"
 #include "../MIDI/TempoMap.h"
+#include "Utils.h"
 
 void CheckGLError(const char* label)
 {
@@ -343,12 +344,12 @@ void MIDIRenderer::InitializeFromConfig()
 void MIDIRenderer::Render(double deltaTime)
 {
 	if (!initialized) return;
+	
 	sceneFramebuffer->Bind();
 	// lowkey forgot to clear the framebuffer at the start of each render, oops
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	RenderNotes();
 	RenderKeyboard();
-
 	sceneFramebuffer->Unbind();
 
 	if (!seq)
@@ -365,7 +366,9 @@ void MIDIRenderer::RenderSettings()
 		{
 			auto colors = config->render.GetBarColor();
 			float barColor[3]{ colors.x, colors.y, colors.z };
-			if (ImGui::ColorPicker3("Bar Color", barColor))
+			ImGui::Text("Bar color");
+			ImGui::SameLine();
+			if (ImGui::ColorEdit3("##barColor", barColor))
 			{
 				config->render.SetBarColor(barColor[0], barColor[1], barColor[2]);
 				SetBarColor(barColor[0], barColor[1], barColor[2]);
@@ -373,15 +376,13 @@ void MIDIRenderer::RenderSettings()
 
 			colors = config->render.GetBackground();
 			float bgColor[3]{ colors.x, colors.y, colors.z };
-			if (ImGui::ColorPicker3("Background Color", bgColor))
+			ImGui::Text("Background color");
+			ImGui::SameLine();
+			if (ImGui::ColorEdit3("##bgColor", bgColor))
 			{
 				config->render.SetBackground(bgColor[0], bgColor[1], bgColor[2]);
 				SetBackgroundColor(bgColor[0], bgColor[1], bgColor[2]);
 			}
-
-			ImGui::BeginDisabled(true);
-			ImGui::Button("Pick color palette");
-			ImGui::EndDisabled();
 
 			ImGui::EndTabItem();
 		}
@@ -397,6 +398,13 @@ void MIDIRenderer::RenderSettings()
 					std::shared_ptr<ResourcePack> activePack = packList->GetActivePack();
 					LoadResourcePack(activePack, !config->render.GetUseColorsFromImage());
 				}
+				ImGui::SameLine();
+				if (ImGui::Button("Open pack folder"))
+				{
+					Utils::OpenFolder(RESOURCE_PACK_FOLDER);
+				}
+
+				ImGui::Separator();
 
 				auto& packs = packList->GetPackList();
 				size_t packIdx = 0;
@@ -433,6 +441,16 @@ void MIDIRenderer::RenderSettings()
 		}
 		ImGui::EndTabBar();
 	}
+	AbstractMIDIRenderer::RenderSettings();
+}
+
+void MIDIRenderer::ResetSettings()
+{
+	MIDIPlayerConfig* config = app->GetConfig();
+	config->render.SetBarColor(0.5f, 0.f, 0.f);
+	SetBarColor(0.5f, 0.f, 0.f);
+	config->render.SetBackground(0.f, 0.f, 0.f);
+	SetBackgroundColor(0.f, 0.f, 0.f);
 }
 
 void MIDIRenderer::CalcKeyPosAndWidth()

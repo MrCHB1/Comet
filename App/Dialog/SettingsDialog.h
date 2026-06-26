@@ -13,6 +13,7 @@ public:
 private:
 	MIDIApp* app;
 
+	void DrawAppTab();
 	void DrawVisualTab();
 	void DrawMIDITab();
 };

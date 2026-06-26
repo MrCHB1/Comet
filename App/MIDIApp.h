@@ -20,20 +20,19 @@
 #include <mutex>
 #include <atomic>
 #include <chrono>
+#include "Models.h"
+#include "UI/Themes/Themes.h"
 
-struct WindowRect
-{
-	int x, y;
-	int width, height;
-};
+class MainWindow;
 
 class MIDIApp
 {
 public:
-	MIDIApp();
+	MIDIApp(MainWindow* mainWindow);
 	~MIDIApp()
 	{
 		config.SaveConfig();
+		Models::UnloadModels();
 	}
 
 	AbstractMIDIRenderer* GetRenderer()
@@ -81,9 +80,10 @@ public:
 	void UnloadMIDI();
 	void RenderMIDIVideo(const RenderSettings& renderSettings);
 	void RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt);
-	void SetWindow(GLFWwindow* window)
+
+	ThemesList* GetThemeList()
 	{
-		this->window = window;
+		return themesList.get();
 	}
 
 	NoteCounterInfo* GetNoteCounterInfo()
@@ -159,9 +159,10 @@ public:
 	std::atomic_bool rendering = false;
 	double seqLength = 0.0;
 private:
-	GLFWwindow* window;
+	MainWindow* mainWindow;
 	MIDIPlayerConfig config;
 
+	std::unique_ptr<ThemesList> themesList;
 	std::unique_ptr<AbstractMIDIRenderer> renderer;
 	std::unique_ptr<NavigationBar> navigationBar;
 	std::shared_ptr<NoteCounterInfo> noteCounterInfo;
@@ -192,9 +193,6 @@ private:
 	int currentFrame = 0;
 	std::vector<uint8_t> exportPixels{};
 	std::unique_ptr<FFmpegPipe> ffmpegPipe;
-
-	WindowRect lastWindowRect;
-	bool fullscreen = false;
 
 	// prepares the app for rendering (disabling navigation, ui, etc.)
 	void PrepareRendering();

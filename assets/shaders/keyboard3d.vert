@@ -14,6 +14,9 @@ out vec2 TexCoord;
 out float pressFactor;
 flat out uint meta;
 
+out vec3 LocalUnitPos;
+out float KeyPos;
+
 const float keyboardThickness = 0.20f;
 const float keyboardHeight = 0.3f;
 
@@ -28,6 +31,9 @@ void main()
     float gap = isBlack ? 0.0 : 0.001;
     float keyWidth = rawWidth - gap;
     float startX = aLeft + (gap / 2.0);
+
+    LocalUnitPos = aPos; 
+    KeyPos = aLeft;
 
     // 2. Scale the unit cube
     vec3 localPos = aPos;

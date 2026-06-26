@@ -6,6 +6,12 @@ void SettingsDialog::DrawContent()
 {
 	if (ImGui::BeginTabBar("MainTabs"))
 	{
+		if (ImGui::BeginTabItem("App"))
+		{
+			DrawAppTab();
+
+			ImGui::EndTabItem();
+		}
 		if (ImGui::BeginTabItem("Visual"))
 		{
 			DrawVisualTab();
@@ -25,6 +31,103 @@ void SettingsDialog::DrawContent()
 	{
 		ImGui::CloseCurrentPopup();
 	}
+}
+
+void SettingsDialog::DrawAppTab()
+{
+	auto config = app->GetConfig();
+	ThemesList* themesList = app->GetThemeList();
+
+	if (ImGui::BeginChild("##scrollArea", ImVec2(0, 400), true, ImGuiWindowFlags_HorizontalScrollbar))
+	{
+		if (ImGui::BeginTabBar("AppTabs"))
+		{
+			if (ImGui::BeginTabItem("Theme"))
+			{
+				size_t themeIdx = 0;
+				if (ImGui::Button("Reload theme list"))
+				{
+					themesList->ReloadThemesList();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Open themes folder"))
+				{
+					themesList->OpenThemeListFolder();
+				}
+				ImGui::Separator();
+
+				for (const auto& theme : themesList->GetThemesList())
+				{
+					AppTheme* themePtr = theme.get();
+					bool isSelected = themePtr == themesList->GetCurrentTheme();
+					ImGui::PushID(themePtr);
+
+					float width = ImGui::GetContentRegionAvail().x;
+					float height = 50.0f;
+					ImVec2 pos = ImGui::GetCursorScreenPos();
+
+					if (ImGui::Selectable("##themeBtn", isSelected, 0, ImVec2(width, height)))
+					{
+						app->GetThemeList()->SetThemeAndApply(themeIdx);
+
+						ThemeInfo& themeInfo = themePtr->info;
+						std::cout << "Loaded \"" << themeInfo.name << "\"" << std::endl
+							<< "  By " << themeInfo.author << std::endl
+							<< "  Desc:" << themeInfo.description << std::endl
+							<< "  Version: " << themeInfo.version << std::endl;
+
+						config->app.currThemeID = themeIdx;
+					}
+
+					bool isHovered = ImGui::IsItemHovered();
+					ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+					// draw card background
+					auto toU32 = [](const ImVec4& color) { return ImGui::ColorConvertFloat4ToU32(color); };
+
+					ImVec4 selectColor = ImGui::GetStyleColorVec4(ImGuiCol_TabSelectedOverline);
+					selectColor.w = 20;
+					ImU32 bgColor = isSelected ? toU32(selectColor) : (isHovered ? IM_COL32(150, 150, 150, 30) : IM_COL32(0, 0, 0, 0));
+					drawList->AddRect(pos, ImVec2(pos.x + width, pos.y + height), ImGui::GetColorU32(isSelected ? ImGuiCol_CheckMark : ImGuiCol_Border), 4.0f, 0, 2.0f);
+
+					// draw swatch previews for controls n stuff
+					float swatchSize = 26.0f;
+					float padding = 12.0f;
+					ImVec2 swatchPos = ImVec2(pos.x + padding, pos.y + (height - swatchSize) * 0.5f);
+
+					ImU32 outlineColor = IM_COL32(50, 50, 50, 100);
+
+					// bg swatch
+					drawList->AddRectFilled(swatchPos, ImVec2(swatchPos.x + swatchSize, swatchPos.y + swatchSize), toU32(theme->colors.background), 4.0f);
+					drawList->AddRect(swatchPos, ImVec2(swatchPos.x + swatchSize, swatchPos.y + swatchSize), outlineColor, 4.0f);
+					swatchPos.x += swatchSize + 4;
+
+					// control swatch
+					drawList->AddRectFilled(swatchPos, ImVec2(swatchPos.x + swatchSize, swatchPos.y + swatchSize), toU32(theme->colors.controlBase), 4.0f);
+					drawList->AddRect(swatchPos, ImVec2(swatchPos.x + swatchSize, swatchPos.y + swatchSize), outlineColor, 4.0f);
+					swatchPos.x += swatchSize + 4;
+
+					// accent swatch
+					drawList->AddRectFilled(swatchPos, ImVec2(swatchPos.x + swatchSize, swatchPos.y + swatchSize), toU32(theme->colors.accent), 4.0f);
+					drawList->AddRect(swatchPos, ImVec2(swatchPos.x + swatchSize, swatchPos.y + swatchSize), outlineColor, 4.0f);
+					swatchPos.x += swatchSize + 4;
+
+					// draw them's name and author
+					ImVec2 textPos = ImVec2(swatchPos.x + 15.0f, pos.y + 8.0f);
+					drawList->AddText(textPos, ImGui::GetColorU32(ImGuiCol_Text), theme->info.name.c_str());
+
+					ImVec2 subTextPos = ImVec2(textPos.x, textPos.y + ImGui::GetTextLineHeight() + 2.0f);
+					drawList->AddText(subTextPos, ImGui::GetColorU32(ImGuiCol_TextDisabled), ("by " + theme->info.author).c_str());
+
+					ImGui::PopID();
+					themeIdx++;
+				}
+				ImGui::EndTabItem();
+			}
+			ImGui::EndTabBar();
+		}
+	}
+	ImGui::EndChild();
 }
 
 void SettingsDialog::DrawVisualTab()
@@ -101,6 +204,11 @@ void SettingsDialog::DrawVisualTab()
 						auto& entry = colorList->GetCurrentPalette();
 						app->GetRenderer()->LoadColors(entry.palette);
 					}
+					ImGui::SameLine();
+					if (ImGui::Button("Open palette folder"))
+					{
+						Utils::OpenFolder("./colors");
+					}
 
 					ImGui::Spacing();
 
@@ -136,7 +244,6 @@ void SettingsDialog::DrawVisualTab()
 							? ImGui::GetColorU32(ImGuiCol_FrameBgActive)
 							: ImGui::GetColorU32(ImGuiCol_FrameBg);
 
-						dl->AddRectFilled(min, max, bg, 4.0f);
 						dl->AddRect(min, max, ImGui::GetColorU32(isActivePalette ? ImGuiCol_CheckMark : ImGuiCol_Border), 4.0f, 0, 2.0f);
 
 						// Palette name
@@ -190,6 +297,7 @@ void SettingsDialog::DrawVisualTab()
 			{
 				MIDIPlayerConfig* config = app->GetConfig();
 				NoteCounterRenderer* counterRenderer = app->GetNoteCounterRenderer();
+				
 				ImGui::SetWindowFontScale(1.2f);
 				ImGui::Text("Appearance");
 				ImGui::Spacing();
@@ -235,6 +343,7 @@ void SettingsDialog::DrawVisualTab()
 				ImGui::SetWindowFontScale(1.2f);
 				ImGui::Text("Fields");
 				ImGui::SetWindowFontScale(1.0f);
+				ImGui::Text("Fields marked with an asterisk (*) means they're omitted from renders.");
 				ImGui::Spacing();
 
 				NoteCounterInfo* counter = app->GetNoteCounterInfo();
@@ -244,6 +353,7 @@ void SettingsDialog::DrawVisualTab()
 				ImGui::Checkbox("Notes", &counter->notesPassed.shown);
 				ImGui::Checkbox("NPS", &counter->notesPerSecond.shown);
 				ImGui::Checkbox("Polyphony", &counter->polyphony.shown);
+				ImGui::Checkbox("FPS*", &counter->fps.shown);
 
 				ImGui::EndTabItem();
 			}

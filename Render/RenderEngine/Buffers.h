@@ -172,6 +172,7 @@ public:
 	int GetHeight() const { return height; }
 
 	GLuint GetSceneTexture() const { return sceneTexture; }
+	GLuint GetID() const { return fbo; }
 
 	void Bind() const;
 	void Unbind() const;

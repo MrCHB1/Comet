@@ -9,6 +9,7 @@
 #include <optional>
 #include <algorithm>
 #include <type_traits>
+#include <chrono>
 
 namespace Utils
 {
@@ -26,7 +27,13 @@ namespace Utils
 		"0123456789+/";
 	std::string DecodeBase64(const std::string& encoded);
 	void OpenURL(const std::string& url);
+	void OpenFolder(const std::string& path);
 	bool FolderExists(const std::string& path);
+	template <typename T>
+	double GetCurrTime()
+	{
+		return (double)std::chrono::duration_cast<T>(std::chrono::steady_clock::now().time_since_epoch()).count();
+	}
 	template <typename T>
 	std::string FormatWithCommas(T value)
 	{

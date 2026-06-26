@@ -21,6 +21,15 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 
 		config = ConfigSection(YAML::Load(stream));
 
+		std::optional<ConfigSection> appSec = config->GetSection("app");
+		
+		if (appSec)
+		{
+			ConfigApp app;
+			app.currThemeID = appSec->GetInt("themeID", 0);
+			this->app = app;
+		}
+
 		std::optional<ConfigSection> overlaySec = config->GetSection("overlay");
 		if (overlaySec)
 		{
@@ -69,6 +78,8 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 void MIDIPlayerConfig::SaveConfig()
 {
 	YAML::Node config;
+	config["app"]["themeID"] = app.currThemeID;
+
 	config["overlay"]["scale"] = overlayInfo.scale;
 
 	config["midi"]["multithreaded"] = midi.multithreadedLoading;

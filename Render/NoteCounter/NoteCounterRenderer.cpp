@@ -3,6 +3,7 @@
 #include "imgui.h"
 #include <string>
 #include "Utils.h"
+#include "App/MIDIApp.h"
 
 static void RightAlignedTableText(const char* text)
 {
@@ -35,6 +36,7 @@ static void BeginNextCounterRow(const char* label)
 
 void NoteCounterRenderer::Render(float heightOffset)
 {
+	auto* config = app->GetConfig();
 	float counterScale = config->overlayInfo.scale;
 	float counterWidth = this->counterWidth * counterScale;
 
@@ -114,6 +116,13 @@ void NoteCounterRenderer::Render(float heightOffset)
 				FormatText(buf, "%s", Utils::FormatWithCommas(noteCounterInfo->polyphony.value).c_str());
 				RightAlignedTableText(buf);
 			}
+
+			if (noteCounterInfo->fps.shown && !app->IsRendering())
+			{
+				BeginNextCounterRow("FPS");
+				FormatText(buf, "%.1f", noteCounterInfo->fps.value);
+				RightAlignedTableText(buf);
+			}
 			
 			ImGui::PopFont();
 
@@ -137,4 +146,36 @@ void NoteCounterRenderer::OnResize(int width, int height)
 float NoteCounterRenderer::GetCounterHeight() const
 {
 	return lastCounterHeight;
+}
+
+glm::vec2 NoteCounterRenderer::GetCounterPosition() const
+{
+	auto* config = app->GetConfig();
+	float counterWidth = this->counterWidth * config->overlayInfo.scale;
+
+	float width = (float)counterWidth / (float)this->width;
+	float height = GetCounterHeight() / (float)this->height;
+
+	switch (counterAlignment)
+	{
+		case NoteCounterAlignment::TopLeft:
+		{
+			return glm::vec2(0.0, 1.0 - height - lastCounterYOffset / (float)this->height);
+		}
+		case NoteCounterAlignment::TopRight:
+		{
+			return glm::vec2(1.0 - (float)counterWidth / (float)this->width, 1.0 - height - lastCounterYOffset / (float)this->height);
+		}
+	}
+}
+
+glm::vec2 NoteCounterRenderer::GetCounterResolution() const
+{
+	auto* config = app->GetConfig();
+
+	float counterWidth = this->counterWidth * config->overlayInfo.scale;
+
+	float width = counterWidth / (float)this->width;
+	float height = GetCounterHeight() / (float)this->height;
+	return glm::vec2(width, height);
 }

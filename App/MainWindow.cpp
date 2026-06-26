@@ -11,6 +11,7 @@
 #include <iostream>
 #include "nfd.h"
 #include "Comet.h"
+#include "UI/Themes/Themes.h"
 
 MainWindow::MainWindow(const char* title)
 {
@@ -27,6 +28,7 @@ MainWindow::MainWindow(const char* title)
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
+	CometDefaultThemes::InitializeDefaultThemes();
 	InitializeTheme();
 	ImGuiIO& io = ImGui::GetIO();
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
@@ -151,7 +153,7 @@ bool MainWindow::InitializeGLFW()
 
 void MainWindow::InitializeApp()
 {
-	midiApp = std::make_unique<MIDIApp>();
+	midiApp = std::make_unique<MIDIApp>(this);
 }
 
 void MainWindow::InitializeAppResources()
@@ -161,7 +163,6 @@ void MainWindow::InitializeAppResources()
 #endif
 	InitPrimitiveShaders();
 	midiApp->LoadResources();
-	midiApp->SetWindow(window);
 #ifdef COMET_DEBUG
 	std::cout << "App resources loaded" << std::endl;
 #endif
@@ -224,6 +225,20 @@ void MainWindow::Run()
 	}
 }
 
+bool MainWindow::CanShowNavigationBar()
+{
+	if (!fullscreen) return true;
+
+	double mouseX, mouseY;
+	glfwGetCursorPos(window, &mouseX, &mouseY);
+
+	// me
+	bool isMenuOpen = ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId);
+	if (mouseY < 60.0 || isMenuOpen) return true;
+
+	return false;
+}
+
 void MainWindow::DetectKeyPress()
 {
 	// ignore key presses if any dialog is opened
@@ -243,100 +258,37 @@ void MainWindow::DetectKeyPress()
 	}
 }
 
+void MainWindow::ToggleFullscreen()
+{
+	if (!fullscreen)
+	{
+		glfwGetWindowPos(window, &lastWindowRect.x, &lastWindowRect.y);
+		glfwGetWindowSize(window, &lastWindowRect.width, &lastWindowRect.height);
+
+		GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+		const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+		glfwSetWindowAttrib(window, GLFW_DECORATED, GLFW_FALSE);
+		glfwSetWindowPos(window, 0, 0);
+		glfwSetWindowSize(window, mode->width, mode->height);
+	}
+	else
+	{
+		glfwSetWindowAttrib(window, GLFW_DECORATED, GLFW_TRUE);
+		glfwSetWindowPos(window, lastWindowRect.x, lastWindowRect.y);
+		glfwSetWindowSize(window, lastWindowRect.width, lastWindowRect.height);
+	}
+
+	fullscreen = !fullscreen;
+}
+
 void MainWindow::RenderUI()
 {
-	menuBuilder.Draw();
+	if (CanShowNavigationBar()) menuBuilder.Draw();
 }
 
 void MainWindow::InitializeTheme()
 {
 	Fonts::LoadFonts();
-
-	ImGuiStyle& style = ImGui::GetStyle();
-
-	// -----------------------
-	// Layout / feel
-	// -----------------------
-	style.WindowRounding = 6.0f;
-	style.ChildRounding = 4.0f;
-	style.FrameRounding = 4.0f;
-	style.PopupRounding = 4.0f;
-	style.ScrollbarRounding = 6.0f;
-	style.GrabRounding = 4.0f;
-
-	style.WindowBorderSize = 1.0f;
-	style.FrameBorderSize = 1.0f;
-	style.PopupBorderSize = 1.0f;
-
-	style.ItemSpacing = ImVec2(8, 6);
-	style.WindowPadding = ImVec2(10, 10);
-	style.WindowMenuButtonPosition = ImGuiDir_None;
-	style.WindowTitleAlign = ImVec2(0.0f, 0.5f);
-
-	// -----------------------
-	// Colors (Unity Light vibe)
-	// -----------------------
-	ImVec4* c = style.Colors;
-
-	c[ImGuiCol_TitleBg] = ImVec4(0.92f, 0.92f, 0.92f, 1.00f);
-	c[ImGuiCol_TitleBgActive] = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
-	c[ImGuiCol_TitleBgCollapsed] = ImVec4(0.92f, 0.92f, 0.92f, 1.00f);
-
-	c[ImGuiCol_TabUnfocused] = ImVec4(0.86f, 0.86f, 0.86f, 1.00f);
-	c[ImGuiCol_TabUnfocusedActive] = ImVec4(0.82f, 0.82f, 0.82f, 1.00f);
-
-	c[ImGuiCol_DockingPreview] = ImVec4(0.20f, 0.45f, 0.90f, 0.25f);
-	c[ImGuiCol_DockingEmptyBg] = ImVec4(0.94f, 0.94f, 0.94f, 1.00f);
-
-	c[ImGuiCol_Text] = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
-
-	c[ImGuiCol_WindowBg] = ImVec4(0.94f, 0.94f, 0.94f, 1.00f);
-	c[ImGuiCol_ChildBg] = ImVec4(0.97f, 0.97f, 0.97f, 1.00f);
-	c[ImGuiCol_PopupBg] = ImVec4(0.97f, 0.97f, 0.97f, 1.00f);
-
-	c[ImGuiCol_Border] = ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
-	c[ImGuiCol_Separator] = ImVec4(0.75f, 0.75f, 0.75f, 1.00f);
-
-	// Frames (inputs, panels)
-	c[ImGuiCol_FrameBg] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-	c[ImGuiCol_FrameBgHovered] = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
-	c[ImGuiCol_FrameBgActive] = ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
-
-	// Buttons (very subtle like Unity)
-	c[ImGuiCol_Button] = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
-	c[ImGuiCol_ButtonHovered] = ImVec4(0.82f, 0.82f, 0.82f, 1.00f);
-	c[ImGuiCol_ButtonActive] = ImVec4(0.75f, 0.75f, 0.75f, 1.00f);
-
-	// Headers (tree nodes, collapsibles)
-	c[ImGuiCol_Header] = ImVec4(0.88f, 0.88f, 0.88f, 1.00f);
-	c[ImGuiCol_HeaderHovered] = ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
-	c[ImGuiCol_HeaderActive] = ImVec4(0.75f, 0.75f, 0.75f, 1.00f);
-
-	// Tabs
-	c[ImGuiCol_Tab] = ImVec4(0.88f, 0.88f, 0.88f, 1.00f);
-	c[ImGuiCol_TabHovered] = ImVec4(0.82f, 0.82f, 0.82f, 1.00f);
-	c[ImGuiCol_TabSelected] = ImVec4(0.78f, 0.78f, 0.78f, 1.00f);
-	c[ImGuiCol_TabSelectedOverline] = ImVec4(0.30f, 0.50f, 0.90f, 1.00f);
-
-	// Scrollbar
-	c[ImGuiCol_ScrollbarBg] = ImVec4(0.92f, 0.92f, 0.92f, 1.00f);
-	c[ImGuiCol_ScrollbarGrab] = ImVec4(0.70f, 0.70f, 0.70f, 1.00f);
-	c[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.60f, 0.60f, 0.60f, 1.00f);
-	c[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
-
-	// Accent (Unity-like blue selection)
-	c[ImGuiCol_CheckMark] = ImVec4(0.20f, 0.45f, 0.90f, 1.00f);
-	c[ImGuiCol_SliderGrab] = ImVec4(0.20f, 0.45f, 0.90f, 1.00f);
-	c[ImGuiCol_SliderGrabActive] = ImVec4(0.15f, 0.40f, 0.85f, 1.00f);
-
-	c[ImGuiCol_ResizeGrip] = ImVec4(0.80f, 0.80f, 0.80f, 0.30f);
-	c[ImGuiCol_ResizeGripHovered] = ImVec4(0.20f, 0.45f, 0.90f, 0.70f);
-	c[ImGuiCol_ResizeGripActive] = ImVec4(0.20f, 0.45f, 0.90f, 1.00f);
-
-	// Main menu
-	c[ImGuiCol_MenuBarBg] = ImVec4(0.92f, 0.92f, 0.92f, 1.0f);
-
-	// Plot (optional but nice)
-	c[ImGuiCol_PlotLines] = ImVec4(0.20f, 0.45f, 0.90f, 1.00f);
-	c[ImGuiCol_PlotHistogram] = ImVec4(0.20f, 0.45f, 0.90f, 1.00f);
+	// CometDefaultThemes::DefaultLightMode->ApplyTheme();
 }

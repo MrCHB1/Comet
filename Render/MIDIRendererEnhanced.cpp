@@ -1,6 +1,7 @@
 #include "MIDIRendererEnhanced.h"
 #include <glm/glm.hpp>
 #include "App/MIDIApp.h"
+#include "App/Models.h"
 
 const std::vector<float> CUBE_VERTICES = {
     // front face
@@ -85,43 +86,7 @@ void MIDIRendererEnhanced::Initialize()
     #pragma endregion
 
     #pragma region Keyboard buffers + data
-    keyboardProgram = ShaderProgram::CreateFromFiles("assets/shaders/keyboard3d");
-
-    keyboardVAO = std::make_unique<VertexArray>();
-    keyboardVBO = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
-    keyboardIBO = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
-    keyboardEBO = std::make_unique<Buffer>(GL_ELEMENT_ARRAY_BUFFER);
-
-    {
-        VertexArrayBind vaoBind(*keyboardVAO);
-
-        // static cube verts
-        keyboardVBO->Bind();
-        keyboardVBO->SetData(CUBE_VERTICES, GL_STATIC_DRAW);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
-
-        // index buffer
-        keyboardEBO->Bind();
-        keyboardEBO->SetData(CUBE_INDICES, GL_STATIC_DRAW);
-
-        // instance buffer
-        keyboardIBO->Bind();
-        keyboardIBO->SetData(keyboardData, GL_DYNAMIC_DRAW);
-
-        // instance Attributes matching RenderKeyboardKey3D
-        keyboardVAO->SetFloatAttribute(1, 1, sizeof(RenderKeyboardKey3D), offsetof(RenderKeyboardKey3D, left));
-        keyboardVAO->SetFloatAttribute(2, 1, sizeof(RenderKeyboardKey3D), offsetof(RenderKeyboardKey3D, right));
-        keyboardVAO->SetFloatAttribute(3, 1, sizeof(RenderKeyboardKey3D), offsetof(RenderKeyboardKey3D, pressFactor));
-        keyboardVAO->SetIntAttribute(4, 1, sizeof(RenderKeyboardKey3D), offsetof(RenderKeyboardKey3D, meta));
-
-        glVertexAttribDivisor(1, 1);
-        glVertexAttribDivisor(2, 1);
-        glVertexAttribDivisor(3, 1);
-        glVertexAttribDivisor(4, 1);
-    }
-
-    // 2. Sort keys to render white keys first, then black keys
+    // 1. Sort keys to render white keys first, then black keys
     std::vector<uint8_t> blackIDs;
     std::vector<uint8_t> whiteIDs;
     for (uint8_t key = 0; key < 128; key++)
@@ -132,9 +97,79 @@ void MIDIRendererEnhanced::Initialize()
         keyMetas[key].MarkBlack(black);
     }
 
+    numWhiteKeys = whiteIDs.size();
+    numBlackKeys = blackIDs.size();
+
     int i = 0;
     for (auto& white : whiteIDs) kbIDs[i++] = white;
     for (auto& black : blackIDs) kbIDs[i++] = black;
+
+    keyboardProgram = ShaderProgram::CreateFromFiles("assets/shaders/keyboard3d");
+
+    keyboardIBO = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
+    keyboardIBO->Bind();
+    keyboardIBO->SetData(keyboardData, GL_DYNAMIC_DRAW);
+
+    whiteKeyVAO = std::make_unique<VertexArray>();
+    whiteKeyVBO = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
+    whiteKeyEBO = std::make_unique<Buffer>(GL_ELEMENT_ARRAY_BUFFER);
+
+    {
+        VertexArrayBind vaoBind(*whiteKeyVAO);
+        auto* whiteMesh = Models::WhiteKeyMesh;
+
+        whiteKeyVBO->Bind();
+        whiteKeyVBO->SetData(whiteMesh->vertices, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
+
+        whiteKeyEBO->Bind();
+        whiteKeyEBO->SetData(whiteMesh->indices, GL_STATIC_DRAW);
+
+        keyboardIBO->Bind();
+        whiteKeyVAO->SetFloatAttribute(1, 1, sizeof(RenderKeyboardKey3D), offsetof(RenderKeyboardKey3D, left));
+        whiteKeyVAO->SetFloatAttribute(2, 1, sizeof(RenderKeyboardKey3D), offsetof(RenderKeyboardKey3D, right));
+        whiteKeyVAO->SetFloatAttribute(3, 1, sizeof(RenderKeyboardKey3D), offsetof(RenderKeyboardKey3D, pressFactor));
+        whiteKeyVAO->SetIntAttribute(4, 1, sizeof(RenderKeyboardKey3D), offsetof(RenderKeyboardKey3D, meta));
+
+        glVertexAttribDivisor(1, 1);
+        glVertexAttribDivisor(2, 1);
+        glVertexAttribDivisor(3, 1);
+        glVertexAttribDivisor(4, 1);
+    }
+
+    blackKeyVAO = std::make_unique<VertexArray>();
+    blackKeyVBO = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
+    blackKeyEBO = std::make_unique<Buffer>(GL_ELEMENT_ARRAY_BUFFER);
+
+    {
+        VertexArrayBind vaoBind(*blackKeyVAO);
+        auto* blackMesh = Models::BlackKeyMesh;
+
+        blackKeyVBO->Bind();
+        blackKeyVBO->SetData(blackMesh->vertices, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)0);
+
+        blackKeyEBO->Bind();
+        blackKeyEBO->SetData(blackMesh->indices, GL_STATIC_DRAW);
+
+        keyboardIBO->Bind();
+
+        // shift the attribute pointers past the white keys
+        size_t blackOffset = numWhiteKeys * sizeof(RenderKeyboardKey3D);
+
+        blackKeyVAO->SetFloatAttribute(1, 1, sizeof(RenderKeyboardKey3D), blackOffset + offsetof(RenderKeyboardKey3D, left));
+        blackKeyVAO->SetFloatAttribute(2, 1, sizeof(RenderKeyboardKey3D), blackOffset + offsetof(RenderKeyboardKey3D, right));
+        blackKeyVAO->SetFloatAttribute(3, 1, sizeof(RenderKeyboardKey3D), blackOffset + offsetof(RenderKeyboardKey3D, pressFactor));
+        blackKeyVAO->SetIntAttribute(4, 1, sizeof(RenderKeyboardKey3D), blackOffset + offsetof(RenderKeyboardKey3D, meta));
+
+        glVertexAttribDivisor(1, 1);
+        glVertexAttribDivisor(2, 1);
+        glVertexAttribDivisor(3, 1);
+        glVertexAttribDivisor(4, 1);
+    }
+
     #pragma endregion
 
     #pragma region Saber buffers + data
@@ -247,6 +282,7 @@ void MIDIRendererEnhanced::Initialize()
 
     initialized = true;
     CalcKeyPosAndWidth();
+    UpdateMSAAFramebuffer();
 }
 
 void MIDIRendererEnhanced::LoadSequence(std::shared_ptr<MIDISequence> sequence)
@@ -300,30 +336,51 @@ void MIDIRendererEnhanced::UpdateKeyboardInstance(double deltaTime)
 {
     bool needsUpload = false;
 
+    // cap the dt so physics does not explode lol
+    float dt = static_cast<float>(min(deltaTime, 0.033));
+
     int i = 0;
     for (uint8_t id : kbIDs)
     {
         float targetPress = keyMetas[id].pressed ? 1.0f : 0.0f;
         float currentPress = keyboardData[i].pressFactor;
+        float& velocity = keyMetas[id].velocity;
 
-        if (currentPress != targetPress)
+        bool pressing = targetPress > currentPress;
+        float stiffness = pressing ? keyPressStiffness : keyReleaseStiffness;
+
+        float force = stiffness * (targetPress - currentPress) - (keyDamping * velocity);
+        velocity += force * dt;
+        float newPress = currentPress + velocity * dt;
+
+        if (newPress >= 1.0f)
         {
-            if (currentPress < targetPress)
+            newPress = 1.0f;
+            velocity = 0.0f;
+        }
+        else if (newPress <= 0.0f && targetPress == 0.0f)
+        {
+            newPress = 0.0f;
+            if (velocity < 0.0f)
             {
-                currentPress += pressSpeed * deltaTime;
-                if (currentPress > targetPress) currentPress = targetPress;
+                velocity = -velocity * keyTopBounce;
             }
-            else
-            {
-                currentPress -= pressSpeed * deltaTime;
-                if (currentPress < targetPress) currentPress = targetPress;
-            }
+        }
+
+        if (abs(newPress - targetPress) < 0.001f && std::abs(velocity) < 0.01f)
+        {
+            newPress = targetPress;
+            velocity = 0.0f;
+        }
+
+        if (currentPress != newPress)
+        {
             needsUpload = true;
         }
 
         keyboardData[i].left = keyPos[id];
         keyboardData[i].right = keyPos[id] + keyWidth[id];
-        keyboardData[i].pressFactor = currentPress;
+        keyboardData[i].pressFactor = newPress;
         keyboardData[i].meta = keyMetas[id].GetMeta();
 
         keyMetas[id].MarkPressed(false);
@@ -345,7 +402,7 @@ void MIDIRendererEnhanced::RenderKeyboard()
     // calculate required camera distance based on keyboard height and FOV
     // this ensures the keyboard spans the appropriate portion of the viewport
     float aspect = (float)width / (float)height;
-    float verticalFOVRad = glm::radians(cameraFOV);
+    float verticalFOVRad = glm::radians(rendererSettings.keyboardFOV);
 
     cameraDistance = 1.0f / (2.0f * tan(verticalFOVRad / 2.0f) * aspect);
 
@@ -361,9 +418,18 @@ void MIDIRendererEnhanced::RenderKeyboard()
     keyboardProgram->SetMat4("view", view);
     keyboardProgram->SetFloat("keyboardZOffset", keyboardZOffset);
     keyboardProgram->SetVec3("cameraPos", cameraPos);
+    keyboardProgram->SetFloat("animTime", app->GetTimer()->Elapsed());
 
-    VertexArrayBind kbVAOBind(*keyboardVAO);
-    glDrawElementsInstanced(GL_TRIANGLES, 36, GL_UNSIGNED_INT, nullptr, 128);
+
+    {
+        VertexArrayBind whiteBind(*whiteKeyVAO);
+        glDrawElementsInstanced(GL_TRIANGLES, Models::WhiteKeyMesh->indices.size(), GL_UNSIGNED_INT, nullptr, numWhiteKeys);
+    }
+
+    {
+        VertexArrayBind blackBind(*blackKeyVAO);
+        glDrawElementsInstanced(GL_TRIANGLES, Models::BlackKeyMesh->indices.size(), GL_UNSIGNED_INT, nullptr, numBlackKeys);
+    }
 }
 
 void MIDIRendererEnhanced::RenderNotes()
@@ -505,11 +571,11 @@ void MIDIRendererEnhanced::RenderNotes()
                 notesPassed++;
                 polyphony++;
 
-                if (particleEmissionTimers[id] >= EMISSION_COOLDOWN)
-                {
-                    EmitNoteExplosion(id, color);
-                    particleEmissionTimers[id] = 0.0f;
-                }
+                // if (particleEmissionTimers[id] >= EMISSION_COOLDOWN)
+                // {
+                //     EmitNoteExplosion(id, color);
+                //     particleEmissionTimers[id] = 0.0f;
+                // }
             }
 
             renderNotes[noteID++] = RenderNote3D(
@@ -574,7 +640,7 @@ void MIDIRendererEnhanced::RenderSaber()
     ShaderBind saberBind(*saberProgram);
 
     float aspect = (float)width / (float)height;
-    float verticalFOVRad = glm::radians(cameraFOV);
+    float verticalFOVRad = glm::radians(rendererSettings.keyboardFOV);
     glm::mat4 projection = glm::perspective(verticalFOVRad, aspect, 0.1f, 100.0f);
     glm::mat4 view = GetViewMatrixFromEuler();
 
@@ -675,10 +741,28 @@ void MIDIRendererEnhanced::UpdateParticles(double deltaTime)
         ++i;
     }
 
-    for (auto& timer : particleEmissionTimers)
+    for (uint8_t id : kbIDs)
     {
-        timer += static_cast<float>(deltaTime);
-    } 
+        const auto& key = keyMetas[id];
+        float& timer = particleEmissionTimers[id];
+        if (!key.pressed)
+        {
+            timer = 0.0f;
+            continue;
+        }
+        uint32_t keyColor = key.color;
+
+        if (timer == 0.0f)
+        {
+            EmitNoteExplosion(id, keyColor);
+        }
+
+        timer += deltaTime;
+        if (timer >= EMISSION_COOLDOWN)
+        {
+            timer = 0.0f;
+        }
+    }
 }
 
 void MIDIRendererEnhanced::RenderParticles()
@@ -705,8 +789,20 @@ void MIDIRendererEnhanced::RenderParticles()
 void MIDIRendererEnhanced::Render(double deltaTime)
 {
 	if (!initialized) return;
+    
+    int samples = GetMSAASamples();
 
-    hdrSceneFBO->Bind();
+    if (samples > 1)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, msaaFBO);
+        glEnable(GL_MULTISAMPLE);
+    }
+    else
+    {
+        hdrSceneFBO->Bind();
+        glDisable(GL_MULTISAMPLE);
+    }
+    
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glDepthMask(GL_FALSE);
@@ -739,7 +835,18 @@ void MIDIRendererEnhanced::Render(double deltaTime)
     RenderSaber();
 
     glDisable(GL_DEPTH_TEST);
-    hdrSceneFBO->Unbind();
+
+    if (samples > 1)
+    {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, msaaFBO);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, hdrSceneFBO->GetID());
+        glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+    else
+    {
+        hdrSceneFBO->Unbind();
+    }
 
     glDisable(GL_DEPTH_TEST);
 
@@ -808,129 +915,157 @@ void MIDIRendererEnhanced::Render(double deltaTime)
    
 }
 
-void MIDIRendererEnhanced::OnResize(int width, int height)
-{
-    AbstractMIDIRenderer::OnResize(width, height);
-    this->width = width;
-    this->height = height;
-
-    float aspect = (float)width / (float)height;
-    keyboardHeight = keyboardMaxZ * aspect;
-    if (!initialized) return;
-    CalcKeyPosAndWidth();
-
-    // regenerate bloom stuff
-    hdrSceneFBO->Resize(width, height);
-    bloomChain.clear();
-
-    glm::vec2 mipSize(width, height);
-    while (true)
-    {
-        mipSize *= 0.5f;
-
-        int mipWidth = static_cast<int>(mipSize.x);
-        int mipHeight = static_cast<int>(mipSize.y);
-
-        if (mipWidth < 2 || mipHeight < 2) {
-            break;
-        }
-
-        auto fbo = std::make_unique<Framebuffer>();
-        fbo->Setup(mipWidth, mipHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT);
-        bloomChain.push_back(std::move(fbo));
-    }
-}
+#define IMGUI_RADIO_BUTTON(label, variable, value) \
+    if (ImGui::RadioButton(label, variable == value)) variable = value
 
 void MIDIRendererEnhanced::RenderSettings()
 {
-    ImGui::SeparatorText("Post processing");
-    ImGui::Text("Exposure");
-    ImGui::SameLine();
-    ImGui::SliderFloat("##exposure", &rendererSettings.exposure, 0.0f, 5.0f);
+    if (ImGui::BeginTabBar("##renderSettings"))
+    {
+        if (ImGui::BeginTabItem("Visual"))
+        {
+            ImGui::Text("Exposure");
+            ImGui::SameLine();
+            ImGui::SliderFloat("##exposure", &rendererSettings.exposure, 0.0f, 5.0f);
+
+            ImGui::Text("Anti-aliasing");
+
+            MSAASetting previousMSAA = rendererSettings.msaa;
+
+            IMGUI_RADIO_BUTTON("None", rendererSettings.msaa, MSAASetting::None);
+            IMGUI_RADIO_BUTTON("Low (2x2)", rendererSettings.msaa, MSAASetting::AA2x2);
+            IMGUI_RADIO_BUTTON("Medium (4x4)", rendererSettings.msaa, MSAASetting::AA4x4);
+            IMGUI_RADIO_BUTTON("High (6x6)", rendererSettings.msaa, MSAASetting::AA6x6);
+
+            if (previousMSAA != rendererSettings.msaa) UpdateMSAAFramebuffer();
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Notes"))
+        {
+            ImGui::Text("Note outline emission");
+            ImGui::SameLine();
+            if (ImGui::SliderFloat("##noteOutlineGlow", &rendererSettings.noteOutlineGlowFactor, 1.0f, 8.0f))
+            {
+                ShaderBind notesBind(*notesProgram);
+                notesProgram->SetFloat("noteOutlineGlow", rendererSettings.noteOutlineGlowFactor);
+            }
+
+            ImGui::Spacing();
+            ImGui::Text("Enable HSV shift");
+            ImGui::SameLine();
+            if (ImGui::Checkbox("##hsvShift", &rendererSettings.hsvShiftEnabled))
+            {
+                ShaderBind notesBind(*notesProgram);
+                notesProgram->SetInt("noteHsvShiftEnabled", rendererSettings.hsvShiftEnabled ? 1 : 0);
+            }
+            if (rendererSettings.hsvShiftEnabled)
+            {
+                ImGui::Text("HSV strength");
+                ImGui::SameLine();
+                if (ImGui::SliderFloat("##hsvStrength", &rendererSettings.hsvShiftStrength, 0.0f, 1.0f))
+                {
+                    ShaderBind notesBind(*notesProgram);
+                    notesProgram->SetFloat("noteHsvShiftStrength", rendererSettings.hsvShiftStrength);
+                }
+
+                bool shouldForwardUniform = false;
+
+                ImGui::Text("Hue shift");
+                ImGui::SameLine();
+                if (ImGui::SliderFloat("##hsvHueShift", &rendererSettings.hsvShifts.x, -1.0f, 1.0f))
+                {
+                    shouldForwardUniform = true;
+                }
+
+                ImGui::Text("Saturation shift");
+                ImGui::SameLine();
+                if (ImGui::SliderFloat("##hsvSatShift", &rendererSettings.hsvShifts.y, -1.0f, 0.0f))
+                {
+                    shouldForwardUniform = true;
+                }
+
+                ImGui::Text("Value shift");
+                ImGui::SameLine();
+                if (ImGui::SliderFloat("##hsvValShift", &rendererSettings.hsvShifts.z, -1.0f, 0.0f))
+                {
+                    shouldForwardUniform = true;
+                }
+
+                if (shouldForwardUniform)
+                {
+                    ShaderBind notesBind(*notesProgram);
+                    notesProgram->SetVec3("noteHsvShifts", rendererSettings.hsvShifts);
+                }
+            }
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Keyboard"))
+        {
+            ImGui::Text("Key glow factor");
+            ImGui::SameLine();
+            if (ImGui::SliderFloat("##keyGlowFactor", &rendererSettings.keyGlowFactor, 1.0f, 8.0f))
+            {
+                ShaderBind keyboardBind(*keyboardProgram);
+                keyboardProgram->SetFloat("keyGlowFactor", rendererSettings.keyGlowFactor);
+            }
+            ImGui::Text("Keyboard FOV");
+            ImGui::SameLine();
+            ImGui::SliderFloat("##keyboardFov", &rendererSettings.keyboardFOV, 20.0f, 89.9f);
+
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Saber"))
+        {
+            ImGui::Text("Color");
+            ImGui::SameLine();
+            if (ImGui::ColorEdit3("##saberColor", &rendererSettings.saberColor.x))
+            {
+                ShaderBind mistBind(*mistProgram);
+                mistProgram->SetVec3("mistColor", rendererSettings.saberColor);
+            }
+            ImGui::Text("Brightness");
+            ImGui::SameLine();
+            ImGui::SliderFloat("##saberBrightness", &rendererSettings.saberBrightness, 0.0f, 20.0f);
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Mist"))
+        {
+            ImGui::Text("Enable mist");
+            ImGui::SameLine();
+            ImGui::Checkbox("##enableMist", &rendererSettings.mistEnabled);
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Particle system"))
+        {
+            ImGui::Text("Enable particles");
+            ImGui::SameLine();
+            ImGui::Checkbox("##enableParticlles", &rendererSettings.particlesEnabled);
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
+
+    AbstractMIDIRenderer::RenderSettings();
+}
+
+void MIDIRendererEnhanced::ResetSettings()
+{
+    rendererSettings = EnhancedRendererSettings::Default();
 
     {
         ShaderBind notesBind(*notesProgram);
-        ImGui::SeparatorText("Notes settings");
-        ImGui::Text("Note outline emission");
-        ImGui::SameLine();
-        if (ImGui::SliderFloat("##noteOutlineGlow", &rendererSettings.noteOutlineGlowFactor, 1.0f, 8.0f))
-        {
-            notesProgram->SetFloat("noteOutlineGlow", rendererSettings.noteOutlineGlowFactor);
-        }
-
-        ImGui::Spacing();
-        ImGui::Text("Enable HSV shift");
-        ImGui::SameLine();
-        if (ImGui::Checkbox("##hsvShift", &rendererSettings.hsvShiftEnabled))
-        {
-            notesProgram->SetInt("noteHsvShiftEnabled", rendererSettings.hsvShiftEnabled ? 1 : 0);
-        }
-        if (rendererSettings.hsvShiftEnabled)
-        {
-            ImGui::Text("HSV strength");
-            ImGui::SameLine();
-            if (ImGui::SliderFloat("##hsvStrength", &rendererSettings.hsvShiftStrength, 0.0f, 1.0f))
-            {
-                notesProgram->SetFloat("noteHsvShiftStrength", rendererSettings.hsvShiftStrength);
-            }
-            
-            bool shouldForwardUniform = false;
-
-            ImGui::Text("Hue shift");
-            ImGui::SameLine();
-            if (ImGui::SliderFloat("##hsvHueShift", &rendererSettings.hsvShifts.x, -1.0f, 1.0f))
-            {
-                shouldForwardUniform = true;
-            }
-            
-            ImGui::Text("Saturation shift");
-            ImGui::SameLine();
-            if (ImGui::SliderFloat("##hsvSatShift", &rendererSettings.hsvShifts.y, -1.0f, 0.0f))
-            {
-                shouldForwardUniform = true;
-            }
-
-            ImGui::Text("Value shift");
-            ImGui::SameLine();
-            if (ImGui::SliderFloat("##hsvValShift", &rendererSettings.hsvShifts.z, -1.0f, 0.0f))
-            {
-                shouldForwardUniform = true;
-            }
-
-            if (shouldForwardUniform)
-            {
-                notesProgram->SetVec3("noteHsvShifts", rendererSettings.hsvShifts);
-            }
-        }
-
-        ImGui::SeparatorText("Keyboard settings");
-        ImGui::Text("Key glow factor");
-        ImGui::SameLine();
-        if (ImGui::SliderFloat("##keyGlowFactor", &rendererSettings.keyGlowFactor, 1.0f, 8.0f))
-        {
-            ShaderBind keyboardBind(*keyboardProgram);
-            keyboardProgram->SetFloat("keyGlowFactor", rendererSettings.keyGlowFactor);
-        }
-
-        ImGui::SeparatorText("Saber settings");
-        if (ImGui::ColorEdit3("Color", &rendererSettings.saberColor.x))
-        {
-            ShaderBind mistBind(*mistProgram);
-            mistProgram->SetVec3("mistColor", rendererSettings.saberColor);
-        }
-        ImGui::Text("Brightness");
-        ImGui::SameLine();
-        ImGui::SliderFloat("##saberBrightness", &rendererSettings.saberBrightness, 0.0f, 20.0f);
-
-        ImGui::SeparatorText("Mist settings");
-        ImGui::Text("Enable mist");
-        ImGui::SameLine();
-        ImGui::Checkbox("##enableMist", &rendererSettings.mistEnabled);
-
-        ImGui::SeparatorText("Particle Settings");
-        ImGui::Text("Enable particles");
-        ImGui::SameLine();
-        ImGui::Checkbox("##enableParticlles", &rendererSettings.particlesEnabled);
+        notesProgram->SetFloat("noteOutlineGlow", rendererSettings.noteOutlineGlowFactor);
+        notesProgram->SetVec3("noteHsvShifts", rendererSettings.hsvShifts);
+    }
+    
+    {
+        ShaderBind keyboardBind(*keyboardProgram);
+        keyboardProgram->SetFloat("keyGlowFactor", rendererSettings.keyGlowFactor);
+    }
+    
+    {
+        ShaderBind mistBind(*mistProgram);
+        mistProgram->SetVec3("mistColor", rendererSettings.saberColor);
     }
 }
 
@@ -975,11 +1110,86 @@ void MIDIRendererEnhanced::UploadNoteBuffer(size_t count)
     );
 }
 
+void MIDIRendererEnhanced::UpdateMSAAFramebuffer()
+{
+    if (msaaFBO) glDeleteFramebuffers(1, &msaaFBO);
+    if (msaaColorTexture) glDeleteTextures(1, &msaaColorTexture);
+    if (msaaDepthRBO) glDeleteRenderbuffers(1, &msaaDepthRBO);
+
+    msaaFBO = 0;
+    msaaColorTexture = 0;
+    msaaDepthRBO = 0;
+
+    int samples = GetMSAASamples();
+    if (samples <= 1) return;
+
+    int maxSamples;
+    glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
+    if (samples > maxSamples) samples = maxSamples;
+
+    glGenFramebuffers(1, &msaaFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, msaaFBO);
+
+    glGenTextures(1, &msaaColorTexture);
+    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, msaaColorTexture);
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, GL_RGBA16F, width, height, GL_TRUE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, msaaColorTexture, 0);
+
+    glGenRenderbuffers(1, &msaaDepthRBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, msaaDepthRBO);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH_COMPONENT24, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, msaaDepthRBO);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
 void MIDIRendererEnhanced::ResetRenderer()
 {
     liveParticleCount = 0;
-    for (auto& timer : particleEmissionTimers)
+    for (float& timer : particleEmissionTimers)
     {
         timer = 0.0f;
     }
+
+    for (int i = 0; i < kbIDs.size(); i++)
+    {
+        keyboardData[i].pressFactor = 0.0f;
+        keyMetas[i].velocity = 0.0f;
+    }
+}
+
+void MIDIRendererEnhanced::OnResize(int width, int height)
+{
+    AbstractMIDIRenderer::OnResize(width, height);
+    this->width = width;
+    this->height = height;
+
+    float aspect = (float)width / (float)height;
+    keyboardHeight = keyboardMaxZ * aspect;
+    if (!initialized) return;
+    CalcKeyPosAndWidth();
+
+    // regenerate bloom stuff
+    hdrSceneFBO->Resize(width, height);
+    bloomChain.clear();
+
+    glm::vec2 mipSize(width, height);
+    while (true)
+    {
+        mipSize *= 0.5f;
+
+        int mipWidth = static_cast<int>(mipSize.x);
+        int mipHeight = static_cast<int>(mipSize.y);
+
+        if (mipWidth < 2 || mipHeight < 2) {
+            break;
+        }
+
+        auto fbo = std::make_unique<Framebuffer>();
+        fbo->Setup(mipWidth, mipHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT);
+        bloomChain.push_back(std::move(fbo));
+    }
+
+    // update msaa buffers
+    UpdateMSAAFramebuffer();
 }

@@ -8,11 +8,12 @@
 #include <glm/glm.hpp>
 #include "imgui.h"
 
+class MIDIApp;
 
 class NoteCounterRenderer
 {
 public:
-	NoteCounterRenderer(std::shared_ptr<NoteCounterInfo> noteCounterInfo, MIDIPlayerConfig* config) : noteCounterInfo(noteCounterInfo), config(config) {}
+	NoteCounterRenderer(std::shared_ptr<NoteCounterInfo> noteCounterInfo, MIDIApp* app) : noteCounterInfo(noteCounterInfo), app(app) {}
 	// we use heightOffset here because of the nagivation bar. when rendering a video, the navigation bar is hidden, so the counter should be rendered higher up to compensate for that. when not rendering a video, the navigation bar is visible, so the counter should be rendered lower down to avoid overlapping with it.
 	void Render(float heightOffset);
 	void OnResize(int width, int height);
@@ -51,33 +52,8 @@ public:
 		noteCounterTextCol.z = b;
 	}
 	
-	glm::vec2 GetCounterPosition() const
-	{
-		float counterWidth = this->counterWidth * config->overlayInfo.scale;
-
-		float width = (float)counterWidth / (float)this->width;
-		float height = GetCounterHeight() / (float)this->height;
-
-		switch (counterAlignment)
-		{
-			case NoteCounterAlignment::TopLeft:
-			{
-				return glm::vec2(0.0, 1.0 - height - lastCounterYOffset / (float)this->height);
-			}
-			case NoteCounterAlignment::TopRight:
-			{
-				return glm::vec2(1.0 - (float)counterWidth / (float)this->width, 1.0 - height - lastCounterYOffset / (float)this->height);
-			}
-		}
-	}
-	glm::vec2 GetCounterResolution() const
-	{
-		float counterWidth = this->counterWidth * config->overlayInfo.scale;
-
-		float width = counterWidth * config->overlayInfo.scale / (float)this->width;
-		float height = GetCounterHeight() / (float)this->height;
-		return glm::vec2(width, height);
-	}
+	glm::vec2 GetCounterPosition() const;
+	glm::vec2 GetCounterResolution() const;
 	float GetCounterHeight() const;
 private:
 	std::shared_ptr<NoteCounterInfo> noteCounterInfo;
@@ -85,7 +61,7 @@ private:
 	NoteCounterAlignment counterAlignment = DEFAULT_NOTE_COUNTER_ALIGNMENT;
 	ImVec4 noteCounterBackgroundCol = ImVec4(0.f, 0.f, 0.f, 0.6f);
 	ImVec4 noteCounterTextCol = ImVec4(1.f, 1.f, 1.f, 1.f);
-	MIDIPlayerConfig* config;
+	MIDIApp* app;
 
 	int width = 0, height = 0;
 	int counterWidth = DEFAULT_NOTE_COUNTER_WIDTH;

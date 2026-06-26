@@ -17,6 +17,7 @@ struct NoteCounterField
 
 	NoteCounterField() = default;
 	NoteCounterField(T value) : value(value) {}
+	void operator=(T value) { this->value = value; }
 };
 
 struct NoteCounterInfo
@@ -28,6 +29,7 @@ struct NoteCounterInfo
 	NoteCounterField<double> bpm{ 120 };
 	NoteCounterField<uint64_t> tick{ 0 };
 	NoteCounterField<uint16_t> ppq{ 960 };
+	NoteCounterField<float> fps{ 0 };
 	
 	std::deque<NoteHistoryPoint> npsHistory;
 	void ResetCounter();

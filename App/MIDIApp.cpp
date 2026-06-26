@@ -1,4 +1,5 @@
 #include "MIDIApp.h"
+#include "MainWindow.h"
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <algorithm>
@@ -10,7 +11,7 @@
 #include "FFmpeg/FFmpegCommandBuilder.h"
 #include "Utils.h"
 
-MIDIApp::MIDIApp()
+MIDIApp::MIDIApp(MainWindow* mainWindow)
 {
 	config = MIDIPlayerConfig{};
 	config.LoadConfigOrDefault();
@@ -20,7 +21,10 @@ MIDIApp::MIDIApp()
 	navigationBar = std::make_unique<NavigationBar>(timer, renderView.get());
 
 	noteCounterInfo = std::make_shared<NoteCounterInfo>();
-	noteCounterRenderer = std::make_unique<NoteCounterRenderer>(noteCounterInfo, &config);
+	noteCounterRenderer = std::make_unique<NoteCounterRenderer>(noteCounterInfo, this);
+	Models::LoadModels();
+
+	this->mainWindow = mainWindow;
 }
 
 void MIDIApp::LoadMIDI(const char* path)
@@ -81,6 +85,9 @@ void MIDIApp::UnloadMIDI()
 // called after glfw/glad initialization has finished, and is safe to load stuff, such as images, for rendering
 void MIDIApp::LoadResources()
 {
+	themesList = std::make_unique<ThemesList>("./assets/themes");
+	themesList->SetThemeAndApply(config.app.currThemeID);
+
 	auto defaultPack = DefaultResourcePack::Instance();
 	defaultPack->Init();
 
@@ -98,12 +105,6 @@ void MIDIApp::LoadResources()
 	std::cout << std::endl << "[MIDIApp] Initializing render engine...\n" << std::endl;
 #endif
 	SetRenderer<MIDIRenderer>();
-
-	// renderer = std::make_unique<MIDIRenderer>(this);
-	// renderer->OnResize(width, height);
-	// renderer->SetNoteCounter(noteCounterInfo);
-	// noteCounterRenderer->OnResize(width, height);
-	// renderer->Initialize();
 	blurredQuadRenderer = std::make_unique<BlurredQuadRenderer>();
 	blurredQuadRenderer->SetSceneTexture(renderer->GetSceneTexture());
 	
@@ -147,8 +148,9 @@ void MIDIApp::Update()
 	}
 	else
 	{
-		double time = (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() / 1000000;
+		double time = Utils::GetCurrTime<std::chrono::microseconds>() / 1000000;
 		renderer->Render(time - lastFrameTime);
+		noteCounterInfo->fps = 1.0 / (time - lastFrameTime);
 		lastFrameTime = time;
 	}
 	
@@ -175,7 +177,7 @@ void MIDIApp::Update()
 	if (config.render.showCounter)
 	{
 		glm::vec2 counterResolution = noteCounterRenderer->GetCounterResolution();
-		float heightOffset = rendering ? 0.0 : 56.0;
+		float heightOffset = rendering || !mainWindow->CanShowNavigationBar() ? 0.0 : 56.0;
 		glm::vec2 counterPos = noteCounterRenderer->GetCounterPosition();
 		// the frosted glass effect, yay!
 		blurredQuadRenderer->Render({ glm::vec3(counterPos.x, counterPos.y, 0.0f), glm::vec2(counterResolution.x, counterResolution.y) });
@@ -187,6 +189,7 @@ void MIDIApp::Update()
 	// render what was in the framebuffer
 	{
 		int winW, winH;
+		GLFWwindow* window = mainWindow->GetInternalWindow();
 		glfwGetFramebufferSize(window, &winW, &winH);
 		glViewport(0, 0, winW, winH);
 
@@ -201,7 +204,8 @@ void MIDIApp::Update()
 	
 	if (!rendering)
 	{
-		navigationBar->Draw();
+		if (mainWindow->CanShowNavigationBar()) navigationBar->Draw();
+
 		if (hasSequence && timer->Elapsed() >= seqLength + 3.0 && !timer->IsPaused())
 		{
 			timer->Pause();
@@ -239,27 +243,7 @@ void MIDIApp::RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt)
 		case ImGuiKey_Enter:
 		{
 			if (!alt) return;
-
-			if (!fullscreen)
-			{
-				glfwGetWindowPos(window, &lastWindowRect.x, &lastWindowRect.y);
-				glfwGetWindowSize(window, &lastWindowRect.width, &lastWindowRect.height);
-
-				GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-				const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-
-				glfwSetWindowAttrib(window, GLFW_DECORATED, GLFW_FALSE);
-				glfwSetWindowPos(window, 0, 0);
-				glfwSetWindowSize(window, mode->width, mode->height);
-			}
-			else
-			{
-				glfwSetWindowAttrib(window, GLFW_DECORATED, GLFW_TRUE);
-				glfwSetWindowPos(window, lastWindowRect.x, lastWindowRect.y);
-				glfwSetWindowSize(window, lastWindowRect.width, lastWindowRect.height);
-			}
-
-			fullscreen = !fullscreen;
+			mainWindow->ToggleFullscreen();
 			break;
 		}
 		default:
@@ -331,6 +315,7 @@ void MIDIApp::CaptureFrame()
 	// draw back onto the screen
 	{
 		int winW, winH;
+		GLFWwindow* window = mainWindow->GetInternalWindow();
 		glfwGetFramebufferSize(window, &winW, &winH);
 		glViewport(0, 0, winW, winH);
 
@@ -374,6 +359,7 @@ void MIDIApp::PrepareRendering()
 
 	int previewWidth = 0;
 	int previewHeight = 0;
+	GLFWwindow* window = mainWindow->GetInternalWindow();
 	glfwGetWindowSize(window, &previewWidth, &previewHeight);
 
 	renderer->OnResize(currentRenderSettings.width, currentRenderSettings.height);
@@ -392,6 +378,7 @@ void MIDIApp::FinalizeRendering()
 	this->rendering = false;
 
 	int winW, winH;
+	GLFWwindow* window = mainWindow->GetInternalWindow();
 	glfwGetFramebufferSize(window, &winW, &winH);
 	config.render.SetWidth(winW);
 	config.render.SetHeight(winH);
