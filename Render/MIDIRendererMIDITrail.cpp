@@ -1,4 +1,5 @@
 #include "MIDIRendererMIDITrail.h"
+#include <algorithm>
 #include "App/MIDIApp.h"
 #include "MIDI/TempoMap.h"
 #include "Utils.h"
@@ -1049,11 +1050,11 @@ void MIDIRendererMIDITrail::UpdateKeyboard(double deltaTime)
 		// TODO: smoothing
 		if (pressed)
 		{
-			pressFactor = min(1, pressFactor + settings.noteDownSpeed * deltaTime);
+			pressFactor = std::min<float>(1.0f, pressFactor + settings.noteDownSpeed * deltaTime);
 		}
 		else
 		{
-			pressFactor = max(0, pressFactor - settings.noteUpSpeed * deltaTime);
+			pressFactor = std::max<float>(0.0f, pressFactor - settings.noteUpSpeed * deltaTime);
 		}
 	}
 }
@@ -1296,7 +1297,7 @@ void MIDIRendererMIDITrail::RenderNotes()
 
 				double factor = 0.0;
 				double framesSinceStart = (playbackSeconds - noteStartSecs) / tempoFrameStep;
-				double factor2 = std::pow(max(10.0 - framesSinceStart, 0.0), 2.0) / 600;
+				double factor2 = std::pow(std::max(10.0 - framesSinceStart, 0.0), 2.0) / 600;
 
 				factor = 0.5;
 

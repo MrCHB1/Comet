@@ -5,8 +5,12 @@ project(Comet LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+if(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+endif()
 set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
+
+find_package(OpenGL REQUIRED)
 set(FETCHCONTENT_QUIET OFF)
 
 include(FetchContent)
@@ -96,13 +100,21 @@ target_include_directories(imgui PUBLIC
     ${imgui_SOURCE_DIR}/backends
 )
 
-target_link_libraries(imgui PUBLIC glfw opengl32)
+target_link_libraries(imgui PUBLIC glfw OpenGL::GL)
 
 add_library(nfd STATIC
     ${nfd_SOURCE_DIR}/src/nfd_common.c)
 
 if (WIN32)
     target_sources(nfd PRIVATE ${nfd_SOURCE_DIR}/src/nfd_win.cpp)
+elseif (APPLE)
+    target_sources(nfd PRIVATE ${nfd_SOURCE_DIR}/src/nfd_cocoa.m)
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
+    target_sources(nfd PRIVATE ${nfd_SOURCE_DIR}/src/nfd_gtk.c)
+    target_include_directories(nfd PRIVATE ${GTK3_INCLUDE_DIRS})
+    target_link_libraries(nfd PRIVATE ${GTK3_LIBRARIES})
 endif()
 
 target_include_directories(nfd PUBLIC
@@ -137,23 +149,48 @@ target_link_libraries(Comet PRIVATE
     nfd
     glad
     glfw
-    opengl32
+    OpenGL::GL
     yaml-cpp
     glm::glm
     miniz
     rtmidi
 )
 
-target_compile_options(Comet PRIVATE 
-    $<$<CONFIG:Release>:/O2>
-    $<$<CONFIG:Release>:/GL>
-    $<$<CONFIG:Release>:/Ot>
-    $<$<CONFIG:Release>:/Ob3>
-)
+# <Windows.h> defines min/max as function-like macros, which mangle any
+# std::min()/std::max() call in a TU that (transitively) includes it.
+# NOMINMAX suppresses those macros; nothing in Comet relies on them now.
+if(WIN32)
+    target_compile_definitions(Comet PRIVATE NOMINMAX)
+endif()
 
-target_link_options(Comet PRIVATE 
-    $<$<CONFIG:Release>:/LTCG>
-)
+# libstdc++ parallel algorithms (std::execution) require linking Intel TBB.
+# ${CMAKE_DL_LIBS} provides dlopen/dlsym used to load OmniMIDI at runtime.
+if(NOT WIN32)
+    find_package(TBB QUIET)
+    if(TBB_FOUND)
+        target_link_libraries(Comet PRIVATE TBB::tbb)
+    else()
+        target_link_libraries(Comet PRIVATE tbb)
+    endif()
+    target_link_libraries(Comet PRIVATE ${CMAKE_DL_LIBS})
+endif()
+
+if(MSVC)
+    target_compile_options(Comet PRIVATE
+        $<$<CONFIG:Release>:/O2>
+        $<$<CONFIG:Release>:/GL>
+        $<$<CONFIG:Release>:/Ot>
+        $<$<CONFIG:Release>:/Ob3>
+    )
+
+    target_link_options(Comet PRIVATE
+        $<$<CONFIG:Release>:/LTCG>
+    )
+else()
+    target_compile_options(Comet PRIVATE
+        $<$<CONFIG:Release>:-O3>
+    )
+endif()
 
 add_custom_command(
     TARGET Comet POST_BUILD

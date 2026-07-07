@@ -1,4 +1,5 @@
 #include "MIDIRendererEnhanced.h"
+#include <algorithm>
 #include <glm/glm.hpp>
 #include "App/MIDIApp.h"
 #include "App/Models.h"
@@ -335,7 +336,7 @@ void MIDIRendererEnhanced::UpdateKeyboardInstance(double deltaTime)
     bool needsUpload = false;
 
     // cap the dt so physics does not explode lol
-    float dt = static_cast<float>(min(deltaTime, 0.033));
+    float dt = static_cast<float>(std::min(deltaTime, 0.033));
 
     int i = 0;
     for (uint8_t id : kbIDs)

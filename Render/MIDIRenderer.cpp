@@ -4,6 +4,7 @@
 #include "../App/MIDIApp.h"
 #include "../MIDI/TempoMap.h"
 #include "Utils.h"
+#include <algorithm>
 
 void CheckGLError(const char* label)
 {
@@ -222,7 +223,8 @@ void MIDIRenderer::Initialize()
 
 #pragma endregion
 
-	std::array<KeyboardMeta, MIDI_KEYS> kbMetas(KeyboardMeta(0, false, false));
+	std::array<KeyboardMeta, MIDI_KEYS> kbMetas;
+	kbMetas.fill(KeyboardMeta(0, false, false));
 	std::vector<uint8_t> blackIDs;
 	blackIDs.reserve(53);
 	std::vector<uint8_t> whiteIDs;
@@ -471,7 +473,7 @@ void MIDIRenderer::CalcKeyPosAndWidth()
 	float keyboardHeightScale = width / 75.0f / (float)textureKeyWhite->width;
 	keyboardHeightBlack = (textureKeyBlack->height * keyboardHeightScale) / (float)height;
 	keyboardHeightWhite = (textureKeyWhite->height * keyboardHeightScale) / (float)height;
-	keyboardHeight = max(keyboardHeightBlack, keyboardHeightWhite) + 1.0f / float(height);
+	keyboardHeight = std::max(keyboardHeightBlack, keyboardHeightWhite) + 1.0f / float(height);
 	float noteWidth = (float)width / 75.0f;
 	float noteWidthBlack = (float)width / 115.0f;
 	float pos = 0.0f;
@@ -501,7 +503,7 @@ void MIDIRenderer::CalcKeyPosAndWidth()
 	float unscaledWhiteKeyGap = pack->GetKeyboardInfo()->whiteKeyGap;
 	if (unscaledWhiteKeyGap > 0.0f)
 	{
-		whiteKeyGap = (float)max(1, (int)std::floor(unscaledWhiteKeyGap * widthScale));
+		whiteKeyGap = (float)std::max(1, (int)std::floor(unscaledWhiteKeyGap * widthScale));
 	}
 	else
 	{
@@ -510,7 +512,7 @@ void MIDIRenderer::CalcKeyPosAndWidth()
 
 	float unscaledNoteBorderWidth = pack->GetNoteInfo()->borderWidth;
 	if (unscaledNoteBorderWidth > 0.0f)
-		noteBorderWidth = (float)max(1, (int)std::floor(unscaledNoteBorderWidth * widthScale)) / (float)height;
+		noteBorderWidth = (float)std::max(1, (int)std::floor(unscaledNoteBorderWidth * widthScale)) / (float)height;
 	else
 		noteBorderWidth = 0.0f;
 

@@ -1,4 +1,5 @@
 #include "BufferedByteReader.h"
+#include <cstring>
 
 BufferedByteReader::BufferedByteReader(std::shared_ptr<std::ifstream> stream, size_t start, size_t length, size_t bufferLength, std::mutex* mtx)
 	: InputStream(stream)
@@ -32,7 +33,7 @@ void BufferedByteReader::UpdateBuffer()
 
 	{
 		std::lock_guard<std::mutex> lock(*mtx);
-		stream->seekg(pos, SEEK_SET);
+		stream->seekg(pos, std::ios::beg);
 		stream->read((char*)bytes, read);
 	}
 

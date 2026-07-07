@@ -228,7 +228,7 @@ void MIDIApp::RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt)
 		{
 			if (IsRendering()) return;
 			double currTime = timer->Elapsed();
-			double seekTime = max(-3.0, currTime - 10.0);
+			double seekTime = std::max(-3.0, currTime - 10.0);
 			timer->NavigateTo(seekTime);
 			break;
 		}
@@ -236,7 +236,7 @@ void MIDIApp::RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt)
 		{
 			if (IsRendering()) return;
 			double currTime = timer->Elapsed();
-			double seekTime = min(seqLength + 5.0, currTime + 10.0);
+			double seekTime = std::min(seqLength + 5.0, currTime + 10.0);
 			timer->NavigateTo(seekTime);
 			break;
 		}

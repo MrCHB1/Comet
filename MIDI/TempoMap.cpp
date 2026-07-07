@@ -1,4 +1,5 @@
 #include "TempoMap.h"
+#include <algorithm>
 
 void TempoMap::RebuildTempoMap(MIDISequence* seq)
 {

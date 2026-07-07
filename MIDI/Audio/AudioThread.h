@@ -6,6 +6,7 @@
 #include <memory>
 #include <atomic>
 #include <mutex>
+#include <thread>
 #include <queue>
 
 struct ScheduledEvent
