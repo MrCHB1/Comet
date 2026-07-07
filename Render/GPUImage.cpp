@@ -3,13 +3,21 @@
 
 bool GPUImage::LoadFromStream(std::shared_ptr<std::istream> file)
 {
-	if (!file) return false;
+	if (!file)
+	{
+		std::cout << "File doesn't exist" << std::endl;
+		return false;
+	}
 
 	std::vector<unsigned char> buffer((std::istreambuf_iterator<char>(*file.get())), std::istreambuf_iterator<char>());
 	int channels;
 
 	unsigned char* pixels = stbi_load_from_memory(buffer.data(), buffer.size(), &width, &height, &channels, 4);
-	if (!pixels) return false;
+	if (!pixels)
+	{
+		std::cout << "Failed: " << stbi_failure_reason() << std::endl;
+		return false;
+	}
 
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture);

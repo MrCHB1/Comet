@@ -157,7 +157,9 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 	std::cout << "\nLoaded all tracks, sorting tempo events." << std::endl;
 	SetName("Starting event preprocessing");
 	auto& tempos = seq->tempos;
+	auto& timeSignatures = seq->timeSignatures;
 	std::sort(tempos.begin(), tempos.end(), [](auto& a, auto& b) { return a.tick < b.tick; });
+	std::sort(timeSignatures.begin(), timeSignatures.end(), [](auto& a, auto& b) { return a.tick < b.tick; });
 	for (int i = 0; i < seq->tracks.size(); i++)
 	{
 		prog = (double)i / (double)seq->tracks.size();
@@ -170,7 +172,6 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 	prog = -1;
 
 	seq->tracks.shrink_to_fit();
-
 	#pragma endregion
 
 	#pragma region Merge events
@@ -202,12 +203,14 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 		SetName("Applying tempo events...");
 		std::cout << "Applying tempo events..." << std::endl;
 		std::cout << "  Processing notes" << std::endl;
+		TempoMap* tempoMap = seq->GetTempoMap();
 		for (auto& notes : seq->mergedNotes)
 		{
-			SequenceFuncs::ApplyTempoEvents(seq->resolution, seq->GetTempoMap(), notes);
+			SequenceFuncs::ApplyTempoEvents(seq->resolution, tempoMap, notes);
 		}
 		std::cout << "  Processing events" << std::endl;
-		SequenceFuncs::ApplyTempoEvents(seq->resolution, seq->GetTempoMap(), seq->mergedEvents);
+		SequenceFuncs::ApplyTempoEvents(seq->resolution, tempoMap, seq->mergedEvents);
+		SequenceFuncs::ApplyTempoEvents(seq->resolution, tempoMap, seq->timeSignatures);
 	}
 	#pragma endregion
 
@@ -215,6 +218,7 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 
 	std::cout << "MIDI has successfully loaded." << std::endl;
 	std::cout << "  " << seq->tempos.size() << " Tempo events" << std::endl;
+	std::cout << "  " << seq->timeSignatures.size() << " Time signature events" << std::endl;
 	std::cout << "  Notes: " << seq->notes << std::endl;
 	std::cout << "  Duration: " << seq->CalcLengthMilliseconds() << "ms" << std::endl;
 
@@ -299,6 +303,16 @@ void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 						}
 						p += len;
 						continue;
+					case 0x58:
+						if (len == 4)
+						{
+							uint8_t numerator = p[0];
+							uint8_t denominator = (1 << p[1]);
+							// 3 and 4 are omitted until it's actually needed
+							seq->timeSignatures.emplace_back(tick, numerator, denominator);
+						}
+						p += len;
+						continue;
 					case 0x0A:
 						std::cout << "Color events will be implemented soon" << std::endl;
 						p += len;
@@ -361,7 +375,7 @@ void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 				{
 					if (p >= end) break;
 					++p; // velocity, ignored
-					if (data1 >= 0x80) continue; // disregard of notes above key 127
+					if (data1 >= MIDI_KEYS) continue; // disregard of notes above key 127
 					NoteOff(channel, data1, tick);
 					continue;
 				}
@@ -372,7 +386,7 @@ void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 						if (p >= end) break;
 						uint8_t vel = *p++;
 
-						if (data1 >= 0x80) continue; // disregard of notes above key 127
+						if (data1 >= MIDI_KEYS) continue; // disregard of notes above key 127
 						if (vel == 0)
 						{
 							NoteOff(channel, data1, tick);

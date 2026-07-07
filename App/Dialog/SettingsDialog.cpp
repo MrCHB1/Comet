@@ -1,6 +1,7 @@
 #include "SettingsDialog.h"
 #include "Utils.h"
 #include "Render/MIDIRendererEnhanced.h"
+#include "Render/MIDIRendererMIDITrail.h"
 
 void SettingsDialog::DrawContent()
 {
@@ -382,12 +383,15 @@ void SettingsDialog::DrawVisualTab()
 					}
 				}
 
-				ImGui::BeginDisabled(true);
-				if (ImGui::RadioButton("MIDITrail (Unavailable)", currRenderer == RendererType::MIDITrail))
+				if (ImGui::RadioButton("MIDITrail", currRenderer == RendererType::MIDITrail))
 				{
-					config->render.SetCurrentRenderer(RendererType::MIDITrail);
+					if (currRenderer != RendererType::MIDITrail)
+					{
+						config->render.SetCurrentRenderer(RendererType::MIDITrail);
+						app->SetRenderer<MIDIRendererMIDITrail>();
+						std::cout << "Switched to the MIDITrail renderer" << std::endl;
+					}
 				}
-				ImGui::EndDisabled();
 
 				ImGui::Spacing();
 

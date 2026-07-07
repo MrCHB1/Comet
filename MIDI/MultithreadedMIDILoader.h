@@ -49,6 +49,7 @@ private:
 		size_t numNotes = 0;
 		std::vector<MIDITrack> channelTracks;
 		std::vector<TempoEvent> tempos;
+		std::vector<TimeSignatureEvent> timeSignatures;
 		bool mixedChannelsInTrack = false;
 		long length = 0;
 	};

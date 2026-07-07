@@ -36,14 +36,12 @@ void MIDIRenderer::LoadSequence(std::shared_ptr<MIDISequence> sequence)
 	colors.LoadColors();
 	seq = sequence;
 	lastTime = 0;
-	
+
 	for (auto& id : startRenderIDs)
 		id = 0;
 
 	for (auto& id : endRenderIDs)
 		id = 0;
-
-	isTimeBased = seq->timeBased;
 }
 
 void MIDIRenderer::UnloadSequence()
@@ -60,12 +58,22 @@ void MIDIRenderer::LoadResourcePack(std::shared_ptr<ResourcePack> pack, bool loa
 		return;
 	}
 
-	textureNote = std::make_unique<GPUImage>(pack->GetStream("note.png"));
-	textureNoteEdge = std::make_unique<GPUImage>(pack->GetStream("noteEdge.png"));
-	if (!textureNoteEdge->IsValidTexture())
-	{
-		textureNoteEdge = std::make_unique<GPUImage>(pack->GetStream("note.png"));
-	}
+	#pragma region Note textures
+	auto textureNoteStream = pack->GetStream("note.png");
+	textureNote = std::make_unique<GPUImage>(textureNoteStream);
+
+	auto textureNoteBlackStream = pack->GetStream("noteBlack.png");
+	textureNoteBlack = textureNoteBlackStream != nullptr
+		? std::make_unique<GPUImage>(textureNoteBlackStream)
+		: std::make_unique<GPUImage>(pack->GetStream("note.png"));
+
+	auto textureNoteEdgeStream = pack->GetStream("noteEdge.png");
+	textureNoteEdge = textureNoteEdgeStream != nullptr
+		? std::make_unique<GPUImage>(textureNoteEdgeStream)
+		: std::make_unique<GPUImage>(pack->GetStream("note.png"));
+	#pragma endregion
+
+	#pragma region Key textures + masks
 	textureKeyWhite = std::make_unique<GPUImage>(pack->GetStream("keyWhite.png"));
 	textureKeyBlack = std::make_unique<GPUImage>(pack->GetStream("keyBlack.png"));
 	textureKeyWhitePressed = std::make_unique<GPUImage>(pack->GetStream("keyWhitePressed.png"));
@@ -75,7 +83,7 @@ void MIDIRenderer::LoadResourcePack(std::shared_ptr<ResourcePack> pack, bool loa
 	LoadMaskTexture(pack.get(), textureKeyBlackMask, "keyBlackMask.png");
 	LoadMaskTexture(pack.get(), textureKeyWhiteMaskPressed, "keyWhitePressedMask.png");
 	LoadMaskTexture(pack.get(), textureKeyBlackMaskPressed, "keyBlackPressedMask.png");
-
+	#pragma endregion
 	// attempt to load note colors
 	// TODO: move this to its own function
 	if (loadColors)
@@ -126,7 +134,7 @@ void MIDIRenderer::Initialize()
 
 	AbstractMIDIRenderer::Initialize();
 
-	#pragma region Load resource pack
+#pragma region Load resource pack
 	// we can load the resource pack
 	auto config = app->GetConfig();
 	auto defaultPack = DefaultResourcePack::Instance();
@@ -134,9 +142,9 @@ void MIDIRenderer::Initialize()
 	{
 		LoadResourcePack(pack, config->render.GetUseColorsFromImage());
 	}
-	#pragma endregion
+#pragma endregion
 
-	#pragma region Keyboard shader creation
+#pragma region Keyboard shader creation
 
 	std::unique_ptr<ShaderProgram> kbProgram = ShaderProgram::CreateFromFiles("assets/shaders/keyboard");
 	std::unique_ptr<VertexArray> kbVao = std::make_unique<VertexArray>();
@@ -171,9 +179,9 @@ void MIDIRenderer::Initialize()
 		glVertexAttribDivisor(3, 1);
 	}
 
-	#pragma endregion
+#pragma endregion
 
-	#pragma region Note shader creation
+#pragma region Note shader creation
 
 	std::unique_ptr<ShaderProgram> notesProgram = ShaderProgram::CreateFromFiles("assets/shaders/notes");
 	std::unique_ptr<VertexArray> notesVao = std::make_unique<VertexArray>();
@@ -212,7 +220,7 @@ void MIDIRenderer::Initialize()
 		glVertexAttribDivisor(5, 1);
 	}
 
-	#pragma endregion
+#pragma endregion
 
 	std::array<KeyboardMeta, MIDI_KEYS> kbMetas(KeyboardMeta(0, false, false));
 	std::vector<uint8_t> blackIDs;
@@ -284,7 +292,7 @@ void MIDIRenderer::Initialize()
 		}
 	}
 
-	#pragma region Keyboard data setup
+#pragma region Keyboard data setup
 	keyboardProgram = std::move(kbProgram);
 	keyboardVBO = std::move(kbVbo);
 	keyboardVAO = std::move(kbVao);
@@ -295,9 +303,9 @@ void MIDIRenderer::Initialize()
 	keyboardBackground = std::make_unique<Quad>();
 	keyboardBackground->SetShader(SINGLE_COLOR_SHADER);
 	keyboardBackground->SetColor(glm::vec3(0.0, 0.0, 0.0));
-	#pragma endregion
+#pragma endregion
 
-	#pragma region Note data setup
+#pragma region Note data setup
 
 	{
 		ShaderBind notesBind(*notesProgram);
@@ -309,8 +317,13 @@ void MIDIRenderer::Initialize()
 		}
 
 		{
-			TextureBind noteEdgeTextureBind(*textureNoteEdge, 1);
-			notesProgram->SetInt("noteEdge", 1);
+			TextureBind noteBlackTextureBind(*textureNoteBlack, 1);
+			notesProgram->SetInt("noteBlack", 1);
+		}
+
+		{
+			TextureBind noteEdgeTextureBind(*textureNoteEdge, 2);
+			notesProgram->SetInt("noteEdge", 2);
 		}
 	}
 
@@ -319,7 +332,7 @@ void MIDIRenderer::Initialize()
 	this->notesVAO = std::move(notesVao);
 	this->notesIBO = std::move(notesInstance);
 	this->notesEBO = std::move(notesEbo);
-	#pragma endregion
+#pragma endregion
 
 	initialized = true;
 
@@ -344,7 +357,7 @@ void MIDIRenderer::InitializeFromConfig()
 void MIDIRenderer::Render(double deltaTime)
 {
 	if (!initialized) return;
-	
+
 	sceneFramebuffer->Bind();
 	// lowkey forgot to clear the framebuffer at the start of each render, oops
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -617,7 +630,8 @@ void MIDIRenderer::RenderNotes()
 	ShaderBind shaderBind(*notesProgram);
 
 	TextureBind noteTextureBind(*textureNote, 0);
-	TextureBind noteEdgeTextureBind(*textureNoteEdge, 1);
+	TextureBind noteBlackTextureBind(*textureNoteBlack, 1);
+	TextureBind noteEdgeTextureBind(*textureNoteEdge, 2);
 
 	VertexArrayBind notesVAOBind(*notesVAO);
 	BufferBind notesIBOBind(*notesIBO);
@@ -632,14 +646,16 @@ void MIDIRenderer::RenderNotes()
 	size_t polyphony = 0;
 	size_t batchCount = 0;
 
-	double accTime = isTimeBased ? playbackSeconds : time;
-	double viewRegion = isTimeBased ? (double)renderView->viewTicks / 1000 : (double)renderView->viewTicks;
+	const double accTime = isTimeBased ? playbackSeconds : time;
+	const double viewRegion = isTimeBased ? (double)renderView->viewTicks / 1000 : (double)renderView->viewTicks;
+	const double invViewRegion = 1.0 / viewRegion;
+	const double invTimeMultiplier = 1.0 / (double)TIME_BASED_MULTIPLIER;
 
 	for (uint8_t id : kbIDs)
 	{
 		std::vector<NoteEvent>& notesNote = notes[id];
 
-		#pragma region Note culling
+#pragma region Note culling
 
 		size_t noteBegin = startRenderIDs[id];
 
@@ -649,7 +665,7 @@ void MIDIRenderer::RenderNotes()
 			{
 				auto& n = notesNote[noteBegin];
 				double noteEnd = isTimeBased
-					? (double)(n.tick + n.gate) / TIME_BASED_MULTIPLIER
+					? (double)(n.tick + n.gate) * invTimeMultiplier
 					: (double)(n.tick + n.gate);
 
 				if (noteEnd > accTime) break; // Note is still on screen
@@ -662,7 +678,7 @@ void MIDIRenderer::RenderNotes()
 			{
 				auto& n = notesNote[noteBegin - 1];
 				double noteEnd = isTimeBased
-					? (double)(n.tick + n.gate) / TIME_BASED_MULTIPLIER
+					? (double)(n.tick + n.gate) * invTimeMultiplier
 					: (double)(n.tick + n.gate);
 
 				if (noteEnd <= accTime) break;
@@ -676,7 +692,6 @@ void MIDIRenderer::RenderNotes()
 		if (isTimeBased)
 		{
 			double targetSecs = playbackSeconds + viewRegion;
-
 			long target10Us = static_cast<long>(targetSecs * TIME_BASED_MULTIPLIER);
 
 			endIt = std::upper_bound(searchStart, notesNote.end(), target10Us,
@@ -689,7 +704,6 @@ void MIDIRenderer::RenderNotes()
 		else
 		{
 			long targetTick = time + renderView->viewTicks;
-
 			endIt = std::upper_bound(searchStart, notesNote.end(), targetTick,
 				[](long target, const NoteEvent& n)
 				{
@@ -703,9 +717,9 @@ void MIDIRenderer::RenderNotes()
 		endRenderIDs[id] = noteEnd;
 		notesPassed += noteBegin;
 
-		#pragma endregion
+#pragma endregion
 
-
+		bool isBlack = KEY_IS_BLACK(id);
 		// actually render each note
 		for (auto note = notesNote.begin() + noteBegin; note != notesNote.begin() + noteEnd; ++note)
 		{
@@ -715,8 +729,8 @@ void MIDIRenderer::RenderNotes()
 
 			if (isTimeBased)
 			{
-				noteStart = (double)note->tick / (double)TIME_BASED_MULTIPLIER;
-				noteEnd = (double)(note->tick + note->gate) / (double)TIME_BASED_MULTIPLIER;
+				noteStart = (double)note->tick * invTimeMultiplier;
+				noteEnd = (double)(note->tick + note->gate) * invTimeMultiplier;
 			}
 			else
 			{
@@ -742,11 +756,11 @@ void MIDIRenderer::RenderNotes()
 			renderNotes[noteID++] = RenderNote(
 				keyPos[id],
 				keyPos[id] + keyWidth[id],
-				(float)(noteStart - accTime) / (float)viewRegion,
-				(float)(noteEnd - accTime) / (float)viewRegion,
-				colors.GetColor(note->track, note->channel)
+				(float)((noteStart - accTime) * invViewRegion),
+				(float)((noteEnd - accTime) * invViewRegion),
+				colors.GetColor(note->track, note->channel) | (isBlack << 24)
 			);
-			
+
 			if (noteID >= NOTE_BUFFER_SIZE)
 			{
 				UploadNoteBuffer(NOTE_BUFFER_SIZE);
@@ -814,5 +828,4 @@ void MIDIRenderer::UploadNoteBuffer(size_t count)
 		nullptr,
 		count
 	);
-
 }

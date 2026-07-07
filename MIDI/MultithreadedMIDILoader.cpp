@@ -148,6 +148,15 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 			seq->tempos.insert(seq->tempos.end(), trackRes.tempos.begin(), trackRes.tempos.end());
 		}
 
+		if (!trackRes.timeSignatures.empty())
+		{
+			seq->timeSignatures.insert(seq->timeSignatures.end(), trackRes.timeSignatures.begin(), trackRes.timeSignatures.end());
+		}
+		else
+		{
+			seq->timeSignatures.emplace_back(0, 4, 4);
+		}
+
 		if (activeChannelsInTrack >= 2)
 		{
 			illegalTracks.push_back(trackRes.trackIndex);
@@ -159,7 +168,8 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 	seq->noteTrackCount = noteTrackIdx;
 
 	std::sort(std::execution::par_unseq, seq->tempos.begin(), seq->tempos.end(), [](auto& a, auto& b) { return a.tick < b.tick; });
-	
+	std::sort(std::execution::par_unseq, seq->timeSignatures.begin(), seq->timeSignatures.end(), [](auto& a, auto& b) { return a.tick < b.tick; });
+
 	for (size_t i = 0; i < seq->tracks.size(); i++)
 	{
 		std::cout << "  Preprocessing notes of track " << i << "/" << seq->tracks.size() << std::endl;
@@ -190,17 +200,20 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 
 	if (timeBasedLoading)
 	{
+		TempoMap* tempoMap = seq->GetTempoMap();
 		for (auto& notes : seq->mergedNotes)
 		{
-			SequenceFuncs::ApplyTempoEvents(seq->resolution, seq->GetTempoMap(), notes);
+			SequenceFuncs::ApplyTempoEvents(seq->resolution, tempoMap, notes);
 		}
-		SequenceFuncs::ApplyTempoEvents(seq->resolution, seq->GetTempoMap(), seq->mergedEvents);
+		SequenceFuncs::ApplyTempoEvents(seq->resolution, tempoMap, seq->mergedEvents);
+		SequenceFuncs::ApplyTempoEvents(seq->resolution, tempoMap, seq->timeSignatures);
 	}
 
 	seq->timeBased = timeBasedLoading;
 
 	std::cout << "MIDI has successfully loaded." << std::endl;
 	std::cout << "  " << seq->tempos.size() << " Tempo events" << std::endl;
+	std::cout << "  " << seq->timeSignatures.size() << " Time signature events" << std::endl;
 	std::cout << "  Notes: " << seq->notes << std::endl;
 	std::cout << "  Duration: " << seq->CalcLengthMilliseconds() << "ms" << std::endl;
 
@@ -278,6 +291,15 @@ MultithreadedMIDILoader::ParsedTrackResult MultithreadedMIDILoader::ParseTrackDa
 						double bpm = 6.0e7 / (double)msec;
 						result.tempos.emplace_back(tick, bpm);
 					}
+				}
+				p += len;
+				continue;
+			case 0x58:
+				if (len == 4)
+				{
+					uint8_t numerator = p[0];
+					uint8_t denominator = (1 << p[1]);
+					result.timeSignatures.emplace_back(tick, numerator, denominator);
 				}
 				p += len;
 				continue;

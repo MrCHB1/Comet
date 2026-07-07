@@ -60,4 +60,6 @@ private:
 	bool threadWorking = false;
 	std::atomic_bool audioMuted = false;
 	std::thread audioThread;
+
+	void ResetEvents();
 };

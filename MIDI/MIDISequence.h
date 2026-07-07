@@ -4,6 +4,7 @@
 #include "MIDITrack.h"
 #include "Events/TempoEvent.h"
 #include "Events/NoteEvent.h"
+#include "Events/TimeSignatureEvent.h"
 #include <fstream>
 #include <memory>
 
@@ -15,8 +16,9 @@ public:
 	const char* name;
 	uint16_t resolution;
 	uint16_t trackCount;
-	std::vector<MIDITrack> tracks;
-	std::vector<TempoEvent> tempos;
+	std::vector<MIDITrack> tracks{};
+	std::vector<TempoEvent> tempos{};
+	std::vector<TimeSignatureEvent> timeSignatures{};
 	std::vector<std::vector<NoteEvent>> mergedNotes{};
 	std::vector<MIDIMessageEvent> mergedEvents{};
 	std::shared_ptr<TempoMap> tempoMap = nullptr;
@@ -27,12 +29,13 @@ public:
 
 	MIDISequence() : MIDISequence("Unnamed") {}
 	MIDISequence(const char* name)
-		: name(name), tracks({}), tempos({}) {}
+		: name(name), tracks({}), tempos({}), timeSignatures({}) {}
 	~MIDISequence()
 	{
 		tracks.clear();
 		tempos.clear();
 		mergedNotes.clear();
+		timeSignatures.clear();
 		if (tempoMap) tempoMap.reset();
 	}
 

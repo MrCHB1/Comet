@@ -51,6 +51,12 @@ public:
 		glUniform1i(glGetUniformLocation(program, uniform), value);
 	}
 
+	void SetUInt(const char* uniform, unsigned int value)
+	{
+		if (!IsValidProgram()) return;
+		glUniform1ui(glGetUniformLocation(program, uniform), value);
+	}
+
 	void SetFloat(const char* uniform, float value)
 	{
 		if (!IsValidProgram()) return;

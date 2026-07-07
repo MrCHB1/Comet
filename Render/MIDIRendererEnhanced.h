@@ -160,7 +160,7 @@ struct Particle3D
   ((n) % 12) == 8 || \
   ((n) % 12) == 10 )
 
-#define NOTE_BUFFER_SIZE 32768
+#define NOTE_BUFFER_SIZE 262144
 #define NOTES_MAX_BATCHES 512
 #define PARTICLE_BUFFER_SIZE 32768
 
@@ -312,9 +312,7 @@ private:
 
     float keyboardHeight = 0.13f;
     float keyboardZOffset = 0.0f; // calculated automatically
-    
-    // stuff from config
-    bool isTimeBased = false;
+
 
     static float Rand01()
     {

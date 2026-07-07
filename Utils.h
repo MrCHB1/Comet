@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <type_traits>
 #include <chrono>
+#include <filesystem>
 
 namespace Utils
 {
@@ -68,4 +69,5 @@ namespace Utils
 
 		return result;
 	}
+	void AddFilePickerField(const char* label, std::filesystem::path& path, const char* extension, bool saving = false);
 }

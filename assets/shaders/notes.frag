@@ -7,18 +7,28 @@ in float noteHeight;
 out vec4 fragColor;
 
 uniform sampler2D note;
+uniform sampler2D noteBlack;
 uniform sampler2D noteEdge;
 uniform float noteBorderWidth;
 
 void main()
 {
+	bool isBlack = (color & 0x1000000u) != 0u;
 	vec3 nCol = vec3(
 		float((color & 0xFF0000u) >> 16u), 
 		float((color & 0xFF00u) >> 8u),
 		float(color & 0xFFu)
 	) / 255.0f;
 
-	vec3 noteTex = texture(note, uv).rgb;
+	vec3 noteTex;
+	if (isBlack)
+	{
+		noteTex = texture(noteBlack, uv).rgb;
+	}
+	else
+	{
+		noteTex = texture(note, uv).rgb;
+	}
 
 	float uvBorderThickness = noteBorderWidth / noteHeight;
 

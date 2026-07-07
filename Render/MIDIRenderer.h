@@ -13,8 +13,8 @@
 #include "ColorAsset.h"
 #include <queue>
 
-#define NOTE_BUFFER_SIZE 32768
-#define NOTES_MAX_BATCHES 512
+#define NOTE_BUFFER_SIZE 65536
+#define NOTES_MAX_BATCHES 128
 
 class MIDIApp;
 
@@ -130,6 +130,7 @@ public:
 private:
 #pragma region Keyboard and note textures
 	std::unique_ptr<GPUImage> textureNote;
+	std::unique_ptr<GPUImage> textureNoteBlack;
 	std::unique_ptr<GPUImage> textureNoteEdge;
 	std::unique_ptr<GPUImage> textureKeyWhite;
 	std::unique_ptr<GPUImage> textureKeyBlack;
@@ -172,7 +173,6 @@ private:
 
 	bool initialized = false;
 	bool keyboardDirty = false;
-	bool isTimeBased = false;
 
 	float whiteKeyGap = 0.0f;
 	float keyboardHeightBlack = 0.0f;

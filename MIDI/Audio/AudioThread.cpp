@@ -86,15 +86,7 @@ void AudioThread::Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDIT
 
             if (navigated)
             {
-                for (int ch = 0; ch < 16; ch++)
-                {
-                    midiOut->SendEvent(0xB0 | ch | (64 << 8));
-                    midiOut->SendEvent(
-                        0xE0u | ch |
-                        (0x00u << 8) |
-                        (0x40u << 16)
-                    );
-                }
+                ResetEvents();
 
                 syncToTick(currPos);
             }
@@ -124,17 +116,55 @@ void AudioThread::Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDIT
             std::this_thread::sleep_for(std::chrono::microseconds(500));
         }
 
-        for (int ch = 0; ch < 16; ch++)
-        {
-            midiOut->SendEvent(0xB0 | ch | (64 << 8));  // Sustain Pedal Off
-            midiOut->SendEvent(0xB0 | ch | (123 << 8)); // All Notes Off
-            midiOut->SendEvent(0xB0 | ch | (121 << 8)); // Reset All Controllers
-            midiOut->SendEvent(0xE0u | ch | (0x00u << 8) | (0x40u << 16));
-        }
+        ResetEvents();
 
         threadWorking = false;
     });
 
     this->audioThread = std::move(audioThread);
     threadWorking = true;
+}
+
+void AudioThread::ResetEvents()
+{
+    // hardcoded way to reset CC
+    for (int ch = 0; ch < 16; ch++)
+    {
+        midiOut->SendEvent(0xB0u | ch);
+        midiOut->SendEvent(0xB0u | ch | (1u << 8u));
+        midiOut->SendEvent(0xB0u | ch | (2u << 8u));
+        midiOut->SendEvent(0xB0u | ch | (4u << 8u));
+        midiOut->SendEvent(0xB0u | ch | (5u << 8u));
+        midiOut->SendEvent(0xB0u | ch | (7u << 8u) | (100u << 16u)); // volume
+        midiOut->SendEvent(0xB0u | ch | (8u << 8u) | (64u << 16u));
+        midiOut->SendEvent(0xB0u | ch | (10u << 8u) | (64u << 16u)); // pan
+        midiOut->SendEvent(0xB0u | ch | (11u << 8u) | (127u << 16u)); // expression
+
+        // sustain, portamento, sostenuto, soft pedal, etc..
+        for (unsigned int cc = 64; cc <= 69; cc++)
+        {
+            midiOut->SendEvent(0xB0u | ch | (cc << 8u));
+        }
+
+        for (unsigned int cc = 70; cc <= 79; cc++)
+        {
+            midiOut->SendEvent(0xB0u | ch | (cc << 8u) | (64u << 16u)); // sound controllers
+        }
+
+        midiOut->SendEvent(0xB0u | ch | (91u << 8u) | (40u << 16u)); // reverb
+
+        for (unsigned int cc = 92; cc <= 95; cc++)
+        {
+            midiOut->SendEvent(0xB0u | ch | (cc << 8u));
+        }
+
+        midiOut->SendEvent(0xB0u | ch | (101u << 8u) | (127u << 16u));
+        midiOut->SendEvent(0xB0u | ch | (100u << 8u) | (127u << 16u));
+        midiOut->SendEvent(0xB0u | ch | (99u << 8u) | (127u << 16u));
+        midiOut->SendEvent(0xB0u | ch | (98u << 8u) | (127u << 16u));
+
+        // just in case, send the "reset all controllers" event too
+        midiOut->SendEvent(0xB0 | ch | (121 << 8));
+        midiOut->SendEvent(0xB0 | ch | (123 << 8));
+    }
 }

@@ -22,6 +22,7 @@ protected:
 	std::unique_ptr<Framebuffer> sceneFramebuffer;
 	int width = 0;
 	int height = 0;
+	bool isTimeBased = false;
 
 	std::shared_ptr<NoteCounterInfo> noteCounterInfo;
 
@@ -54,6 +55,7 @@ public:
 	virtual void LoadSequence(std::shared_ptr<MIDISequence> sequence)
 	{
 		seq = sequence;
+		isTimeBased = seq->timeBased;
 	}
 
 	virtual std::shared_ptr<MIDISequence> GetSequence()

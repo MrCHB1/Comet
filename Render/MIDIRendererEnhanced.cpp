@@ -300,8 +300,6 @@ void MIDIRendererEnhanced::LoadSequence(std::shared_ptr<MIDISequence> sequence)
 
     for (auto& id : endRenderIDs)
         id = 0;
-
-    isTimeBased = seq->timeBased;
 }
 
 void MIDIRendererEnhanced::CalcKeyPosAndWidth()

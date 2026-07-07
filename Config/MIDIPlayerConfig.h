@@ -63,6 +63,14 @@ struct MIDIPlayerConfig
 		{
 			return fpsLimit;
 		}
+		void SetFPSLimit(int fpsLimit)
+		{
+			this->fpsLimit = fpsLimit;
+			if (this->fpsLimit > 240)
+				this->fpsLimit = 240;
+			else if (this->fpsLimit < 15)
+				this->fpsLimit = 15;
+		}
 		ImVec4 GetBackground()
 		{
 			return background;

@@ -42,9 +42,9 @@ void MIDIApp::LoadMIDI(const char* path)
 		try
 		{
 			auto* config = this->GetConfig();
-			long startMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+			long startMs = static_cast<long>(Utils::GetCurrTime<std::chrono::milliseconds>());
 			seq = loader->Load(config->midi.timeBasedLoading);
-			long endMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+			long endMs = static_cast<long>(Utils::GetCurrTime<std::chrono::milliseconds>());
 
 			std::cout << "Loaded in " << (endMs - startMs) << "ms" << std::endl;
 		}
@@ -257,7 +257,7 @@ void MIDIApp::OnResize(int width, int height)
 
 	config.render.SetWidth(width);
 	config.render.SetHeight(height);
-	// if (renderer.get()) renderer->OnResize(width, height);
+
 	if (!renderer)
 	{
 		std::cout << "Renderer uninitialized!" << std::endl;
@@ -303,13 +303,17 @@ void MIDIApp::CaptureFrame()
 
 	int width = renderFramebuffer->GetWidth(),
 		height = renderFramebuffer->GetHeight();
+
 	renderFramebuffer->Bind();
 	glViewport(0, 0, width, height);
-	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+	if (currentFrame >= 0)
+	{
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-	glReadPixels(0, 0, width, height,
-		GL_RGBA, GL_UNSIGNED_BYTE, exportPixels.data());
-	ffmpegPipe->Write(exportPixels.data(), exportPixels.size());
+		glReadPixels(0, 0, width, height,
+			GL_RGBA, GL_UNSIGNED_BYTE, exportPixels.data());
+		ffmpegPipe->Write(exportPixels.data(), exportPixels.size());
+	}
 	renderFramebuffer->Unbind();
 
 	// draw back onto the screen
@@ -335,8 +339,8 @@ void MIDIApp::RenderMIDIVideo(const RenderSettings& renderSettings)
 	this->lastSavedTimeSecs = this->timer->Elapsed();
 	this->currentRenderSettings = renderSettings;
 
-	this->PrepareRendering(); // Sets this->rendering = true
-	this->currentFrame = 0;
+	this->PrepareRendering();
+	this->currentFrame = -1; // -1 to account for renderers that might need an extra frame to fully settle
 
 	this->exportPixels.resize(renderSettings.width * renderSettings.height * 4);
 

@@ -59,33 +59,6 @@ void RenderVideoDialog::DetectFFmpeg()
 	hasFFmpeg = std::filesystem::exists(ffmpegPath) && std::filesystem::is_regular_file(ffmpegPath);
 }
 
-void RenderVideoDialog::AddFilePickerField(const char* label, std::filesystem::path& path, const char* extension, bool saving)
-{
-	ImGui::Text(label);
-	ImGui::SameLine();
-	ImGui::PushID(label);
-	if (ImGui::Button("Browse..."))
-	{
-		std::string filePath;
-		bool result = saving ? Utils::SaveFile(filePath, extension) : Utils::ChooseFile(filePath, extension);
-		if (result)
-		{
-#if defined(_WIN32) && defined(__cpp_lib_filesystem) && (__cplusplus >= 202002L || _MSVC_LANG >= 202002L)
-			path = std::filesystem::path(std::u8string(filePath.begin(), filePath.end()));
-#else
-			path = std::filesystem::u8path(filePath);
-#endif
-		}
-	}
-	
-	ImGui::SameLine();
-
-	auto u8str = path.u8string();
-	std::string buf(u8str.begin(), u8str.end());
-	ImGui::InputText("##pickedFilePath", buf.data(), buf.size(), ImGuiInputTextFlags_ReadOnly);
-	ImGui::PopID();
-}
-
 void RenderVideoDialog::DrawContent()
 {
 	bool hasSequence = app->hasSequence;
@@ -140,7 +113,7 @@ void RenderVideoDialog::DrawContent()
 	ImGui::Checkbox("##includeAudio", &renderSettings.includeAudio);
 	if (renderSettings.includeAudio)
 	{
-		AddFilePickerField("", renderSettings.audioPath, "mp3,ogg,wav,flac");
+		Utils::AddFilePickerField("", renderSettings.audioPath, "mp3,ogg,wav,flac");
 	}
 
 	ImGui::Separator();
@@ -317,7 +290,7 @@ void RenderVideoDialog::DrawContent()
 			case RenderOutputFormat::MOV: extension = "mov"; break;
 		}
 
-		AddFilePickerField("Output path", renderSettings.outputPath, extension, true);
+		Utils::AddFilePickerField("Output path", renderSettings.outputPath, extension, true);
 		if (renderSettings.outputPath.empty())
 		{
 			ImGui::TextColored(ImVec4(0.5f, 0.0f, 0.0f, 1.0f), "Please specify the video's output path.");
@@ -329,7 +302,7 @@ void RenderVideoDialog::DrawContent()
 		ImGui::Checkbox("##transparencyMaskCheckbox", &renderSettings.renderTransparencyMask);
 		if (renderSettings.renderTransparencyMask)
 		{
-			AddFilePickerField("Mask output path", renderSettings.maskOutputPath, extension, true);
+			Utils::AddFilePickerField("Mask output path", renderSettings.maskOutputPath, extension, true);
 			if (renderSettings.maskOutputPath.empty())
 			{
 				ImGui::TextColored(ImVec4(0.5f, 0.0f, 0.0f, 1.0f), "Please specify the transparency mask's output path.");

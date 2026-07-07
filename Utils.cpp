@@ -340,4 +340,31 @@ namespace Utils
     {
         return std::filesystem::exists(path) && std::filesystem::is_directory(path);
     }
+
+    void AddFilePickerField(const char* label, std::filesystem::path& path, const char* extension, bool saving)
+    {
+        ImGui::Text(label);
+        ImGui::SameLine();
+        ImGui::PushID(label);
+        if (ImGui::Button("Browse..."))
+        {
+            std::string filePath;
+            bool result = saving ? Utils::SaveFile(filePath, extension) : Utils::ChooseFile(filePath, extension);
+            if (result)
+            {
+#if defined(_WIN32) && defined(__cpp_lib_filesystem) && (__cplusplus >= 202002L || _MSVC_LANG >= 202002L)
+                path = std::filesystem::path(std::u8string(filePath.begin(), filePath.end()));
+#else
+                path = std::filesystem::u8path(filePath);
+#endif
+            }
+        }
+
+        ImGui::SameLine();
+
+        auto u8str = path.u8string();
+        std::string buf(u8str.begin(), u8str.end());
+        ImGui::InputText("##pickedFilePath", buf.data(), buf.size(), ImGuiInputTextFlags_ReadOnly);
+        ImGui::PopID();
+    }
 }
