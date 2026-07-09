@@ -98,7 +98,7 @@ const float keyPosDiff[] = {
 class MIDIRenderer : public AbstractMIDIRenderer
 {
 public:
-	MIDIRenderer(MIDIApp* app) : AbstractMIDIRenderer(app), keyPos(128), keyWidth(128)
+    MIDIRenderer(MIDIApp* app) : AbstractMIDIRenderer(app), keyPos{128}, keyWidth{128}
 	{
 		keyboardData.fill(RenderKeyboardKey());
 		keyMetas.fill(KeyboardMeta());

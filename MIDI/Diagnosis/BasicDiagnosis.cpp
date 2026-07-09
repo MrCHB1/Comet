@@ -50,7 +50,7 @@ void BasicDiagnosis::Run()
 		seq->resolution = resolution;
 		if (pis->GetPosition() < posHeaderEnd)
 		{
-			pis->Seek(posHeaderEnd - pis->GetPosition(), SEEK_CUR);
+			pis->Seek(posHeaderEnd - pis->GetPosition(), std::ios::cur);
 		}
 		fTracks->SetValue(static_cast<long long>(tracks));
 		fResolution->SetValue(static_cast<long long>(resolution));

@@ -4,6 +4,12 @@
 #include <execution>
 #include "Sequence/SequenceFuncs.h"
 #include "TempoMap.h"
+#include <iostream>
+#include <cstdlib>
+#define PSTLD_HEADER_ONLY
+#define PSTLD_HACK_INTO_STD
+#include "pstld.h"
+
 
 MultithreadedMIDILoader::MultithreadedMIDILoader(const char* file) : AbstractMIDILoader(file)
 {

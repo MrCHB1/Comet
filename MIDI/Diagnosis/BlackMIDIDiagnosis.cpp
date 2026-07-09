@@ -37,7 +37,7 @@ void BlackMIDIDiagnosis::Run()
 	try
 	{
 		pis = CreateStream();
-		pis->Seek(4L, SEEK_CUR);
+		pis->Seek(4L, std::ios::cur);
 		std::array<uint8_t, 4> intBytes{};
 		std::array<uint8_t, 2> shortBytes{};
 		uint8_t* ibData = intBytes.data();
@@ -47,7 +47,7 @@ void BlackMIDIDiagnosis::Run()
 		pis->Read(ibData, 4);
 		int headerSize = AbstractMIDILoader::ToInt(ibData);
 		long posHeaderEnd = pis->GetPosition() + headerSize;
-		pis->Seek(2L, SEEK_CUR);
+		pis->Seek(2L, std::ios::cur);
 		
 		// read tracks
 		pis->Read(sbData, 2);
@@ -55,7 +55,7 @@ void BlackMIDIDiagnosis::Run()
 		pis->Read(sbData, 2);
 		resolution = AbstractMIDILoader::ToShort(sbData);
 		if (pis->GetPosition() < posHeaderEnd)
-			pis->Seek(posHeaderEnd - pis->GetPosition(), SEEK_CUR);
+			pis->Seek(posHeaderEnd - pis->GetPosition(), std::ios::cur);
 		this->tracks = std::vector<Track>(tracks);
 		for (int i = 0; isRunning && i < tracks; i++)
 			ReadTrack(i);
@@ -91,13 +91,13 @@ void BlackMIDIDiagnosis::ReadTrack(int idx)
 	std::array<uint8_t, 4> intBytes{};
 	uint8_t* ibData = intBytes.data();
 
-	pis->Seek(4L, SEEK_CUR);
+	pis->Seek(4L, std::ios::cur);
 	pis->Read(ibData, 4);
 	int trackLength = AbstractMIDILoader::ToInt(ibData);
 	long posDataStart = pis->GetPosition();
 	long posDataEnd = pis->GetPosition() + trackLength;
 	tracks[idx] = Track(posDataStart, posDataEnd);
-	pis->Seek(trackLength, SEEK_CUR);
+	pis->Seek(trackLength, std::ios::cur);
 }
 
 void BlackMIDIDiagnosis::RunSequence()
@@ -118,7 +118,7 @@ void BlackMIDIDiagnosis::RunSequence()
 		for (auto& trk : tracks)
 		{
 			trk.is = CreateStream();
-			trk.is->Seek(trk.trackPosStart, SEEK_SET);
+			trk.is->Seek(trk.trackPosStart, std::ios::beg);
 			trk.tickNext = AbstractMIDILoader::ReadVariableLengthValue(trk.is.get());
 		}
 
@@ -225,7 +225,7 @@ void Track::ReadEvent(BlackMIDIDiagnosis& bmd)
 	if ((meta & 0x80) == 0)
 	{
 		meta = lastMeta;
-		is->Seek(-1, SEEK_CUR);
+		is->Seek(-1, std::ios::cur);
 	}
 	lastMeta = meta;
 	if (meta == 255)
@@ -253,7 +253,7 @@ void Track::ReadEvent(BlackMIDIDiagnosis& bmd)
 				tickNext = -1L;
 				return;
 			}
-			is->Seek(len, SEEK_CUR);
+			is->Seek(len, std::ios::cur);
 		}
 	}
 	else if (meta >= 128 && meta <= 239)
@@ -275,13 +275,13 @@ void Track::ReadEvent(BlackMIDIDiagnosis& bmd)
 		}
 		else if (meta >= 176 && meta <= 191 && data1 == 126 && data2 == 0)
 		{
-			if ((is->ReadByte() & 0xFF) != 4) is->Seek(-1, SEEK_CUR);
+			if ((is->ReadByte() & 0xFF) != 4) is->Seek(-1, std::ios::cur);
 		}
 	}
 	else if (meta == 240 || meta == 247)
 	{
 		int sysexLen = AbstractMIDILoader::ReadVariableLengthValue(is.get());
-		is->Seek(sysexLen, SEEK_CUR);
+		is->Seek(sysexLen, std::ios::cur);
 	}
 
 	if (is->GetPosition() < is->GetSize())

@@ -7,6 +7,9 @@
 #include <algorithm>
 #include "Sequence/SequenceFuncs.h"
 #include "TempoMap.h"
+#include <future>
+
+
 
 MIDILoader::MIDILoader(const char* file) : AbstractMIDILoader(file)
 {

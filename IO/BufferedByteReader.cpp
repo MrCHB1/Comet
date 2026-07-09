@@ -32,7 +32,7 @@ void BufferedByteReader::UpdateBuffer()
 
 	{
 		std::lock_guard<std::mutex> lock(*mtx);
-		stream->seekg(pos, SEEK_SET);
+		stream->seekg(pos, std::ios::beg);
 		stream->read((char*)bytes, read);
 	}
 
@@ -40,13 +40,13 @@ void BufferedByteReader::UpdateBuffer()
 	bufferPos = 0;
 }
 
-void BufferedByteReader::Seek(int offset, int whence)
+void BufferedByteReader::Seek(int offset, std::ios::seekdir whence)
 {
-	if (whence != SEEK_SET && whence != SEEK_CUR)
+	if (whence != std::ios::beg && whence != std::ios::cur)
 		throw std::runtime_error("Invalid seek whence");
 
 	long long realOffset = offset;
-	if (whence == SEEK_SET)
+	if (whence == std::ios::beg)
 		realOffset += start;
 	else
 		realOffset += pos;
@@ -83,5 +83,5 @@ void BufferedByteReader::Read(uint8_t* dst, size_t size)
 
 void BufferedByteReader::Skip(size_t size)
 {
-	Seek(size, SEEK_CUR);
+    Seek(size, std::ios::cur);
 }

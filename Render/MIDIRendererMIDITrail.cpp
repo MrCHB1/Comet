@@ -343,14 +343,14 @@ void MIDIRendererMIDITrail::Initialize()
 			0, 1, blackKeyEnd,
 			// notch
 			0, 1, whitekeylen,
-			0.03f, 0.95f, whitekeylen + 0.1,
-			0.97f, 0.95f, whitekeylen + 0.1,
+			0.03f, 0.95f, static_cast<float>(whitekeylen + 0.1),
+			0.97f, 0.95f, static_cast<float>(whitekeylen + 0.1),
 			1, 1, whitekeylen,
 
-			0, 0.90, whitekeylen - 0.07,
-			0.03, 0.95, whitekeylen - 0.1,
-			0.97, 0.95, whitekeylen - 0.1,
-			1, 0.90, whitekeylen - 0.07,
+			0, 0.90, static_cast<float>(whitekeylen - 0.07),
+			0.03, 0.95, static_cast<float>(whitekeylen - 0.1),
+			0.97, 0.95, static_cast<float>(whitekeylen - 0.1),
+			1, 0.90, static_cast<float>(whitekeylen - 0.07),
 			// left
 			0, 1, blackKeyEnd,//60
 			0, 1, whitekeylen,
@@ -541,23 +541,23 @@ void MIDIRendererMIDITrail::Initialize()
 		std::array<float, 96> verts = {
 			// front
 			0, 0, blackKeyEnd,
-			0, 1, blackKeyEnd - 0.4,
-			1, 1, blackKeyEnd - 0.4,
+			0, 1, static_cast<float>(blackKeyEnd - 0.4),
+			1, 1, static_cast<float>(blackKeyEnd - 0.4),
 			1, 0, blackKeyEnd,
 			// top
-			0, 1, blackKeyEnd - 0.4,
+			0, 1, static_cast<float>(blackKeyEnd - 0.4),
 			0, 1, 0,
 			1, 1, 0,
-			1, 1, blackKeyEnd - 0.4,
+			1, 1, static_cast<float>(blackKeyEnd - 0.4),
 			// left
 			0, 0, 0,
 			0, 0, blackKeyEnd,
-			0, 1, blackKeyEnd - 0.4,
+			0, 1, static_cast<float>(blackKeyEnd - 0.4),
 			0, 1, 0,
 			// right
 			1, 0, 0,
 			1, 0, blackKeyEnd,
-			1, 1, blackKeyEnd - 0.4,
+			1, 1, static_cast<float>(blackKeyEnd - 0.4),
 			1, 1, 0,
 			// back
 			0, -1, 0,
@@ -1049,11 +1049,11 @@ void MIDIRendererMIDITrail::UpdateKeyboard(double deltaTime)
 		// TODO: smoothing
 		if (pressed)
 		{
-			pressFactor = min(1, pressFactor + settings.noteDownSpeed * deltaTime);
+			pressFactor = fmin(1, pressFactor + settings.noteDownSpeed * deltaTime);
 		}
 		else
 		{
-			pressFactor = max(0, pressFactor - settings.noteUpSpeed * deltaTime);
+			pressFactor = fmax(0, pressFactor - settings.noteUpSpeed * deltaTime);
 		}
 	}
 }
@@ -1296,7 +1296,7 @@ void MIDIRendererMIDITrail::RenderNotes()
 
 				double factor = 0.0;
 				double framesSinceStart = (playbackSeconds - noteStartSecs) / tempoFrameStep;
-				double factor2 = std::pow(max(10.0 - framesSinceStart, 0.0), 2.0) / 600;
+				double factor2 = std::pow(fmax(10.0 - framesSinceStart, 0.0), 2.0) / 600;
 
 				factor = 0.5;
 

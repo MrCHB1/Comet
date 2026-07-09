@@ -1,6 +1,6 @@
 #pragma once
-
 #ifdef WIN32
+#include <cstdint>
 
 #include <vector>
 #include <Windows.h>
@@ -10,7 +10,7 @@ class MIDIOut
 public:
 	MIDIOut();
 	~MIDIOut();
-	void SendEvent(uint32_t msg);
+	void SendEvent(unsigned int msg);
 private:
 
 };
@@ -20,9 +20,8 @@ private:
 class MIDIOut
 {
 public:
-	MIDIOut();
-	~MIDIOut() = default;
-	void SendEvent(uint32_t msg)
+    MIDIOut() {}
+    void SendEvent(unsigned int msg)
 	{
 		// nothing here for other platforms unfortunately :(
 	}

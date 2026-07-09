@@ -7,6 +7,7 @@
 #include <atomic>
 #include <mutex>
 #include <queue>
+#include <thread>
 
 struct ScheduledEvent
 {

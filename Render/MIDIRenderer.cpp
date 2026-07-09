@@ -127,102 +127,102 @@ void MIDIRenderer::LoadMaskTexture(ResourcePack* pack, std::unique_ptr<GPUImage>
 
 void MIDIRenderer::Initialize()
 {
-	static_assert(sizeof(RenderKeyboardKey) == 12);
-	static_assert(offsetof(RenderKeyboardKey, left) == 0);
-	static_assert(offsetof(RenderKeyboardKey, right) == 4);
-	static_assert(offsetof(RenderKeyboardKey, meta) == 8);
-
-	AbstractMIDIRenderer::Initialize();
-
+    static_assert(sizeof(RenderKeyboardKey) == 12);
+    static_assert(offsetof(RenderKeyboardKey, left) == 0);
+    static_assert(offsetof(RenderKeyboardKey, right) == 4);
+    static_assert(offsetof(RenderKeyboardKey, meta) == 8);
+    
+    AbstractMIDIRenderer::Initialize();
+    
 #pragma region Load resource pack
-	// we can load the resource pack
-	auto config = app->GetConfig();
-	auto defaultPack = DefaultResourcePack::Instance();
-	if (auto pack = std::dynamic_pointer_cast<ResourcePack>(defaultPack))
-	{
-		LoadResourcePack(pack, config->render.GetUseColorsFromImage());
-	}
+    // we can load the resource pack
+    auto config = app->GetConfig();
+    auto defaultPack = DefaultResourcePack::Instance();
+    if (auto pack = std::dynamic_pointer_cast<ResourcePack>(defaultPack))
+    {
+        LoadResourcePack(pack, config->render.GetUseColorsFromImage());
+    }
 #pragma endregion
-
+    
 #pragma region Keyboard shader creation
-
-	std::unique_ptr<ShaderProgram> kbProgram = ShaderProgram::CreateFromFiles("assets/shaders/keyboard");
-	std::unique_ptr<VertexArray> kbVao = std::make_unique<VertexArray>();
-	std::unique_ptr<Buffer> kbVbo = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
-	std::unique_ptr<Buffer> kbInstance = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
-	std::unique_ptr<Buffer> kbEbo = std::make_unique<Buffer>(GL_ELEMENT_ARRAY_BUFFER);
-
-	{
-		VertexArrayBind vaoBind(*kbVao);
-
-		// static quad verts
-		kbVbo->Bind();
-		kbVbo->SetData(QUAD_VERTICES, GL_STATIC_DRAW);
-
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, (void*)0);
-
-		// index buffer
-		kbEbo->Bind();
-		kbEbo->SetData(QUAD_INDICES, GL_STATIC_DRAW);
-
-		// instance buffer
-		kbInstance->Bind();
-		kbInstance->SetData(keyboardData, GL_DYNAMIC_DRAW);
-
-		kbVao->SetFloatAttribute(1, 1, sizeof(RenderKeyboardKey), offsetof(RenderKeyboardKey, left));
-		kbVao->SetFloatAttribute(2, 1, sizeof(RenderKeyboardKey), offsetof(RenderKeyboardKey, right));
-		kbVao->SetIntAttribute(3, 1, sizeof(RenderKeyboardKey), offsetof(RenderKeyboardKey, meta));
-
-		glVertexAttribDivisor(1, 1);
-		glVertexAttribDivisor(2, 1);
-		glVertexAttribDivisor(3, 1);
-	}
-
+    
+    std::unique_ptr<ShaderProgram> kbProgram = ShaderProgram::CreateFromFiles("assets/shaders/keyboard");
+    std::unique_ptr<VertexArray> kbVao = std::make_unique<VertexArray>();
+    std::unique_ptr<Buffer> kbVbo = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
+    std::unique_ptr<Buffer> kbInstance = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
+    std::unique_ptr<Buffer> kbEbo = std::make_unique<Buffer>(GL_ELEMENT_ARRAY_BUFFER);
+    
+    {
+        VertexArrayBind vaoBind(*kbVao);
+        
+        // static quad verts
+        kbVbo->Bind();
+        kbVbo->SetData(QUAD_VERTICES, GL_STATIC_DRAW);
+        
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, (void*)0);
+        
+        // index buffer
+        kbEbo->Bind();
+        kbEbo->SetData(QUAD_INDICES, GL_STATIC_DRAW);
+        
+        // instance buffer
+        kbInstance->Bind();
+        kbInstance->SetData(keyboardData, GL_DYNAMIC_DRAW);
+        
+        kbVao->SetFloatAttribute(1, 1, sizeof(RenderKeyboardKey), offsetof(RenderKeyboardKey, left));
+        kbVao->SetFloatAttribute(2, 1, sizeof(RenderKeyboardKey), offsetof(RenderKeyboardKey, right));
+        kbVao->SetIntAttribute(3, 1, sizeof(RenderKeyboardKey), offsetof(RenderKeyboardKey, meta));
+        
+        glVertexAttribDivisor(1, 1);
+        glVertexAttribDivisor(2, 1);
+        glVertexAttribDivisor(3, 1);
+    }
+    
 #pragma endregion
-
+    
 #pragma region Note shader creation
-
-	std::unique_ptr<ShaderProgram> notesProgram = ShaderProgram::CreateFromFiles("assets/shaders/notes");
-	std::unique_ptr<VertexArray> notesVao = std::make_unique<VertexArray>();
-	std::unique_ptr<Buffer> notesVbo = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
-	std::unique_ptr<Buffer> notesInstance = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
-	std::unique_ptr<Buffer> notesEbo = std::make_unique<Buffer>(GL_ELEMENT_ARRAY_BUFFER);
-
-	{
-		VertexArrayBind vaoBind(*notesVao);
-
-		// static quad verts
-		notesVbo->Bind();
-		notesVbo->SetData(QUAD_VERTICES, GL_STATIC_DRAW);
-
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, (void*)0);
-
-		// index buffer
-		notesEbo->Bind();
-		notesEbo->SetData(QUAD_INDICES, GL_STATIC_DRAW);
-
-		// instance buffer
-		notesInstance->Bind();
-		notesInstance->SetData(renderNotes, GL_DYNAMIC_DRAW);
-
-		notesVao->SetFloatAttribute(1, 1, sizeof(RenderNote), offsetof(RenderNote, left));
-		notesVao->SetFloatAttribute(2, 1, sizeof(RenderNote), offsetof(RenderNote, right));
-		notesVao->SetFloatAttribute(3, 1, sizeof(RenderNote), offsetof(RenderNote, start));
-		notesVao->SetFloatAttribute(4, 1, sizeof(RenderNote), offsetof(RenderNote, end));
-		notesVao->SetIntAttribute(5, 1, sizeof(RenderNote), offsetof(RenderNote, color));
-
-		glVertexAttribDivisor(1, 1);
-		glVertexAttribDivisor(2, 1);
-		glVertexAttribDivisor(3, 1);
-		glVertexAttribDivisor(4, 1);
-		glVertexAttribDivisor(5, 1);
-	}
-
+    
+    std::unique_ptr<ShaderProgram> notesProgram = ShaderProgram::CreateFromFiles("assets/shaders/notes");
+    std::unique_ptr<VertexArray> notesVao = std::make_unique<VertexArray>();
+    std::unique_ptr<Buffer> notesVbo = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
+    std::unique_ptr<Buffer> notesInstance = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
+    std::unique_ptr<Buffer> notesEbo = std::make_unique<Buffer>(GL_ELEMENT_ARRAY_BUFFER);
+    
+    {
+        VertexArrayBind vaoBind(*notesVao);
+        
+        // static quad verts
+        notesVbo->Bind();
+        notesVbo->SetData(QUAD_VERTICES, GL_STATIC_DRAW);
+        
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, (void*)0);
+        
+        // index buffer
+        notesEbo->Bind();
+        notesEbo->SetData(QUAD_INDICES, GL_STATIC_DRAW);
+        
+        // instance buffer
+        notesInstance->Bind();
+        notesInstance->SetData(renderNotes, GL_DYNAMIC_DRAW);
+        
+        notesVao->SetFloatAttribute(1, 1, sizeof(RenderNote), offsetof(RenderNote, left));
+        notesVao->SetFloatAttribute(2, 1, sizeof(RenderNote), offsetof(RenderNote, right));
+        notesVao->SetFloatAttribute(3, 1, sizeof(RenderNote), offsetof(RenderNote, start));
+        notesVao->SetFloatAttribute(4, 1, sizeof(RenderNote), offsetof(RenderNote, end));
+        notesVao->SetIntAttribute(5, 1, sizeof(RenderNote), offsetof(RenderNote, color));
+        
+        glVertexAttribDivisor(1, 1);
+        glVertexAttribDivisor(2, 1);
+        glVertexAttribDivisor(3, 1);
+        glVertexAttribDivisor(4, 1);
+        glVertexAttribDivisor(5, 1);
+    }
+    
 #pragma endregion
-
-	std::array<KeyboardMeta, MIDI_KEYS> kbMetas(KeyboardMeta(0, false, false));
+    
+    std::array<KeyboardMeta, MIDI_KEYS> kbMetas{KeyboardMeta(0, false, false)};
 	std::vector<uint8_t> blackIDs;
 	blackIDs.reserve(53);
 	std::vector<uint8_t> whiteIDs;
@@ -424,9 +424,9 @@ void MIDIRenderer::RenderSettings()
 				for (const auto& pack : packs)
 				{
 					ImGui::BeginGroup();
-					ImGui::Text(pack->GetName());
+					ImGui::Text("%s", pack->GetName());
 					ImGui::Text("By %s", pack->GetAuthor());
-					ImGui::Text(pack->GetDescription());
+					ImGui::Text("%s", pack->GetDescription());
 
 					bool isActivePack = pack == packList->GetActivePack();
 					ImGui::BeginDisabled(isActivePack);
@@ -471,7 +471,7 @@ void MIDIRenderer::CalcKeyPosAndWidth()
 	float keyboardHeightScale = width / 75.0f / (float)textureKeyWhite->width;
 	keyboardHeightBlack = (textureKeyBlack->height * keyboardHeightScale) / (float)height;
 	keyboardHeightWhite = (textureKeyWhite->height * keyboardHeightScale) / (float)height;
-	keyboardHeight = max(keyboardHeightBlack, keyboardHeightWhite) + 1.0f / float(height);
+	keyboardHeight = fmax(keyboardHeightBlack, keyboardHeightWhite) + 1.0f / float(height);
 	float noteWidth = (float)width / 75.0f;
 	float noteWidthBlack = (float)width / 115.0f;
 	float pos = 0.0f;
@@ -501,7 +501,7 @@ void MIDIRenderer::CalcKeyPosAndWidth()
 	float unscaledWhiteKeyGap = pack->GetKeyboardInfo()->whiteKeyGap;
 	if (unscaledWhiteKeyGap > 0.0f)
 	{
-		whiteKeyGap = (float)max(1, (int)std::floor(unscaledWhiteKeyGap * widthScale));
+		whiteKeyGap = (float)fmax(1, (int)std::floor(unscaledWhiteKeyGap * widthScale));
 	}
 	else
 	{
@@ -510,7 +510,7 @@ void MIDIRenderer::CalcKeyPosAndWidth()
 
 	float unscaledNoteBorderWidth = pack->GetNoteInfo()->borderWidth;
 	if (unscaledNoteBorderWidth > 0.0f)
-		noteBorderWidth = (float)max(1, (int)std::floor(unscaledNoteBorderWidth * widthScale)) / (float)height;
+		noteBorderWidth = (float)fmax(1, (int)std::floor(unscaledNoteBorderWidth * widthScale)) / (float)height;
 	else
 		noteBorderWidth = 0.0f;
 

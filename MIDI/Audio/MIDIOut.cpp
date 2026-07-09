@@ -1,5 +1,6 @@
 #include "MIDIOut.h"
 #include <iostream>
+#include <cstdint>
 
 #ifdef WIN32
 
@@ -13,8 +14,7 @@ auto Init = (KDMAPI_Init)GetProcAddress(omni, "InitializeKDMAPIStream");
 auto Send = (KDMAPI_Send)GetProcAddress(omni, "SendDirectData");
 auto End = (KDMAPI_Terminate)GetProcAddress(omni, "TerminateKDMAPIStream");
 
-MIDIOut::MIDIOut()
-{
+MIDIOut::MIDIOut() {
 	std::cout << "Loading MIDI out" << std::endl;
 	Init();
 }
@@ -24,7 +24,7 @@ MIDIOut::~MIDIOut()
 	End();
 }
 
-void MIDIOut::SendEvent(uint32_t msg)
+void MIDIOut::SendEvent(unsigned int msg)
 {
 	Send(msg);
 }
