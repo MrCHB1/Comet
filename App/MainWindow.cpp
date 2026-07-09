@@ -19,12 +19,14 @@ MainWindow::MainWindow(const char* title)
 	InitializeApp();
 	InitializeDialogs();
 	InitializeUI();
+    
 
 	if (!InitializeGLFW())
 	{
 		std::cerr << "Failed to initialize GLFW for main window" << std::endl;
 		return;
 	}
+    
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -34,7 +36,7 @@ MainWindow::MainWindow(const char* title)
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
 	
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
-	ImGui_ImplOpenGL3_Init();
+	ImGui_ImplOpenGL3_Init("#version 330 core");
 
 	InitializeAppResources();
 
@@ -119,10 +121,14 @@ bool MainWindow::InitializeGLFW()
 		return false;
 	}
 
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GL_FALSE);
+    
+    
+    
 	MIDIPlayerConfig* cfg = midiApp->GetConfig();
 	int width = cfg->render.GetWidth(), height = cfg->render.GetHeight();
 

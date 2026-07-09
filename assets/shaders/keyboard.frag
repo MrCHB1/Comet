@@ -1,4 +1,4 @@
-#version 330
+#version 330 core
 
 uniform sampler2D blackKey;
 uniform sampler2D whiteKey;
