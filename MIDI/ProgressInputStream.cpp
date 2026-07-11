@@ -3,12 +3,17 @@
 #include "Comet.h"
 
 ProgressInputStream::ProgressInputStream(const char* filePath)
-	: InputStream(std::make_shared<std::ifstream>(filePath, std::ios::in | std::ios::binary))
+	: ProgressInputStream(std::filesystem::path(filePath))
 {
-	// stream->open(filePath, std::ios::in | std::ios::binary);
+
+}
+
+ProgressInputStream::ProgressInputStream(const std::filesystem::path& path)
+	: InputStream(std::make_shared<std::ifstream>(path, std::ios::in | std::ios::binary))
+{
 	if (!stream->is_open())
 	{
-		throw std::runtime_error(("Failed to open stream for " + std::string(filePath)).c_str());
+		throw std::runtime_error(("Failed to open stream for " + path.string()).c_str());
 	}
 	stream->seekg(0, std::ios::end);
 	size = stream->tellg();
@@ -47,18 +52,18 @@ void ProgressInputStream::Read(uint8_t* dst, size_t size)
 	read += stream->gcount();
 }
 
-void ProgressInputStream::Seek(int offset, std::ios::seekdir whence)
+void ProgressInputStream::Seek(int offset, int whence)
 {
 	stream->clear();
-	if (whence == std::ios::cur)
+	if (whence == SEEK_SET)
 	{
 		stream->seekg(offset, std::ios::cur);
 	}
-	else if (whence == std::ios::beg)
+	else if (whence == SEEK_SET)
 	{
 		stream->seekg(offset, std::ios::beg);
 	}
-	else if (whence == std::ios::end)
+	else if (whence == SEEK_END)
 	{
 		stream->seekg(offset, std::ios::end);
 	}

@@ -24,7 +24,13 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 
 	if (!file.empty())
 	{
-		MIDIStreamInfo stream = OpenMIDIFileStream(file.c_str());
+#if __cplusplus >= 202002L
+		auto path = std::filesystem::path(reinterpret_cast<const char8_t*>(file.c_str()));
+#else
+		auto path = std::filesystem::u8path(file);
+#endif
+
+		MIDIStreamInfo stream = OpenMIDIFileStream(path);
 		seq = std::make_shared<MIDISequence>("TODO");
 		pis = stream.stream;
 	}
@@ -174,6 +180,25 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 	{
 		std::cout << "  Preprocessing notes of track " << i << "/" << seq->tracks.size() << std::endl;
 		std::sort(std::execution::par_unseq, seq->tracks[i].notes.begin(), seq->tracks[i].notes.end(), [](auto& a, auto& b) { return a.tick < b.tick; });
+	}
+
+	// handle edge cases for tempos
+	if (seq->tempos.empty())
+	{
+		seq->tempos.emplace_back(0, 120.0);
+	}
+	else if (seq->tempos.front().tick > 0)
+	{
+		seq->tempos.insert(seq->tempos.begin(), TempoEvent(0, 120.0));
+	}
+
+	if (seq->timeSignatures.empty())
+	{
+		seq->timeSignatures.emplace_back(0, 4, 4);
+	}
+	else if (seq->timeSignatures.front().tick > 0)
+	{
+		seq->timeSignatures.insert(seq->timeSignatures.begin(), TimeSignatureEvent(0, 4, 4));
 	}
 
 	seq->tracks.shrink_to_fit();

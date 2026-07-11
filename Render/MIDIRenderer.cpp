@@ -4,6 +4,228 @@
 #include "../App/MIDIApp.h"
 #include "../MIDI/TempoMap.h"
 #include "Utils.h"
+#include <algorithm>
+
+#pragma region Shaders
+
+static constexpr const char* keyboardvert = R"(#version 330 core
+layout (location = 0) in vec2 aPos;
+
+// instance data
+layout (location = 1) in float kLeft;
+layout (location = 2) in float kRight;
+layout (location = 3) in uint kMeta;
+
+out vec2 uv;
+flat out uint meta;
+
+uniform float kbHeight;
+uniform float kbWhiteHeight;
+uniform float kbBlackHeight;
+
+out float kWidth;
+
+void main()
+{
+	bool black   = (kMeta & (1u << 25)) != 0u;
+
+	float x = mix(kLeft, kRight, aPos.x);
+	float y = kbHeight - aPos.y * (black ? kbBlackHeight : kbWhiteHeight);
+
+	gl_Position = vec4(x * 2.0f - 1.0f, (y * 2.0f - 1.0f), 0.0f, 1.0f);
+	uv = aPos;
+	meta = kMeta;
+	kWidth = kRight - kLeft;
+})";
+
+static constexpr const char* keyboardfrag = R"(#version 330
+
+uniform sampler2D blackKey;
+uniform sampler2D whiteKey;
+uniform sampler2D blackKeyPressed;
+uniform sampler2D whiteKeyPressed;
+uniform sampler2D blackKeyMask;
+uniform sampler2D whiteKeyMask;
+uniform sampler2D blackKeyPressedMask;
+uniform sampler2D whiteKeyPressedMask;
+
+uniform vec3 barColor;
+
+flat in uint meta;
+in vec2 uv;
+in float kWidth;
+
+uniform float whiteKeyBorderPixelWidth; // how much pixels the border should take up when rendering
+uniform float borderPercentageNorm; // 0.0-1.0 of how much the border takes up the texure
+
+out vec4 fragColor;
+
+void main()
+{
+	vec3 color = vec3(
+		float((meta & 0xFF0000u) >> 16u), 
+		float((meta & 0xFF00u) >> 8u),
+		float(meta & 0xFFu)
+	) / 255.0f;
+
+	bool pressed = (meta & (1u << 24)) != 0u;
+    bool black   = (meta & (1u << 25)) != 0u;
+
+	float uvPerPixel = fwidth(uv.x);
+    float keyWidthPixels = 1.0 / uvPerPixel;
+
+	float actualBorderPx = min(whiteKeyBorderPixelWidth, keyWidthPixels * 0.5);
+
+	float pixelX = uv.x * keyWidthPixels;
+	float adjustedU = uv.x;
+
+	if (pixelX < actualBorderPx)
+	{
+		// Left Border (maps to 0.0 -> borderPercentageNorm)
+        adjustedU = mix(0.0, borderPercentageNorm, pixelX / actualBorderPx);
+	}
+	else if (pixelX > keyWidthPixels - actualBorderPx)
+	{
+		float distFromRight = keyWidthPixels - pixelX;
+        adjustedU = mix(1.0, 1.0 - borderPercentageNorm, distFromRight / actualBorderPx);
+	}
+	else
+	{
+		float middlePixelWidth = keyWidthPixels - (2.0 * actualBorderPx);
+        float distFromLeftBorder = pixelX - actualBorderPx;
+        adjustedU = mix(borderPercentageNorm, 1.0 - borderPercentageNorm, distFromLeftBorder / middlePixelWidth);
+	}
+
+	vec2 sliceUV = vec2(adjustedU, uv.y);
+
+	vec3 texColor;
+
+	if (!pressed)
+	{
+		if (black)
+		{
+			vec2 blackKeyMaskRG = texture(blackKeyMask, uv).rg;
+			texColor = texture(blackKey, uv).rgb;
+			vec3 texColorBar = texColor * barColor;
+			texColor = mix(texColor, texColorBar, blackKeyMaskRG.g);
+		}
+		else
+		{
+			vec2 whiteKeyMaskRG = texture(whiteKeyMask, uv).rg;
+			texColor = texture(whiteKey, sliceUV).rgb;
+			vec3 texColorBar = texColor * barColor;
+			texColor = mix(texColor, texColorBar, whiteKeyMaskRG.g);
+		}
+	}
+	else
+	{
+		if (black)
+		{
+			vec2 blackKeyPressedMaskRG = texture(blackKeyPressedMask, uv).rg;
+
+			texColor = texture(blackKeyPressed, uv).rgb;
+			vec3 texColorBar = texColor * barColor;
+			vec3 texColorNote = texColor * color;
+			texColor = mix(texColor, texColorBar, blackKeyPressedMaskRG.g);
+			texColor = mix(texColor, texColorNote, blackKeyPressedMaskRG.r);
+		}
+		else
+		{
+			vec2 whiteKeyPressedMaskRG = texture(whiteKeyPressedMask, uv).rg;
+
+			texColor = texture(whiteKeyPressed, sliceUV).rgb;
+			vec3 texColorBar = texColor * barColor;
+			vec3 texColorNote = texColor * color;
+			texColor = mix(texColor, texColorBar, whiteKeyPressedMaskRG.g);
+			texColor = mix(texColor, texColorNote, whiteKeyPressedMaskRG.r);
+		}
+	}
+
+	fragColor = vec4(texColor, 1.0);
+})";
+
+static constexpr const char* notesvert = R"(#version 330
+
+layout (location = 0) in vec2 aPos;
+
+// instance data
+layout (location = 1) in float nLeft;
+layout (location = 2) in float nRight;
+layout (location = 3) in float nStart;
+layout (location = 4) in float nEnd;
+layout (location = 5) in uint nColor;
+
+out vec2 uv;
+flat out uint color;
+out float noteHeight;
+
+uniform float kbHeight;
+
+void main()
+{
+	float x = mix(nLeft, nRight, aPos.x);
+	float y = mix(nStart, nEnd, aPos.y);
+	y = y * (1.0f - kbHeight) + kbHeight;
+
+	gl_Position = vec4(x * 2.0f - 1.0f, y * 2.0f - 1.0f, 0.0f, 1.0f);
+	uv = aPos;
+	color = nColor;
+	noteHeight = nEnd - nStart;
+})";
+
+static constexpr const char* notesfrag = R"(#version 330
+
+in vec2 uv;
+flat in uint color;
+in float noteHeight;
+
+out vec4 fragColor;
+
+uniform sampler2D note;
+uniform sampler2D noteBlack;
+uniform sampler2D noteEdge;
+uniform float noteBorderWidth;
+
+void main()
+{
+	bool isBlack = (color & 0x1000000u) != 0u;
+	vec3 nCol = vec3(
+		float((color & 0xFF0000u) >> 16u), 
+		float((color & 0xFF00u) >> 8u),
+		float(color & 0xFFu)
+	) / 255.0f;
+
+	vec3 noteTex;
+	if (isBlack)
+	{
+		noteTex = texture(noteBlack, uv).rgb;
+	}
+	else
+	{
+		noteTex = texture(note, uv).rgb;
+	}
+
+	float uvBorderThickness = noteBorderWidth / noteHeight;
+
+	vec4 edgeTex = vec4(0.0);
+
+	if (uv.y < uvBorderThickness)
+	{
+		float normY = uv.y / uvBorderThickness;
+		edgeTex = texture(noteEdge, vec2(uv.x, normY));
+	}
+	else if (uv.y > (1.0 - uvBorderThickness))
+    {
+        float normY = (1.0 - uv.y) / uvBorderThickness;
+        edgeTex = texture(noteEdge, vec2(uv.x, normY));
+    }
+
+	vec3 finalColor = mix(noteTex, edgeTex.rgb, edgeTex.a) * nCol;
+
+	fragColor = vec4(finalColor, 1.0f);
+})";
+
+#pragma endregion
 
 void CheckGLError(const char* label)
 {
@@ -14,14 +236,14 @@ void CheckGLError(const char* label)
 	}
 }
 
-const std::vector<float> QUAD_VERTICES = {
+const std::array<float, 8> QUAD_VERTICES = {
 	0.0f, 1.0f,
 	1.0f, 1.0f,
 	1.0f, 0.0f,
 	0.0f, 0.0f,
 };
 
-const std::vector<unsigned int> QUAD_INDICES = {
+const std::array<unsigned int, 6> QUAD_INDICES = {
 	0, 1, 3,
 	1, 2, 3
 };
@@ -146,7 +368,7 @@ void MIDIRenderer::Initialize()
 
 #pragma region Keyboard shader creation
 
-	std::unique_ptr<ShaderProgram> kbProgram = ShaderProgram::CreateFromFiles("assets/shaders/keyboard");
+	std::unique_ptr<ShaderProgram> kbProgram = ShaderProgram::Create(keyboardvert, keyboardfrag);
 	std::unique_ptr<VertexArray> kbVao = std::make_unique<VertexArray>();
 	std::unique_ptr<Buffer> kbVbo = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
 	std::unique_ptr<Buffer> kbInstance = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
@@ -183,7 +405,7 @@ void MIDIRenderer::Initialize()
 
 #pragma region Note shader creation
 
-	std::unique_ptr<ShaderProgram> notesProgram = ShaderProgram::CreateFromFiles("assets/shaders/notes");
+	std::unique_ptr<ShaderProgram> notesProgram = ShaderProgram::Create(notesvert, notesfrag);
 	std::unique_ptr<VertexArray> notesVao = std::make_unique<VertexArray>();
 	std::unique_ptr<Buffer> notesVbo = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
 	std::unique_ptr<Buffer> notesInstance = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
@@ -222,7 +444,8 @@ void MIDIRenderer::Initialize()
 
 #pragma endregion
 
-	std::array<KeyboardMeta, MIDI_KEYS> kbMetas(KeyboardMeta(0, false, false));
+	std::array<KeyboardMeta, MIDI_KEYS> kbMetas;
+	kbMetas.fill(KeyboardMeta(0, false, false));
 	std::vector<uint8_t> blackIDs;
 	blackIDs.reserve(53);
 	std::vector<uint8_t> whiteIDs;
@@ -387,16 +610,6 @@ void MIDIRenderer::RenderSettings()
 				SetBarColor(barColor[0], barColor[1], barColor[2]);
 			}
 
-			colors = config->render.GetBackground();
-			float bgColor[3]{ colors.x, colors.y, colors.z };
-			ImGui::Text("Background color");
-			ImGui::SameLine();
-			if (ImGui::ColorEdit3("##bgColor", bgColor))
-			{
-				config->render.SetBackground(bgColor[0], bgColor[1], bgColor[2]);
-				SetBackgroundColor(bgColor[0], bgColor[1], bgColor[2]);
-			}
-
 			ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem("Resource Packs"))
@@ -471,7 +684,7 @@ void MIDIRenderer::CalcKeyPosAndWidth()
 	float keyboardHeightScale = width / 75.0f / (float)textureKeyWhite->width;
 	keyboardHeightBlack = (textureKeyBlack->height * keyboardHeightScale) / (float)height;
 	keyboardHeightWhite = (textureKeyWhite->height * keyboardHeightScale) / (float)height;
-	keyboardHeight = max(keyboardHeightBlack, keyboardHeightWhite) + 1.0f / float(height);
+	keyboardHeight = std::max(keyboardHeightBlack, keyboardHeightWhite) + 1.0f / float(height);
 	float noteWidth = (float)width / 75.0f;
 	float noteWidthBlack = (float)width / 115.0f;
 	float pos = 0.0f;
@@ -501,7 +714,7 @@ void MIDIRenderer::CalcKeyPosAndWidth()
 	float unscaledWhiteKeyGap = pack->GetKeyboardInfo()->whiteKeyGap;
 	if (unscaledWhiteKeyGap > 0.0f)
 	{
-		whiteKeyGap = (float)max(1, (int)std::floor(unscaledWhiteKeyGap * widthScale));
+		whiteKeyGap = (float)std::max(1, (int)std::floor(unscaledWhiteKeyGap * widthScale));
 	}
 	else
 	{
@@ -510,7 +723,7 @@ void MIDIRenderer::CalcKeyPosAndWidth()
 
 	float unscaledNoteBorderWidth = pack->GetNoteInfo()->borderWidth;
 	if (unscaledNoteBorderWidth > 0.0f)
-		noteBorderWidth = (float)max(1, (int)std::floor(unscaledNoteBorderWidth * widthScale)) / (float)height;
+		noteBorderWidth = (float)std::max(1, (int)std::floor(unscaledNoteBorderWidth * widthScale)) / (float)height;
 	else
 		noteBorderWidth = 0.0f;
 

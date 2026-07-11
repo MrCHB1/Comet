@@ -1,7 +1,11 @@
+#define ENHANCED_SHADERS
+
 #include "MIDIRendererEnhanced.h"
+#include "MIDIRendererEnhancedShaders.h"
 #include <glm/glm.hpp>
 #include "App/MIDIApp.h"
 #include "App/Models.h"
+#include <algorithm>
 
 const std::vector<float> CUBE_VERTICES = {
     // front face
@@ -46,7 +50,7 @@ void MIDIRendererEnhanced::Initialize()
 
     #pragma region Note buffers + data
 
-    notesProgram = ShaderProgram::CreateFromFiles("assets/shaders/notes3d");
+    notesProgram = ShaderProgram::Create(notes3dvert, notes3dfrag);
     notesVAO = std::make_unique<VertexArray>();
     notesVBO = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
     notesIBO = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
@@ -104,7 +108,7 @@ void MIDIRendererEnhanced::Initialize()
     for (auto& white : whiteIDs) kbIDs[i++] = white;
     for (auto& black : blackIDs) kbIDs[i++] = black;
 
-    keyboardProgram = ShaderProgram::CreateFromFiles("assets/shaders/keyboard3d");
+    keyboardProgram = ShaderProgram::Create(keyboard3dvert, keyboard3dfrag);
 
     keyboardIBO = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
     keyboardIBO->Bind();
@@ -173,7 +177,7 @@ void MIDIRendererEnhanced::Initialize()
     #pragma endregion
 
     #pragma region Saber buffers + data
-    saberProgram = ShaderProgram::CreateFromFiles("assets/shaders/saber3d");
+    saberProgram = ShaderProgram::Create(saber3dvert, saber3dfrag);
     saberVAO = std::make_unique<VertexArray>();
     saberVBO = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
     saberEBO = std::make_unique<Buffer>(GL_ELEMENT_ARRAY_BUFFER);
@@ -192,13 +196,13 @@ void MIDIRendererEnhanced::Initialize()
     #pragma endregion
 
     #pragma region Mist setup
-    mistProgram = ShaderProgram::CreateFromFiles("assets/shaders/mist3d");
+    mistProgram = ShaderProgram::Create(mist3dvert, mist3dfrag);
     mistQuad = std::make_unique<Quad>();
     mistQuad->SetShader(mistProgram);
     #pragma endregion
 
     #pragma region Particle buffers + data
-    particleProgram = ShaderProgram::CreateFromFiles("assets/shaders/particle3d");
+    particleProgram = ShaderProgram::Create(particle3dvert, particle3dfrag);
     particleVAO = std::make_unique<VertexArray>();
     particleVBO = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
     particleIBO = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
@@ -230,9 +234,9 @@ void MIDIRendererEnhanced::Initialize()
     #pragma endregion
 
     #pragma region post processing setup
-    downsampleShader = ShaderProgram::CreateFromFiles("assets/shaders/postProcessing/fullscreen", "assets/shaders/postProcessing/downsample");
-    upsampleShader = ShaderProgram::CreateFromFiles("assets/shaders/postProcessing/fullscreen", "assets/shaders/postProcessing/upsample");
-    compositeShader = ShaderProgram::CreateFromFiles("assets/shaders/postProcessing/fullscreen", "assets/shaders/postProcessing/composite");
+    downsampleShader = ShaderProgram::Create(fullscreenvert, downsamplefrag);
+    upsampleShader = ShaderProgram::Create(fullscreenvert, upsamplefrag);
+    compositeShader = ShaderProgram::Create(fullscreenvert, compositefrag);
 
     screenQuad = std::make_unique<Quad>();
     hdrSceneFBO = std::make_unique<Framebuffer>();
@@ -335,7 +339,7 @@ void MIDIRendererEnhanced::UpdateKeyboardInstance(double deltaTime)
     bool needsUpload = false;
 
     // cap the dt so physics does not explode lol
-    float dt = static_cast<float>(min(deltaTime, 0.033));
+    float dt = static_cast<float>(std::min(deltaTime, 0.033));
 
     int i = 0;
     for (uint8_t id : kbIDs)
@@ -924,7 +928,11 @@ void MIDIRendererEnhanced::RenderSettings()
         {
             ImGui::Text("Exposure");
             ImGui::SameLine();
-            ImGui::SliderFloat("##exposure", &rendererSettings.exposure, 0.0f, 5.0f);
+            float exposure = rendererSettings.exposure;
+            if (ImGui::SliderFloat("##exposure", &exposure, 0.0f, 5.0f))
+            {
+                rendererSettings.exposure = std::clamp(exposure, 0.0f, 5.0f);
+            }
 
             ImGui::Text("Anti-aliasing");
 
@@ -942,8 +950,10 @@ void MIDIRendererEnhanced::RenderSettings()
         {
             ImGui::Text("Note outline emission");
             ImGui::SameLine();
-            if (ImGui::SliderFloat("##noteOutlineGlow", &rendererSettings.noteOutlineGlowFactor, 1.0f, 8.0f))
+            float noteOutlineGlowFactor = rendererSettings.noteOutlineGlowFactor;
+            if (ImGui::SliderFloat("##noteOutlineGlow", &noteOutlineGlowFactor, 1.0f, 8.0f))
             {
+                rendererSettings.noteOutlineGlowFactor = std::clamp(noteOutlineGlowFactor, 1.0f, 8.0f);
                 ShaderBind notesBind(*notesProgram);
                 notesProgram->SetFloat("noteOutlineGlow", rendererSettings.noteOutlineGlowFactor);
             }
@@ -951,6 +961,7 @@ void MIDIRendererEnhanced::RenderSettings()
             ImGui::Spacing();
             ImGui::Text("Enable HSV shift");
             ImGui::SameLine();
+       
             if (ImGui::Checkbox("##hsvShift", &rendererSettings.hsvShiftEnabled))
             {
                 ShaderBind notesBind(*notesProgram);
@@ -960,8 +971,10 @@ void MIDIRendererEnhanced::RenderSettings()
             {
                 ImGui::Text("HSV strength");
                 ImGui::SameLine();
-                if (ImGui::SliderFloat("##hsvStrength", &rendererSettings.hsvShiftStrength, 0.0f, 1.0f))
+                float hsvShiftStrength = rendererSettings.hsvShiftStrength;
+                if (ImGui::SliderFloat("##hsvStrength", &hsvShiftStrength, 0.0f, 1.0f))
                 {
+                    rendererSettings.hsvShiftStrength = std::clamp(hsvShiftStrength, 0.0f, 1.0f);
                     ShaderBind notesBind(*notesProgram);
                     notesProgram->SetFloat("noteHsvShiftStrength", rendererSettings.hsvShiftStrength);
                 }
@@ -970,22 +983,28 @@ void MIDIRendererEnhanced::RenderSettings()
 
                 ImGui::Text("Hue shift");
                 ImGui::SameLine();
-                if (ImGui::SliderFloat("##hsvHueShift", &rendererSettings.hsvShifts.x, -1.0f, 1.0f))
+                float hueShift = rendererSettings.hsvShifts.x;
+                if (ImGui::SliderFloat("##hsvHueShift", &hueShift, -1.0f, 1.0f))
                 {
+                    rendererSettings.hsvShifts.x = std::clamp(hueShift, -1.0f, 1.0f);
                     shouldForwardUniform = true;
                 }
 
                 ImGui::Text("Saturation shift");
                 ImGui::SameLine();
-                if (ImGui::SliderFloat("##hsvSatShift", &rendererSettings.hsvShifts.y, -1.0f, 0.0f))
+                float saturationShift = rendererSettings.hsvShifts.y;
+                if (ImGui::SliderFloat("##hsvSatShift", &saturationShift, -1.0f, 0.0f))
                 {
+                    rendererSettings.hsvShifts.y = std::clamp(saturationShift, -1.0f, 0.0f);
                     shouldForwardUniform = true;
                 }
 
                 ImGui::Text("Value shift");
                 ImGui::SameLine();
-                if (ImGui::SliderFloat("##hsvValShift", &rendererSettings.hsvShifts.z, -1.0f, 0.0f))
+                float valueShift = rendererSettings.hsvShifts.z;
+                if (ImGui::SliderFloat("##hsvValShift", &valueShift, -1.0f, 0.0f))
                 {
+                    rendererSettings.hsvShifts.z = std::clamp(valueShift, -1.0f, 0.0f);
                     shouldForwardUniform = true;
                 }
 
@@ -1001,14 +1020,20 @@ void MIDIRendererEnhanced::RenderSettings()
         {
             ImGui::Text("Key glow factor");
             ImGui::SameLine();
-            if (ImGui::SliderFloat("##keyGlowFactor", &rendererSettings.keyGlowFactor, 1.0f, 8.0f))
+            float keyGlowFactor = rendererSettings.keyGlowFactor;
+            if (ImGui::SliderFloat("##keyGlowFactor", &keyGlowFactor, 1.0f, 8.0f))
             {
+                rendererSettings.keyGlowFactor = std::clamp(keyGlowFactor, 1.0f, 8.0f);
                 ShaderBind keyboardBind(*keyboardProgram);
                 keyboardProgram->SetFloat("keyGlowFactor", rendererSettings.keyGlowFactor);
             }
             ImGui::Text("Keyboard FOV");
             ImGui::SameLine();
-            ImGui::SliderFloat("##keyboardFov", &rendererSettings.keyboardFOV, 20.0f, 89.9f);
+            float keyboardFOV = rendererSettings.keyboardFOV;
+            if (ImGui::SliderFloat("##keyboardFov", &keyboardFOV, 20.0f, 89.9f))
+            {
+                rendererSettings.keyboardFOV = std::clamp(keyboardFOV, 20.0f, 89.9f);
+            }
 
             ImGui::EndTabItem();
         }
@@ -1023,7 +1048,11 @@ void MIDIRendererEnhanced::RenderSettings()
             }
             ImGui::Text("Brightness");
             ImGui::SameLine();
-            ImGui::SliderFloat("##saberBrightness", &rendererSettings.saberBrightness, 0.0f, 20.0f);
+            float saberBrightness = rendererSettings.saberBrightness;
+            if (ImGui::SliderFloat("##saberBrightness", &saberBrightness, 0.0f, 20.0f))
+            {
+                rendererSettings.saberBrightness = saberBrightness;
+            }
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Mist"))

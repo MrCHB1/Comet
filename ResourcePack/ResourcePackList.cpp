@@ -1,4 +1,4 @@
-#include "ResourcePacklist.h"
+#include "ResourcePackList.h"
 #include <filesystem>
 
 void ResourcePackList::RefreshList()

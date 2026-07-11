@@ -3,6 +3,7 @@
 #include "ProgressInputStream.h"
 #include <filesystem>
 #include <iostream>
+#include <string>
 #include "MIDISequence.h"
 
 class AbstractMIDILoader : public Progress
@@ -78,21 +79,21 @@ protected:
 	bool loadOnlyNotes = false;
 	struct MIDIStreamInfo
 	{
-		const char* name;
+		std::string name;
 
 		std::shared_ptr<ProgressInputStream> stream;
 	};
 
-	MIDIStreamInfo OpenMIDIFileStream(const char* path)
+	MIDIStreamInfo OpenMIDIFileStream(const std::filesystem::path& path)
 	{
-		auto file = std::filesystem::path(path);
 		bool exists = std::filesystem::exists(path);
 		if (!exists || std::filesystem::is_directory(path))
 		{
-			throw std::invalid_argument("File doesn't exist or not a file!");
+			throw std::runtime_error("File doesn't exist or not a file!");
 		}
 		MIDIStreamInfo info;
-		info.name = std::move(file.filename().string().c_str());
+		auto filenameU8 = path.filename().u8string();
+		info.name = std::string(reinterpret_cast<const char*>(filenameU8.c_str()));
 		info.stream = std::make_shared<ProgressInputStream>(path);
 		std::cout << "MIDI file stream opened: " << info.name << std::endl;
 		return info;

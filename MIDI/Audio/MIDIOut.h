@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #ifdef WIN32
 
 #include <vector>
@@ -21,12 +23,12 @@ class MIDIOut
 {
 public:
 	MIDIOut();
-	~MIDIOut() = default;
-	void SendEvent(uint32_t msg)
-	{
-		// nothing here for other platforms unfortunately :(
-	}
-private:
+	~MIDIOut();
+	void SendEvent(uint32_t msg);
 
+private:
+	void* handle = nullptr;
+	void (*sendDirectData)(uint32_t msg) = nullptr;
+	void (*terminateStream)() = nullptr;
 };
 #endif

@@ -48,6 +48,17 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 
 			this->midi = midi;
 		}
+
+		std::optional<ConfigSection> navigationSec = config->GetSection("navigation");
+		if (navigationSec)
+		{
+			ConfigNavigation navigation;
+			navigation.alwaysHideBar = navigationSec->GetBoolean("alwaysHideBar", false);
+			navigation.seekForwardSeconds = navigationSec->GetFloat("seekForwardSeconds", 10.0f);
+			navigation.seekBackwardSeconds = navigationSec->GetFloat("seekBackwardSeconds", 10.0f);
+
+			this->navigation = navigation;
+		}
 		
 		std::optional<ConfigSection> renderSec = config->GetSection("render");
 		if (renderSec)
@@ -55,6 +66,9 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 			ConfigRender render;
 			render.SetWidth(renderSec->GetInt("width", 1280));
 			render.SetHeight(renderSec->GetInt("height", 720));
+
+			render.SetFPSLimit(renderSec->GetInt("fpsLimit", 120));
+			render.SetVSync(renderSec->GetBoolean("vsync", true));
 
 			auto bgCol = renderSec->GetColor("background");
 			if (bgCol) render.SetBackground(bgCol->x, bgCol->y, bgCol->z);
@@ -78,6 +92,8 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 void MIDIPlayerConfig::SaveConfig()
 {
 	YAML::Node config;
+	config["version"] = 1;
+
 	config["app"]["themeID"] = app.currThemeID;
 
 	config["overlay"]["scale"] = overlayInfo.scale;
@@ -85,8 +101,14 @@ void MIDIPlayerConfig::SaveConfig()
 	config["midi"]["multithreaded"] = midi.multithreadedLoading;
 	config["midi"]["timeBased"] = midi.timeBasedLoading;
 
+	config["navigation"]["alwaysHideBar"] = navigation.alwaysHideBar;
+	config["navigation"]["seekForwardSeconds"] = navigation.seekForwardSeconds;
+	config["navigation"]["seekBackwardSeconds"] = navigation.seekBackwardSeconds;
+
 	config["render"]["width"] = render.GetWidth();
 	config["render"]["height"] = render.GetHeight();
+	config["render"]["fpsLimit"] = render.GetFPSLimit();
+	config["render"]["vsync"] = render.GetVSync();
 	config["render"]["background"] = Utils::EncodeColor(render.GetBackground());
 	config["render"]["bar"] = Utils::EncodeColor(render.GetBarColor());
 	config["render"]["useImageColors"] = render.GetUseColorsFromImage();
