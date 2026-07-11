@@ -3,6 +3,16 @@
 #include "Utils.h"
 #include <filesystem>
 
+#if defined(_WIN32)
+#include <Windows.h>
+#elif defined(__APPLE__)
+#include <climits>
+#include <mach-o/dyld.h>
+#else
+#include <climits>
+#include <unistd.h>
+#endif
+
 std::filesystem::path GetBinaryDirectory()
 {
 #if defined(_WIN32)

@@ -71,11 +71,7 @@ public:
 
 	virtual void Initialize();
 	virtual void Render(double deltaTime) = 0;
-	virtual void RenderSettings()
-	{
-		ImGui::Separator();
-		if (ImGui::Button("Reset settings")) ResetSettings();
-	}
+	virtual void RenderSettings();
 	virtual void ResetSettings() {}
 	virtual void OnResize(int newWidth, int newHeight)
 	{

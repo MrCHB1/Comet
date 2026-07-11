@@ -2,6 +2,9 @@
 #include "Utils.h"
 #include "Render/MIDIRendererEnhanced.h"
 #include "Render/MIDIRendererMIDITrail.h"
+#include "Render/MIDIRendererPFA.h"
+#include "Render/MIDIRendererChannels.h"
+#include "Render/MIDIRendererVelocities.h"
 
 void SettingsDialog::DrawContent()
 {
@@ -43,6 +46,27 @@ void SettingsDialog::DrawAppTab()
 	{
 		if (ImGui::BeginTabBar("AppTabs"))
 		{
+			if (ImGui::BeginTabItem("General"))
+			{
+				ImGui::Text("VSync");
+				ImGui::SameLine();
+				bool vsync = config->render.GetVSync();
+				if (ImGui::Checkbox("##vsync", &vsync))
+				{
+					config->render.SetVSync(vsync);
+					glfwSwapInterval(vsync);
+				}
+
+				ImGui::Text("FPS Limit");
+				ImGui::SetItemTooltip("When set to 0 then the FPS will be uncapped");
+				ImGui::SameLine();
+				int fpsLimit = config->render.GetFPSLimit();
+				if (ImGui::InputInt("##fpsLimit", &fpsLimit))
+				{
+					config->render.SetFPSLimit(fpsLimit);
+				}
+				ImGui::EndTabItem();
+			}
 			if (ImGui::BeginTabItem("Theme"))
 			{
 				size_t themeIdx = 0;
@@ -124,6 +148,30 @@ void SettingsDialog::DrawAppTab()
 					themeIdx++;
 				}
 				ImGui::EndTabItem();
+			}
+			if (ImGui::BeginTabItem("Navigation"))
+			{
+				ImGui::Text("Always hide navigation bar");
+				ImGui::SetItemTooltip("Enabling this will always hide the menu/navigation bar, unless the mouse is near it.");
+				ImGui::SameLine();
+				ImGui::Checkbox("##hideNavigationbar", &config->navigation.alwaysHideBar);
+				ImGui::EndTabItem();
+
+				ImGui::Text("Jump forward secs");
+				ImGui::SameLine();
+				float jumpForwardSecs = config->navigation.seekForwardSeconds;
+				if (ImGui::InputFloat("##forwardSecs", &jumpForwardSecs, ImGuiInputTextFlags_NoHorizontalScroll))
+				{
+					config->navigation.seekForwardSeconds = std::clamp(jumpForwardSecs, 0.0001f, 10.0f);
+				}
+
+				ImGui::Text("Jump backward secs");
+				ImGui::SameLine();
+				float jumpBackwardSecs = config->navigation.seekBackwardSeconds;
+				if (ImGui::InputFloat("##backwardSecs", &jumpBackwardSecs, ImGuiInputTextFlags_NoHorizontalScroll))
+				{
+					config->navigation.seekBackwardSeconds = std::clamp(jumpBackwardSecs, 0.0001f, 10.0f);
+				}
 			}
 			ImGui::EndTabBar();
 		}
@@ -364,13 +412,23 @@ void SettingsDialog::DrawVisualTab()
 
 				ImGui::Text("Current Renderer");
 				RendererType currRenderer = config->render.GetCurrentRenderer();
-				if (ImGui::RadioButton("Default Textured", currRenderer == RendererType::Default))
+				if (ImGui::RadioButton("Piano From Above", currRenderer == RendererType::PFA))
+				{
+					if (currRenderer != RendererType::PFA)
+					{
+						config->render.SetCurrentRenderer(RendererType::PFA);
+						app->SetRenderer<MIDIRendererPFA>();
+						std::cout << "Switched to the PFA renderer" << std::endl;
+					}
+				}
+
+				if (ImGui::RadioButton("Textured", currRenderer == RendererType::Default))
 				{
 					if (currRenderer != RendererType::Default)
 					{
 						config->render.SetCurrentRenderer(RendererType::Default);
 						app->SetRenderer<MIDIRenderer>();
-						std::cout << "Switched to the default renderer" << std::endl;
+						std::cout << "Switched to the Textured renderer" << std::endl;
 					}
 				}
 				if (ImGui::RadioButton("Enhanced Graphics", currRenderer == RendererType::Enhanced))
@@ -390,6 +448,26 @@ void SettingsDialog::DrawVisualTab()
 						config->render.SetCurrentRenderer(RendererType::MIDITrail);
 						app->SetRenderer<MIDIRendererMIDITrail>();
 						std::cout << "Switched to the MIDITrail renderer" << std::endl;
+					}
+				}
+
+				if (ImGui::RadioButton("Channels", currRenderer == RendererType::Channels))
+				{
+					if (currRenderer != RendererType::Channels)
+					{
+						config->render.SetCurrentRenderer(RendererType::Channels);
+						app->SetRenderer<MIDIRendererChannels>();
+						std::cout << "Switched to the Channels renderer" << std::endl;
+					}
+				}
+
+				if (ImGui::RadioButton("Velocities", currRenderer == RendererType::Velocities))
+				{
+					if (currRenderer != RendererType::Velocities)
+					{
+						config->render.SetCurrentRenderer(RendererType::Velocities);
+						app->SetRenderer<MIDIRendererVelocities>();
+						std::cout << "Switched to the Velocities renderer" << std::endl;
 					}
 				}
 

@@ -30,9 +30,14 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 
 	if (!file.empty())
 	{
-		auto path = std::filesystem::path(file);
-		std::cout << "Loading file " << path.filename() << std::endl;
-		MIDIStreamInfo stream = OpenMIDIFileStream(file.c_str());
+#if __cplusplus >= 202002L
+		auto path = std::filesystem::path(reinterpret_cast<const char8_t*>(file.c_str()));
+#else
+		auto path = std::filesystem::u8path(file);
+#endif
+		auto filenameU8 = path.filename().u8string();
+		std::cout << "Loading file " << reinterpret_cast<const char*>(filenameU8.c_str()) << std::endl;
+		MIDIStreamInfo stream = OpenMIDIFileStream(path);
 		seq = std::make_shared<MIDISequence>("TODO");
 		pis = stream.stream;
 	}
@@ -158,8 +163,8 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 	SetName("Starting event preprocessing");
 	auto& tempos = seq->tempos;
 	auto& timeSignatures = seq->timeSignatures;
-	std::sort(tempos.begin(), tempos.end(), [](auto& a, auto& b) { return a.tick < b.tick; });
-	std::sort(timeSignatures.begin(), timeSignatures.end(), [](auto& a, auto& b) { return a.tick < b.tick; });
+	std::sort(tempos.begin(), tempos.end(), [](const auto& a, const auto& b) { return a.tick < b.tick; });
+	std::sort(timeSignatures.begin(), timeSignatures.end(), [](const auto& a, const auto& b) { return a.tick < b.tick; });
 	for (int i = 0; i < seq->tracks.size(); i++)
 	{
 		prog = (double)i / (double)seq->tracks.size();
@@ -167,9 +172,28 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 		std::cout << "  " << status << std::endl;
 		SetName(status.c_str());
 		auto& track = seq->tracks[i];
-		std::sort(track.notes.begin(), track.notes.end(), [](auto& a, auto& b) { return a.tick < b.tick; });
+		std::sort(track.notes.begin(), track.notes.end(), [](const auto& a, const auto& b) { return a.tick < b.tick; });
 	}
 	prog = -1;
+
+	// handle edge cases for tempos
+	if (tempos.empty())
+	{
+		tempos.emplace_back(0, 120.0);
+	}
+	else if (tempos.front().tick > 0)
+	{
+		tempos.insert(tempos.begin(), TempoEvent(0, 120.0));
+	}
+
+	if (timeSignatures.empty())
+	{
+		timeSignatures.emplace_back(0, 4, 4);
+	}
+	else if (timeSignatures.front().tick > 0)
+	{
+		timeSignatures.insert(timeSignatures.begin(), TimeSignatureEvent(0, 4, 4));
+	}
 
 	seq->tracks.shrink_to_fit();
 	#pragma endregion
@@ -458,7 +482,7 @@ void MIDILoader::NoteOff(uint8_t ch, uint8_t key, long tick)
 	if (tick <= note.tick)
 		note.gate = 1;
 	else
-		note.gate = (uint16_t)((tick - note.tick) & 0xFFFF);
+		note.gate = tick - note.tick;
 
 	GetChannelTrack(ch)->notes.push_back(note);
 	seq->notes++;

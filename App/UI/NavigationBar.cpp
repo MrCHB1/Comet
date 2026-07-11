@@ -1,5 +1,6 @@
 #include "NavigationBar.h"
 #include "imgui.h"
+#include <algorithm>
 
 // TODO: Implement reset when unloading midi
 
@@ -40,9 +41,9 @@ void NavigationBar::Draw()
 	ImGui::SetNextItemWidth(170);
 	int viewTicks = static_cast<int>(renderView->viewTicks);
 	ImGui::PushID("nav_noteSize");
-	if (ImGui::SliderInt("", &viewTicks, 48, 7680, "", ImGuiSliderFlags_NoInput | ImGuiSliderFlags_Logarithmic))
+	if (ImGui::SliderInt("", &viewTicks, 48, 7680, "", ImGuiSliderFlags_Logarithmic))
 	{
-		renderView->viewTicks = viewTicks;
+		renderView->viewTicks = std::clamp(viewTicks, 48, 7680);
 	}
 	ImGui::PopID();
 

@@ -20,3 +20,20 @@ void AbstractMIDIRenderer::Initialize()
 
 	#pragma endregion
 }
+
+void AbstractMIDIRenderer::RenderSettings()
+{
+	ImGui::Separator();
+
+	MIDIPlayerConfig* config = app->GetConfig();
+
+	ImVec4 bgColorVec = config->render.GetBackground();
+	float bgColor[3]{ bgColorVec.x, bgColorVec.y, bgColorVec.z };
+	ImGui::Text("Background color");
+	ImGui::SameLine();
+	if (ImGui::ColorEdit3("##bgColor", bgColor))
+	{
+		config->render.SetBackground(bgColor[0], bgColor[1], bgColor[2]);
+	}
+	if (ImGui::Button("Reset settings")) ResetSettings();
+}

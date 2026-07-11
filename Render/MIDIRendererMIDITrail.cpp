@@ -2,6 +2,7 @@
 #include "App/MIDIApp.h"
 #include "MIDI/TempoMap.h"
 #include "Utils.h"
+#include <algorithm>
 
 const std::array<float, 24> CUBE_VERTICES = {
 	0.0f, 1.0f, 0.0f,
@@ -940,18 +941,29 @@ void MIDIRendererMIDITrail::RenderSettings()
 
 			ImGui::Text("Note transparency");
 			ImGui::SameLine();
-			ImGui::SliderFloat("##noteTransparency", &settings.noteTransparency, 0.0f, 1.0f);
+			float noteTransparency = settings.noteTransparency;
+			if (ImGui::SliderFloat("##noteTransparency", &noteTransparency, 0.0f, 1.0f))
+			{
+				settings.noteTransparency = std::clamp(noteTransparency, 0.0f, 1.0f);
+			}
 
 			bool updateSeparatorLines = false;
 			ImGui::Spacing();
 			ImGui::Text("Front render cutoff");
 			ImGui::SameLine();
-			updateSeparatorLines = ImGui::SliderFloat("##frontRenderCutoff", &settings.frontRenderCutoff, 1.0f, 40.0f);
+			float frontRenderCutuff = settings.frontRenderCutoff;
+			if (ImGui::SliderFloat("##frontRenderCutoff", &settings.frontRenderCutoff, 1.0f, 40.0f))
+			{
+				settings.frontRenderCutoff = std::clamp(frontRenderCutuff, 1.0f, 40.0f);
+				updateSeparatorLines = true;
+			}
 
 			ImGui::Text("Back render cutoff");
 			ImGui::SameLine();
-			if (ImGui::SliderFloat("##backRenderCutoff", &settings.backRenderCutoff, 0.0f, 20.0f))
+			float backRenderCutoff = settings.backRenderCutoff;
+			if (ImGui::SliderFloat("##backRenderCutoff", &backRenderCutoff, 0.0f, 20.0f))
 			{
+				settings.backRenderCutoff = std::clamp(backRenderCutoff, 0.0f, 20.0f);
 				for (auto& id : startRenderIDs)
 				{
 					id = 0;
@@ -984,7 +996,11 @@ void MIDIRendererMIDITrail::RenderSettings()
 		{
 			ImGui::DragFloat3("Camera position", glm::value_ptr(settings.cameraPos), 0.1f);
 			ImGui::DragFloat3("Camera rotation", glm::value_ptr(settings.cameraRotation), 0.1f);
-			ImGui::SliderFloat("Camera FOV", &settings.cameraFOV, 1.0f, 120.0f);
+			float cameraFOV = settings.cameraFOV;
+			if (ImGui::SliderFloat("Camera FOV", &cameraFOV, 1.0f, 120.0f))
+			{
+				settings.cameraFOV = std::clamp(cameraFOV, 1.0f, 120.0f);
+			}
 
 			ImGui::EndTabItem();
 		}
@@ -1000,7 +1016,11 @@ void MIDIRendererMIDITrail::RenderSettings()
 
 			ImGui::Text("Line transparency");
 			ImGui::SameLine();
-			ImGui::SliderFloat("##lineTransparency", &settings.lineTransparency, 0.0f, 1.0f);
+			float lineTransparency = settings.lineTransparency;
+			if (ImGui::SliderFloat("##lineTransparency", &lineTransparency, 0.0f, 1.0f))
+			{
+				settings.lineTransparency = std::clamp(lineTransparency, 0.0f, 1.0f);
+			}
 			ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem("Aura"))
@@ -1011,7 +1031,11 @@ void MIDIRendererMIDITrail::RenderSettings()
 
 			ImGui::Text("Aura size");
 			ImGui::SameLine();
-			ImGui::SliderFloat("##auraSize", &settings.auraSize, 0.03f, 0.08f);
+			float auraSize = settings.auraSize;
+			if (ImGui::SliderFloat("##auraSize", &auraSize, 0.03f, 0.08f))
+			{
+				settings.auraSize = std::clamp(auraSize, 0.03f, 0.08f);
+			}
 			ImGui::EndTabItem();
 
 			std::filesystem::path path = settings.auraTexture;
@@ -1049,11 +1073,11 @@ void MIDIRendererMIDITrail::UpdateKeyboard(double deltaTime)
 		// TODO: smoothing
 		if (pressed)
 		{
-			pressFactor = min(1, pressFactor + settings.noteDownSpeed * deltaTime);
+			pressFactor = std::min(1.0, pressFactor + settings.noteDownSpeed * deltaTime);
 		}
 		else
 		{
-			pressFactor = max(0, pressFactor - settings.noteUpSpeed * deltaTime);
+			pressFactor = std::max(0.0, pressFactor - settings.noteUpSpeed * deltaTime);
 		}
 	}
 }
@@ -1296,7 +1320,7 @@ void MIDIRendererMIDITrail::RenderNotes()
 
 				double factor = 0.0;
 				double framesSinceStart = (playbackSeconds - noteStartSecs) / tempoFrameStep;
-				double factor2 = std::pow(max(10.0 - framesSinceStart, 0.0), 2.0) / 600;
+				double factor2 = std::pow(std::max(10.0 - framesSinceStart, 0.0), 2.0) / 600;
 
 				factor = 0.5;
 
@@ -1473,7 +1497,11 @@ void MIDIRendererMIDITrail::RenderMeasureLines()
 
 		if (futureTimeSignature)
 		{
-			while (measureTime < futureTimeSignature->tick)
+			long futureTimeSigTick = isTimeBased
+				? tempoMap->SecsToTicksFromMap(seq->resolution, (double)futureTimeSignature->tick / TIME_BASED_MULTIPLIER)
+				: futureTimeSignature->tick;
+
+			while (measureTime < futureTimeSigTick)
 			{
 				const double pos = measurePos(measureTime);
 

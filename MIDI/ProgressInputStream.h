@@ -2,11 +2,13 @@
 
 #include <stdexcept>
 #include "../IO/InputStream.h"
+#include <filesystem>
 
 class ProgressInputStream : public InputStream
 {
 public:
 	ProgressInputStream(const char* file);
+	ProgressInputStream(const std::filesystem::path& path);
 	ProgressInputStream(InputStream in);
 	ProgressInputStream(InputStream in, size_t size);
 	~ProgressInputStream()
@@ -15,7 +17,7 @@ public:
 	}
 
 	void Read(uint8_t* dst, size_t size) override;
-	void Seek(int offset, std::ios::seekdir whence) override;
+	void Seek(int offset, int whence) override;
 	void Close() override
 	{
 		InputStream::Close();

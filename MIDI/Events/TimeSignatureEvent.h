@@ -2,7 +2,7 @@
 
 #include "MIDIEvent.h"
 
-// Used mainly for drawing measure/bar lines with renderers such as MIDITrail
+// Used mainly for drawing measure/bar lines with renderers such as MIDITrail and PFA
 struct TimeSignatureEvent : public MIDIEvent
 {
 	uint8_t numerator;

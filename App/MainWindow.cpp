@@ -13,6 +13,8 @@
 #include "Comet.h"
 #include "UI/Themes/Themes.h"
 
+#include "icon32.hpp"
+
 MainWindow::MainWindow(const char* title)
 {
 	this->title = title;
@@ -161,6 +163,7 @@ void MainWindow::InitializeAppResources()
 #ifdef COMET_DEBUG
 	std::cout << "Loading app resources" << std::endl;
 #endif
+	LoadWindowIcon();
 	InitPrimitiveShaders();
 	midiApp->LoadResources();
 #ifdef COMET_DEBUG
@@ -168,18 +171,40 @@ void MainWindow::InitializeAppResources()
 #endif
 }
 
+void MainWindow::LoadWindowIcon()
+{
+	GLFWimage image;
+	image.pixels = stbi_load_from_memory(
+		icon32_png_data,
+		static_cast<int>(icon32_png_size),
+		&image.width,
+		&image.height,
+		nullptr,
+		4
+	);
+
+	if (image.pixels)
+	{
+		glfwSetWindowIcon(window, 1, &image);
+		stbi_image_free(image.pixels);
+	}
+}
+
 void MainWindow::PostInit()
 {
-
+	glfwSwapInterval(midiApp->GetConfig()->render.GetVSync() ? 1 : 0);
 }
 
 void MainWindow::Run()
 {
 	while (!glfwWindowShouldClose(window))
 	{
+		double frameStartTime = glfwGetTime();
+
 		glfwPollEvents();
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
+
 		if (!midiApp->IsRendering())
 		{
 			ImGui::NewFrame();
@@ -191,6 +216,19 @@ void MainWindow::Run()
 
 			ImGui::Render();
 			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+			MIDIPlayerConfig* config = midiApp->GetConfig();
+			if (config->render.GetFPSLimit() >= 15)
+			{
+				double targetFrameTime = 1.0 / config->render.GetFPSLimit();
+				double elapsedFrameTime = glfwGetTime() - frameStartTime;
+
+				if (elapsedFrameTime < targetFrameTime)
+				{
+					double timeToSleep = targetFrameTime - elapsedFrameTime;
+					std::this_thread::sleep_for(std::chrono::duration<double>(timeToSleep));
+				}
+			}
 		}
 		else
 		{
@@ -227,10 +265,12 @@ void MainWindow::Run()
 
 bool MainWindow::CanShowNavigationBar()
 {
-	if (!fullscreen) return true;
+	MIDIPlayerConfig* config = midiApp->GetConfig();
 
-	double mouseX, mouseY;
-	glfwGetCursorPos(window, &mouseX, &mouseY);
+	if (!fullscreen && !config->navigation.alwaysHideBar) return true;
+
+	double mouseY;
+	glfwGetCursorPos(window, nullptr, &mouseY);
 
 	// me
 	bool isMenuOpen = ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId);
