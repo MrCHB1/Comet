@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #define MIDI_KEYS 128
 #define TIME_BASED_MULTIPLIER 100000
 
