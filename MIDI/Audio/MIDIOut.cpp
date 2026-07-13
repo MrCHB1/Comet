@@ -4,34 +4,57 @@
 
 #ifdef WIN32
 
-typedef void (*KDMAPI_Init)();
-typedef void (*KDMAPI_Terminate)();
-typedef void (*KDMAPI_Send)(uint32_t msg);
-
-HMODULE omni = LoadLibraryA("OmniMIDI.dll");
-
-auto Init = (KDMAPI_Init)GetProcAddress(omni, "InitializeKDMAPIStream");
-auto Send = (KDMAPI_Send)GetProcAddress(omni, "SendDirectData");
-auto End = (KDMAPI_Terminate)GetProcAddress(omni, "TerminateKDMAPIStream");
-
 MIDIOut::MIDIOut()
 {
 	std::cout << "Loading MIDI out" << std::endl;
+
+	omni = LoadLibraryA("OmniMIDI.dll");
 	if (!omni)
 	{
-		Utils::Dialogs::ShowDialog("KDMAPI warning", "OmniMIDI is not installed or the driver has not been registered. As Comet depends on OmniMIDI for audio, it will continue without it.", Utils::Dialogs::DialogType::DIALOG_WARNING);
+		Utils::Dialogs::ShowDialog(
+			"KDMAPI warning",
+			"OmniMIDI is not installed or the driver has not been registered. "
+			"As Comet depends on OmniMIDI for audio, it will continue without it.",
+			Utils::Dialogs::DialogType::DIALOG_WARNING
+		);
+		return;
 	}
+
+	Init = (KDMAPI_Init)GetProcAddress(omni, "InitializeKDMAPIStream");
+	Send = (KDMAPI_Send)GetProcAddress(omni, "SendDirectData");
+	End = (KDMAPI_Terminate)GetProcAddress(omni, "TerminateKDMAPIStream");
+
+	if (!Init || !Send || !End)
+	{
+		Utils::Dialogs::ShowDialog(
+			"KDMAPI warning",
+			"OmniMIDI was found, but one or more required KDMAPI functions could not be loaded.",
+			Utils::Dialogs::DialogType::DIALOG_WARNING
+		);
+
+		FreeLibrary(omni);
+		omni = nullptr;
+		Init = nullptr;
+		Send = nullptr;
+		End = nullptr;
+		return;
+	}
+
 	if (Init) Init();
+	initialized = true;
 }
 
 MIDIOut::~MIDIOut()
 {
-	if (End) End();
+	if (initialized && End)
+		End();
+
+	if (omni) FreeLibrary(omni);
 }
 
 void MIDIOut::SendEvent(uint32_t msg)
 {
-	if (Send) Send(msg);
+	if (initialized && Send) Send(msg);
 }
 
 #else

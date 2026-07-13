@@ -7,6 +7,10 @@
 #include <vector>
 #include <Windows.h>
 
+typedef void (*KDMAPI_Init)();
+typedef void (*KDMAPI_Terminate)();
+typedef void (*KDMAPI_Send)(uint32_t msg);
+
 class MIDIOut
 {
 public:
@@ -14,7 +18,13 @@ public:
 	~MIDIOut();
 	void SendEvent(uint32_t msg);
 private:
+	HMODULE omni = nullptr;
 
+	KDMAPI_Init Init = nullptr;
+	KDMAPI_Send Send = nullptr;
+	KDMAPI_Terminate End = nullptr;
+
+	bool initialized = false;
 };
 
 #else
