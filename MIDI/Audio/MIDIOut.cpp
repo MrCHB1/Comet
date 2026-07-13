@@ -1,5 +1,6 @@
 #include "MIDIOut.h"
 #include <iostream>
+#include "Utils.h"
 
 #ifdef WIN32
 
@@ -16,18 +17,23 @@ auto End = (KDMAPI_Terminate)GetProcAddress(omni, "TerminateKDMAPIStream");
 MIDIOut::MIDIOut()
 {
 	std::cout << "Loading MIDI out" << std::endl;
-	Init();
+	if (!omni)
+	{
+		Utils::Dialogs::ShowDialog("KDMAPI warning", "OmniMIDI is not installed or the driver has not been registered. As Comet depends on OmniMIDI for audio, it will continue without it.", Utils::Dialogs::DialogType::DIALOG_WARNING);
+	}
+	if (Init) Init();
 }
 
 MIDIOut::~MIDIOut()
 {
-	End();
+	if (End) End();
 }
 
 void MIDIOut::SendEvent(uint32_t msg)
 {
-	Send(msg);
+	if (Send) Send(msg);
 }
+
 #else
 
 #include <dlfcn.h>

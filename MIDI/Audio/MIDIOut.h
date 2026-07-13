@@ -25,7 +25,6 @@ public:
 	MIDIOut();
 	~MIDIOut();
 	void SendEvent(uint32_t msg);
-
 private:
 	void* handle = nullptr;
 	void (*sendDirectData)(uint32_t msg) = nullptr;
