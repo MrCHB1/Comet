@@ -64,7 +64,7 @@ void NoteCounterRenderer::Render(float heightOffset)
 	ImGui::PushStyleColor(ImGuiCol_WindowBg, noteCounterBackgroundCol);
 	ImGui::PushStyleColor(ImGuiCol_Text, noteCounterTextCol);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(0.0f, 2.0f));
+	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(-10.0f, 2.0f));
 
 	if (ImGui::Begin("noteCounter", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar))
 	{
@@ -83,7 +83,7 @@ void NoteCounterRenderer::Render(float heightOffset)
 			{
 				BeginNextCounterRow("Tick");
 				auto ticks = noteCounterInfo->tick.value;
-				FormatText(buf, "%s/%u", Utils::FormatWithCommas(ticks > 0 ? ticks : 0).c_str(), noteCounterInfo->ppq.value);
+				FormatText(buf, "%s/%u", Utils::FormatWithCommas(ticks > 0 ? ticks * 10001 : 0).c_str(), noteCounterInfo->ppq.value);
 				RightAlignedTableText(buf);
 			}
 
