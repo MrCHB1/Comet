@@ -66,5 +66,6 @@ private:
 	int width = 0, height = 0;
 	int counterWidth = DEFAULT_NOTE_COUNTER_WIDTH;
 	float lastCounterYOffset = 0.0f;
+	float lastCounterWidth = 0.0f;
 	float lastCounterHeight = 0.0f;
 };
