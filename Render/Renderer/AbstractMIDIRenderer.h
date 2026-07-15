@@ -56,6 +56,7 @@ public:
 	{
 		seq = sequence;
 		isTimeBased = seq->timeBased;
+		noteCounterInfo->ppq = sequence->resolution;
 	}
 
 	virtual std::shared_ptr<MIDISequence> GetSequence()
