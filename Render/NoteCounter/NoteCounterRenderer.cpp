@@ -10,7 +10,11 @@ static void RightAlignedTableText(const char* text)
 	float textWidth = ImGui::CalcTextSize(text).x;
 	float avail = ImGui::GetContentRegionAvail().x;
 
-	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avail - textWidth);
+	if (avail > textWidth)
+	{
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avail - textWidth);
+	}
+
 	ImGui::TextUnformatted(text);
 }
 
@@ -38,30 +42,31 @@ void NoteCounterRenderer::Render(float heightOffset)
 {
 	auto* config = app->GetConfig();
 	float counterScale = config->overlayInfo.scale;
-	float counterWidth = this->counterWidth * counterScale;
+	float minCounterWidth = this->counterWidth * counterScale;
 
 	lastCounterYOffset = heightOffset;
 	switch (counterAlignment)
 	{
 		case NoteCounterAlignment::TopLeft:
 		{
-			ImGui::SetNextWindowPos(ImVec2(0, heightOffset));
+			ImGui::SetNextWindowPos(ImVec2(0, heightOffset), ImGuiCond_Always, ImVec2(0.0f, 0.0f));
 			break;
 		}
 		case NoteCounterAlignment::TopRight:
 		{
-			ImGui::SetNextWindowPos(ImVec2(width - counterWidth, heightOffset));
+			ImGui::SetNextWindowPos(ImVec2((float)width, heightOffset), ImGuiCond_Always, ImVec2(1.0f, 0.0f));
 			break;
 		}
 	}
 	
-	ImGui::SetNextWindowSize(ImVec2(counterWidth, 0.0f));
+	ImGui::SetNextWindowSizeConstraints(ImVec2(minCounterWidth, 0.0f), ImVec2(FLT_MAX, FLT_MAX));
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(5.0f * counterScale, 5.0f * counterScale));
 	ImGui::PushStyleColor(ImGuiCol_WindowBg, noteCounterBackgroundCol);
 	ImGui::PushStyleColor(ImGuiCol_Text, noteCounterTextCol);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(0.0f, 2.0f));
 
-	if (ImGui::Begin("noteCounter", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar))
+	if (ImGui::Begin("noteCounter", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar))
 	{
 		ImGui::SetWindowFontScale(counterScale);
 		if (ImGui::BeginTable("counterStats", 2, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoClip))
@@ -126,14 +131,15 @@ void NoteCounterRenderer::Render(float heightOffset)
 			
 			ImGui::PopFont();
 
+			lastCounterWidth = ImGui::GetWindowWidth();
 			lastCounterHeight = ImGui::GetWindowHeight();
 
 			ImGui::EndTable();
 		}
 		ImGui::SetWindowFontScale(1.0f);
-		ImGui::End();
 	}
-	ImGui::PopStyleVar(2);
+	ImGui::End();
+	ImGui::PopStyleVar(3);
 	ImGui::PopStyleColor(2);
 }
 
@@ -150,10 +156,7 @@ float NoteCounterRenderer::GetCounterHeight() const
 
 glm::vec2 NoteCounterRenderer::GetCounterPosition() const
 {
-	auto* config = app->GetConfig();
-	float counterWidth = this->counterWidth * config->overlayInfo.scale;
-
-	float width = (float)counterWidth / (float)this->width;
+	float width = (float)lastCounterWidth / (float)this->width;
 	float height = GetCounterHeight() / (float)this->height;
 
 	switch (counterAlignment)
@@ -164,18 +167,16 @@ glm::vec2 NoteCounterRenderer::GetCounterPosition() const
 		}
 		case NoteCounterAlignment::TopRight:
 		{
-			return glm::vec2(1.0 - (float)counterWidth / (float)this->width, 1.0 - height - lastCounterYOffset / (float)this->height);
+			return glm::vec2(1.0 - width, 1.0 - height - lastCounterYOffset / (float)this->height);
 		}
+		default:
+			return glm::vec2(0.0f);
 	}
 }
 
 glm::vec2 NoteCounterRenderer::GetCounterResolution() const
 {
-	auto* config = app->GetConfig();
-
-	float counterWidth = this->counterWidth * config->overlayInfo.scale;
-
-	float width = counterWidth / (float)this->width;
+	float width = lastCounterWidth / (float)this->width;
 	float height = GetCounterHeight() / (float)this->height;
 	return glm::vec2(width, height);
 }
