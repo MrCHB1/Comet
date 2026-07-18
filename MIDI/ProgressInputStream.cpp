@@ -47,7 +47,7 @@ void ProgressInputStream::Read(uint8_t* dst, size_t size)
 	read += stream->gcount();
 }
 
-void ProgressInputStream::Seek(int offset, std::ios::seekdir whence)
+void ProgressInputStream::Seek(int offset, int whence)
 {
 	stream->clear();
 	if (whence == std::ios::cur)

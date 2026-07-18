@@ -3,6 +3,7 @@
 #include "stb_image_write.h"
 #include <iostream>
 #include <fstream>
+#include <memory>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <vector>

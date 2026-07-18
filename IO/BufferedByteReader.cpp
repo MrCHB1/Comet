@@ -1,4 +1,5 @@
 #include "BufferedByteReader.h"
+#include <cstring>
 
 BufferedByteReader::BufferedByteReader(std::shared_ptr<std::ifstream> stream, size_t start, size_t length, size_t bufferLength, std::mutex* mtx)
 	: InputStream(stream)
@@ -40,13 +41,13 @@ void BufferedByteReader::UpdateBuffer()
 	bufferPos = 0;
 }
 
-void BufferedByteReader::Seek(int offset, std::ios::seekdir whence)
+void BufferedByteReader::Seek(int offset, int whence)
 {
-	if (whence != std::ios::beg && whence != std::ios::cur)
+	if (whence != SEEK_SET && whence != SEEK_CUR)
 		throw std::runtime_error("Invalid seek whence");
 
 	long long realOffset = offset;
-	if (whence == std::ios::beg)
+	if (whence == SEEK_SET)
 		realOffset += start;
 	else
 		realOffset += pos;
@@ -83,5 +84,5 @@ void BufferedByteReader::Read(uint8_t* dst, size_t size)
 
 void BufferedByteReader::Skip(size_t size)
 {
-    Seek(size, std::ios::cur);
+	Seek(size, SEEK_CUR);
 }

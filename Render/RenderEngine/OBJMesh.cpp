@@ -11,24 +11,20 @@ bool OBJMesh::LoadOBJ()
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> materials;
-    std::string err;
 
-    const char* filename = "./assets/models/cm_keywhite.obj";
-    const char* mtl_basedir = "./assets/models/";
-    bool success_white = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, filename, mtl_basedir, true);
-    
-    filename = "./assets/models/cm_keyblack.obj";
-    bool success_black = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, filename, mtl_basedir, true);
-    
-    
-    bool success = tinyobj::LoadObj(
+	std::string warn, err;
+
+	bool success = tinyobj::LoadObj(
 		&attrib,
 		&shapes,
 		&materials,
+		&warn,
 		&err,
-        filename,
-		mtl_basedir, "./assets/models/"
+		path.c_str()
 	);
+
+	if (!warn.empty())
+		std::cout << warn << std::endl;
 
 	if (!err.empty())
 		std::cerr << err << std::endl;

@@ -92,8 +92,11 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 
 	std::vector<std::thread> workers;
 	workers.reserve(numThreads);
-
-	for (unsigned int i = 0; i < numThreads; i++)
+    
+   // KNOWN ISSUE: current track/total tracks doesn't show when loading with multithreaded loader //
+    
+    SetName("Loading tracks...");
+    for (unsigned int i = 0; i < numThreads; i++)
 	{
 		workers.emplace_back([this, &rawChunks, &parsedTrackResults, &currentTrackIdx, tracks]() {
 			size_t idx;
@@ -101,7 +104,6 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 			while ((idx = currentTrackIdx.fetch_add(1, std::memory_order_relaxed)) < tracks)
 			{
 				if (!running) break;
-				SetName(("Loading track " + std::to_string(idx + 1) + "/" + std::to_string(tracks) + "...").c_str());
 
 				parsedTrackResults[idx] = ParseTrackData(rawChunks[idx]);
 				tracksProcessed++;

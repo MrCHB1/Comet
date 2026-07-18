@@ -12,6 +12,10 @@
 #include <chrono>
 #include <filesystem>
 
+#if defined(_WIN32)
+#include <windows.h>
+#endif
+
 namespace Utils
 {
 	bool IsMIDIExtension(std::string extension);
@@ -70,4 +74,39 @@ namespace Utils
 		return result;
 	}
 	void AddFilePickerField(const char* label, std::filesystem::path& path, const char* extension, bool saving = false);
+	
+	namespace Dialogs
+	{
+		enum DialogType
+		{
+			DIALOG_OK,
+			DIALOG_WARNING,
+			DIALOG_ERROR
+		};
+
+		static void ShowDialog(const char* title, const char* content, DialogType dialogType)
+		{
+#if defined(_WIN32)
+			UINT uType = 0;
+			switch (dialogType)
+			{
+			case DialogType::DIALOG_OK:
+				uType = MB_ICONINFORMATION;
+				break;
+			case DialogType::DIALOG_ERROR:
+				uType = MB_ICONERROR;
+				break;
+			case DialogType::DIALOG_WARNING:
+				uType = MB_ICONWARNING;
+				break;
+			}
+
+			MessageBoxA(nullptr, content, title, MB_OK | uType);
+#elif defined(__APPLE__)
+			// TODO: Showing dialogs natively on other platforms
+#elif defined(__linux__)
+
+#endif
+		}
+	}
 }

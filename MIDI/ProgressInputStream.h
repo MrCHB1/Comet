@@ -15,7 +15,7 @@ public:
 	}
 
 	void Read(uint8_t* dst, size_t size) override;
-	void Seek(int offset, std::ios::seekdir whence) override;
+	void Seek(int offset, int whence) override;
 	void Close() override
 	{
 		InputStream::Close();
