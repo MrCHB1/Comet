@@ -51,9 +51,9 @@ public:
 
 	void Draw() override
 	{
-		ImGui::Text("%s", label.c_str());
+		ImGui::Text(label.c_str());
 		ImGui::SameLine();
-		ImGui::Text("%s", value.c_str());
+		ImGui::Text(value.c_str());
 	}
 private:
 	std::string label;

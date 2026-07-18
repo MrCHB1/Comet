@@ -4,9 +4,12 @@
 
 enum class RendererType
 {
+	PFA,
 	Default,
-	Enhanced, // the RTX renderer lol
-	MIDITrail
+	Enhanced,
+	MIDITrail,
+	Channels,
+	Velocities
 };
 
 struct MIDIPlayerConfig
@@ -39,6 +42,13 @@ struct MIDIPlayerConfig
 		bool usePlayThread = true;
 	};
 
+	struct ConfigNavigation
+	{
+		bool alwaysHideBar = false;
+		float seekForwardSeconds = 10.0f;
+		float seekBackwardSeconds = 10.0f;
+	};
+
 	struct ConfigRender
 	{
 		int GetWidth() { return width; }
@@ -68,8 +78,18 @@ struct MIDIPlayerConfig
 			this->fpsLimit = fpsLimit;
 			if (this->fpsLimit > 240)
 				this->fpsLimit = 240;
-			else if (this->fpsLimit < 15)
+			else if (this->fpsLimit < 15 && this->fpsLimit > 0)
 				this->fpsLimit = 15;
+			else if (this->fpsLimit <= 0)
+				this->fpsLimit = 0; // uncapped fps xd
+		}
+		bool GetVSync()
+		{
+			return vsync;
+		}
+		void SetVSync(bool vsync)
+		{
+			this->vsync = vsync;
 		}
 		ImVec4 GetBackground()
 		{
@@ -109,10 +129,11 @@ struct MIDIPlayerConfig
 		int width = 1280;
 		int height = 720;
 		int fpsLimit = 120;
+		bool vsync = true;
 		double renderInterval = 5.0;
 		ImVec4 background = ImVec4(0.0, 0.0, 0.0, 1.0);
 		ImVec4 barColor = ImVec4(0.52, 0.0, 0.0, 1.0);
-		RendererType currentRenderer = RendererType::Default;
+		RendererType currentRenderer = RendererType::PFA;
 		
 		bool usePFAColors = false;
 		bool useColorsFromImage = false;
@@ -126,6 +147,7 @@ struct MIDIPlayerConfig
 	std::string language = "en";
 	ConfigApp app{};
 	ConfigMIDI midi{};
+	ConfigNavigation navigation{};
 	ConfigRender render{};
 	ConfigOverlayInfo overlayInfo{};
 

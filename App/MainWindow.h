@@ -29,6 +29,7 @@ private:
 	void InitializeUI();
 	void InitializeDialogs();
 	void InitializeTheme();
+	void LoadWindowIcon();
 	void PostInit();
 	void DetectKeyPress();
 	void RenderUI();

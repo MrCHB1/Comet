@@ -47,12 +47,12 @@ void DiagnosisPanel::Draw()
 {
 	ImGui::BeginChild("##fileName", ImVec2(300, ImGui::GetTextLineHeightWithSpacing() * 2.5), 0, ImGuiWindowFlags_HorizontalScrollbar);
 	ImGui::SetWindowFontScale(2.0f);
-	ImGui::Text("%s", titleLabel.c_str());
+	ImGui::Text(titleLabel.c_str());
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::EndChild();
 	ImGui::Spacing();
 
-	ImGui::Text("%s", statusLabel.c_str());
+	ImGui::Text(statusLabel.c_str());
 	ImGui::Separator();
 
 	for (auto &field_view : topLevelViews)

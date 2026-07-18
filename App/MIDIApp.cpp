@@ -10,7 +10,7 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "FFmpeg/FFmpegCommandBuilder.h"
 #include "Utils.h"
-#include "../MIDI/Audio/MIDIOut.h"
+#include "../Render/MIDIRendererPFA.h"
 
 MIDIApp::MIDIApp(MainWindow* mainWindow)
 {
@@ -105,7 +105,7 @@ void MIDIApp::LoadResources()
 #ifdef COMET_DEBUG
 	std::cout << std::endl << "[MIDIApp] Initializing render engine...\n" << std::endl;
 #endif
-	SetRenderer<MIDIRenderer>();
+	SetRenderer<MIDIRendererPFA>();
 	blurredQuadRenderer = std::make_unique<BlurredQuadRenderer>();
 	blurredQuadRenderer->SetSceneTexture(renderer->GetSceneTexture());
 	
@@ -190,7 +190,7 @@ void MIDIApp::Update()
 	// render what was in the framebuffer
 	{
 		int winW, winH;
-        GLFWwindow* window = mainWindow->GetInternalWindow();
+		GLFWwindow* window = mainWindow->GetInternalWindow();
 		glfwGetFramebufferSize(window, &winW, &winH);
 		glViewport(0, 0, winW, winH);
 
@@ -216,6 +216,8 @@ void MIDIApp::Update()
 
 void MIDIApp::RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt)
 {
+	MIDIPlayerConfig* config = GetConfig();
+
 	switch (key)
 	{
 		case ImGuiKey_Space:
@@ -229,7 +231,7 @@ void MIDIApp::RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt)
 		{
 			if (IsRendering()) return;
 			double currTime = timer->Elapsed();
-			double seekTime = fmax(-3.0, currTime - 10.0);
+			double seekTime = std::max(-3.0, currTime - config->navigation.seekBackwardSeconds);
 			timer->NavigateTo(seekTime);
 			break;
 		}
@@ -237,7 +239,7 @@ void MIDIApp::RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt)
 		{
 			if (IsRendering()) return;
 			double currTime = timer->Elapsed();
-			double seekTime = fmin(seqLength + 5.0, currTime + 10.0);
+			double seekTime = std::min(seqLength + 5.0, currTime + config->navigation.seekForwardSeconds);
 			timer->NavigateTo(seekTime);
 			break;
 		}

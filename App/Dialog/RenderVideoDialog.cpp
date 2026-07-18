@@ -3,8 +3,14 @@
 #include "Utils.h"
 #include <filesystem>
 
-#ifdef __APPLE__
+#if defined(_WIN32)
+#include <Windows.h>
+#elif defined(__APPLE__)
+#include <climits>
 #include <mach-o/dyld.h>
+#else
+#include <climits>
+#include <unistd.h>
 #endif
 
 std::filesystem::path GetBinaryDirectory()
@@ -16,8 +22,7 @@ std::filesystem::path GetBinaryDirectory()
 #elif defined(__APPLE__)
 	char buffer[PATH_MAX];
 	uint32_t size = sizeof(buffer);
-    if (_NSGetExecutablePath(buffer, &size) == 0) {
-    }
+	if (_NSGetExecutablePath(buffer, &size) == 0)
 		return std::filesystem::path(buffer).parent_path();
 #else
 	char buffer[PATH_MAX];
