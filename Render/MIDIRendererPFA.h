@@ -14,7 +14,7 @@ struct PFARenderSettings
 };
 
 #define RECTS_PER_PASS 16384
-#define NOTE_BUFFER_SIZE 262144
+#define NOTE_BUFFER_SIZE 1048576
 #define MAX_BATCHES 64
 
 struct RenderColor

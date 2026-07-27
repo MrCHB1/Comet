@@ -83,7 +83,7 @@ void NoteCounterRenderer::Render(float heightOffset)
 			{
 				BeginNextCounterRow("Tick");
 				auto ticks = noteCounterInfo->tick.value;
-				FormatText(buf, "%s/%u", Utils::FormatWithCommas(ticks > 0 ? ticks * 10001 : 0).c_str(), noteCounterInfo->ppq.value);
+				FormatText(buf, "%s/%u", Utils::FormatWithCommas(ticks > 0 ? ticks : 0).c_str(), noteCounterInfo->ppq.value);
 				RightAlignedTableText(buf);
 			}
 

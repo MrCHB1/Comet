@@ -697,6 +697,8 @@ void MIDIRendererPFA::RenderNotes()
 
 	for (uint8_t id : kbIDs)
 	{
+		NoteEvent* lastNote = nullptr;
+
 		std::vector<NoteEvent>& notesNote = notes[id];
 
 #pragma region Note culling
@@ -774,9 +776,12 @@ void MIDIRendererPFA::RenderNotes()
 		}
 
 		// actually render each note
-		for (auto note = notesNote.begin() + noteBegin; note != notesNote.begin() + noteEnd; ++note)
+		auto note = notesNote.begin() + noteBegin;
+		auto end = notesNote.begin() + noteEnd;
+		for (; note != end; ++note)
 		{
 			auto& n = *note;
+
 			double noteStart = 0.0;
 			double noteEnd = 0.0;
 
@@ -804,6 +809,19 @@ void MIDIRendererPFA::RenderNotes()
 				notesPassed++;
 				polyphony++;
 			}
+
+			// skip rendering this note if it's basically the same one lol
+			if (lastNote &&
+				n.tick == lastNote->tick &&
+				n.note == lastNote->note &&
+				n.channel == lastNote->channel &&
+				n.track == lastNote->track &&
+				n.gate == lastNote->gate)
+			{
+				continue;
+			}
+
+			lastNote = &n;
 
 			float yDistStart = (float)((noteStart - accTime) * invViewRegion) * notesCY;
 			float yDistEnd = (float)((noteEnd - accTime) * invViewRegion) * notesCY;
