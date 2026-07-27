@@ -9,6 +9,6 @@
 struct MIDITrack
 {
 	uint32_t color;
-	std::vector<NoteEvent> notes{};
+	NoteSequence notes;
 	std::vector<MIDIMessageEvent> messages{};
 };

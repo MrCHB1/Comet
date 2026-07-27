@@ -130,7 +130,7 @@ void MIDIRendererVelocities::Render(double deltaTime)
 void MIDIRendererVelocities::RenderChannelKeys()
 {
 	if (!seq) return;
-	std::vector<std::vector<NoteEvent>>& notes = seq->mergedNotes;
+	std::vector<NoteSequence>& notes = seq->mergedNotes;
 	if (notes.empty()) return;
 
 	double playbackSeconds = app->GetTimer()->Elapsed();
@@ -150,21 +150,20 @@ void MIDIRendererVelocities::RenderChannelKeys()
 
 	for (uint8_t key = 0; key < MIDI_KEYS; key++)
 	{
-		std::vector<NoteEvent>& notesNote = notes[key];
+		NoteSequence& notesNote = notes[key];
 
 		size_t noteBegin = startRenderIDs[key];
 
 		// we still must incorporate culling logic if we want the renderer to be efficient
 		if (lastTime < time)
 		{
-			while (noteBegin < notesNote.size())
+			while (noteBegin < notesNote.Size())
 			{
-				auto& n = notesNote[noteBegin];
 				double noteEnd = isTimeBased
-					? (double)(n.tick + n.gate) * invTimeMultiplier
-					: (double)(n.tick + n.gate);
+					? (double)(notesNote.tick[noteBegin] + notesNote.gate[noteBegin]) * invTimeMultiplier
+					: (double)(notesNote.tick[noteBegin] + notesNote.gate[noteBegin]);
 
-				if (noteEnd > accTime) break;
+				if (noteEnd > accTime) break; // Note is still on screen
 				++noteBegin;
 			}
 		}
@@ -172,10 +171,10 @@ void MIDIRendererVelocities::RenderChannelKeys()
 		{
 			while (noteBegin > 0)
 			{
-				auto& n = notesNote[noteBegin - 1];
+				size_t prev = noteBegin - 1;
 				double noteEnd = isTimeBased
-					? (double)(n.tick + n.gate) * invTimeMultiplier
-					: (double)(n.tick + n.gate);
+					? (double)(notesNote.tick[prev] + notesNote.gate[prev]) * invTimeMultiplier
+					: (double)(notesNote.tick[prev] + notesNote.gate[prev]);
 
 				if (noteEnd <= accTime) break;
 				--noteBegin;
@@ -185,23 +184,19 @@ void MIDIRendererVelocities::RenderChannelKeys()
 		startRenderIDs[key] = noteBegin;
 		notesPassed += noteBegin;
 
-		for (auto note = notesNote.begin() + noteBegin; note != notesNote.end(); ++note)
+		for (size_t i = noteBegin; i < notesNote.Size(); ++i)
 		{
-			auto& n = *note;
+			uint32_t nTick = notesNote.tick[i];
+			uint32_t nGate = notesNote.gate[i];
+			uint8_t nNote = notesNote.note[i];
+			uint8_t nVel = notesNote.vel[i];
+			uint16_t nTrack = notesNote.track[i];
+			uint8_t nChannel = notesNote.channel[i];
 
-			double noteStart = 0.0;
-			double noteEnd = 0.0;
-
-			if (isTimeBased)
-			{
-				noteStart = (double)note->tick * invTimeMultiplier;
-				noteEnd = (double)(note->tick + note->gate) * invTimeMultiplier;
-			}
-			else
-			{
-				noteStart = note->tick;
-				noteEnd = note->tick + note->gate;
-			}
+			double noteStart = isTimeBased ? (double)nTick * invTimeMultiplier : (double)nTick;
+			double noteEnd = isTimeBased
+				? (double)(nTick + nGate) * invTimeMultiplier
+				: (double)(nTick + nGate);
 
 			if (noteEnd <= accTime)
 			{
@@ -211,11 +206,11 @@ void MIDIRendererVelocities::RenderChannelKeys()
 
 			if (noteStart > accTime) break; // no need to iterate further
 
-			size_t index = n.note + MIDI_KEYS * n.channel;
+			size_t index = nNote + MIDI_KEYS * nChannel;
 			velocityKeyMetas[index].MarkActive(true);
-			velocityKeyMetas[index].color = colors.GetColor(n.track, n.channel);
-			velocityKeyMetas[index].SetKey(n.note);
-			velocityKeyMetas[index].SetVelocity(n.vel);
+			velocityKeyMetas[index].color = colors.GetColor(nTrack, nChannel);
+			velocityKeyMetas[index].SetKey(nNote);
+			velocityKeyMetas[index].SetVelocity(nVel);
 
 			notesPassed++;
 			polyphony++;

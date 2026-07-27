@@ -118,14 +118,17 @@ public:
             long tick = ev.tick;
             double secs = tempoMap->TicksToSecsFromMap(ppq, ev.tick);
             ev.tick = std::lround(std::min(secs, MAX_SAFE_SECS) * TIME_BASED_MULTIPLIER);
-            if constexpr (std::is_same_v<T, NoteEvent>)
-            {
-                double endSecs = tempoMap->TicksToSecsFromMap(ppq, tick + ev.gate);
-                double gate = endSecs - secs;
-                ev.gate = std::lround(gate * TIME_BASED_MULTIPLIER);
-            }
+            // if constexpr (std::is_same_v<T, NoteEvent>)
+            // {
+            //     double endSecs = tempoMap->TicksToSecsFromMap(ppq, tick + ev.gate);
+            //     double gate = endSecs - secs;
+            //     ev.gate = std::lround(gate * TIME_BASED_MULTIPLIER);
+            // }
         }
     }
 
-    static std::vector<std::vector<NoteEvent>> DistributeNotes(std::vector<NoteEvent>&& notes);
+    // static std::vector<std::vector<NoteEvent>> DistributeNotes(std::vector<NoteEvent>&& notes);
+    static NoteSequence FlattenSequence(std::vector<NoteSequence>&& tracks);
+    static std::vector<NoteSequence> DistributeNotes(NoteSequence&& notes);
+    static void ApplyTempoEvents(uint16_t ppq, TempoMap* tempoMap, NoteSequence& notes);
 };
