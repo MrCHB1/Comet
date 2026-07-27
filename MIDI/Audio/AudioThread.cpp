@@ -10,7 +10,7 @@
 
 struct PrecalculatedEvent
 {
-    long tick;
+    uint32_t tick;
     uint32_t message;
 };
 
@@ -28,22 +28,28 @@ void AudioThread::Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDIT
 
         for (const auto& ev : seq->mergedEvents)
         {
-            events.push_back({ ev.tick, ev.message });
+            events.push_back({ (uint32_t)ev.tick, ev.message });
         }
 
         for (int i = 0; i < MIDI_KEYS; ++i)
         {
-            const auto& notes = seq->mergedNotes[i];
-            for (const auto& note : notes)
+            NoteSequence& notes = seq->mergedNotes[i];
+            for (size_t i = 0; i < notes.Size(); i++)
             {
+                uint32_t nTick = notes.tick[i];
+                uint32_t nGate = notes.gate[i];
+                uint8_t nNote = notes.note[i];
+                uint8_t nChannel = notes.channel[i];
+                uint8_t nVel = notes.vel[i];
+
                 events.push_back({
-                    note.tick,
-                    0x90u | note.channel | ((uint32_t)note.note << 8) | ((uint32_t)note.vel << 16)
+                    nTick,
+                    0x90u | nChannel | ((uint32_t)nNote << 8) | ((uint32_t)nVel << 16)
                     });
 
                 events.push_back({
-                    note.tick + (long)note.gate,
-                    0x80u | note.channel | ((uint32_t)note.note << 8)
+                    nTick + (long)nGate,
+                    0x80u | nChannel | ((uint32_t)nNote << 8)
                     });
             }
         }

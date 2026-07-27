@@ -19,12 +19,13 @@ public:
 	std::vector<MIDITrack> tracks{};
 	std::vector<TempoEvent> tempos{};
 	std::vector<TimeSignatureEvent> timeSignatures{};
-	std::vector<std::vector<NoteEvent>> mergedNotes{};
+	std::vector<NoteSequence> mergedNotes{};
 	std::vector<MIDIMessageEvent> mergedEvents{};
 	std::shared_ptr<TempoMap> tempoMap = nullptr;
 	size_t noteTrackCount;
 	long long notes = 0;
 	long length = 0;
+	uint32_t longestNoteLength = 0;
 	bool timeBased = false;
 
 	MIDISequence() : MIDISequence("Unnamed") {}

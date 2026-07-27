@@ -132,17 +132,18 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 		int activeChannelsInTrack = 0;
 		for (auto& channelTrack : trackRes.channelTracks)
 		{
-			if (!channelTrack.notes.empty())
+			if (!channelTrack.notes.Empty())
 			{
-				for (auto& note : channelTrack.notes)
+				size_t noteCount = channelTrack.notes.Size();
+				for (size_t k = 0; k < noteCount; k++)
 				{
-					note.track = noteTrackIdx;
+					channelTrack.notes.track[k] = noteTrackIdx;
 				}
 				noteTrackIdx++;
 				activeChannelsInTrack++;
 			}
 
-			if (!channelTrack.notes.empty() || !channelTrack.messages.empty())
+			if (!channelTrack.notes.Empty() || !channelTrack.messages.empty())
 			{
 				seq->tracks.push_back(std::move(channelTrack));
 			}
@@ -179,7 +180,31 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 	for (size_t i = 0; i < seq->tracks.size(); i++)
 	{
 		std::cout << "  Preprocessing notes of track " << i << "/" << seq->tracks.size() << std::endl;
-		std::sort(std::execution::par_unseq, seq->tracks[i].notes.begin(), seq->tracks[i].notes.end(), [](auto& a, auto& b) { return a.tick < b.tick; });
+
+		auto& trackNotes = seq->tracks[i].notes;
+		if (!trackNotes.Empty())
+		{
+			std::vector<size_t> indices(trackNotes.Size());
+			std::iota(indices.begin(), indices.end(), 0);
+
+			// Execute parallel sorting on the indices
+			std::sort(std::execution::par_unseq, indices.begin(), indices.end(), [&](size_t a, size_t b) {
+				return trackNotes.tick[a] < trackNotes.tick[b];
+				});
+
+			// Re-assemble SoA in sorted order
+			NoteSequence sortedNotes;
+			sortedNotes.Reserve(trackNotes.Size());
+			for (size_t idx : indices)
+			{
+				sortedNotes.Emplace(
+					trackNotes.track[idx], trackNotes.channel[idx],
+					trackNotes.tick[idx], trackNotes.note[idx],
+					trackNotes.gate[idx], trackNotes.vel[idx]
+				);
+			}
+			seq->tracks[i].notes = std::move(sortedNotes);
+		}
 	}
 
 	// handle edge cases for tempos
@@ -205,7 +230,7 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 
 	std::cout << "  Parsing finished! Merging events..." << std::endl;
 
-	std::vector<std::vector<NoteEvent>> toMerge(seq->tracks.size());
+	std::vector<NoteSequence> toMerge(seq->tracks.size());
 	std::vector<std::vector<MIDIMessageEvent>> eventsToMerge(seq->tracks.size());
 
 	for (size_t i = 0; i < seq->tracks.size(); ++i)
@@ -214,7 +239,7 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 		toMerge[i] = std::move(seq->tracks[i].notes);
 	}
 
-	std::vector<NoteEvent> mergedNotes = SequenceFuncs::FlattenSequence(std::move(toMerge));
+	NoteSequence mergedNotes = SequenceFuncs::FlattenSequence(std::move(toMerge));
 	std::vector<MIDIMessageEvent> mergedEvents = SequenceFuncs::FlattenSequence(std::move(eventsToMerge));
 
 	seq->mergedNotes = SequenceFuncs::DistributeNotes(std::move(mergedNotes));
@@ -271,14 +296,14 @@ MultithreadedMIDILoader::ParsedTrackResult MultithreadedMIDILoader::ParseTrackDa
 	size_t estimatedNotesPerChannel = chunk.data.size() / 16 / 4;
 	for (int c = 0; c < 16; ++c)
 	{
-		result.channelTracks[c].notes.reserve(estimatedNotesPerChannel);
+		result.channelTracks[c].notes.Reserve(estimatedNotesPerChannel);
 		if (!loadOnlyNotes) result.channelTracks[c].messages.reserve(estimatedNotesPerChannel / 2);
 	}
 
 	// Completely isolated state storage mapping per thread
 	std::array<std::vector<size_t>, 2048> threadUnendedNotes{};
-	std::vector<NoteEvent> threadNoteOns;
-	threadNoteOns.reserve(chunk.data.size() / 4);
+	NoteSequence threadNoteOns;
+	threadNoteOns.Reserve(chunk.data.size() / 4);
 
 	size_t localCurrNoteId = 0;
 	const uint8_t* p = chunk.data.data();
@@ -370,11 +395,13 @@ MultithreadedMIDILoader::ParsedTrackResult MultithreadedMIDILoader::ParseTrackDa
 			{
 				size_t n = threadUnendedNotes[idx].back();
 				threadUnendedNotes[idx].pop_back();
-				if (n < threadNoteOns.size())
+				if (n < threadNoteOns.Size())
 				{
-					NoteEvent& note = threadNoteOns[n];
-					note.gate = (tick <= note.tick) ? 1 : (uint16_t)((tick - note.tick) & 0xFFFF);
-					result.channelTracks[channel].notes.push_back(note);
+					long nTick = threadNoteOns.tick[n];
+					uint32_t gate = (tick <= nTick) ? 1 : (uint32_t)(tick - nTick);
+					result.channelTracks[channel].notes.Emplace(
+						chunk.index, channel, nTick, threadNoteOns.note[n], gate, threadNoteOns.vel[n]
+					);
 					result.numNotes++;
 				}
 			}
@@ -391,18 +418,21 @@ MultithreadedMIDILoader::ParsedTrackResult MultithreadedMIDILoader::ParseTrackDa
 				{
 					size_t n = threadUnendedNotes[idx].back();
 					threadUnendedNotes[idx].pop_back();
-					if (n < threadNoteOns.size())
+					if (n < threadNoteOns.Size())
 					{
-						NoteEvent& note = threadNoteOns[n];
-						note.gate = (tick <= note.tick) ? 1 : (uint16_t)((tick - note.tick) & 0xFFFF);
-						result.channelTracks[channel].notes.push_back(note);
+						long nTick = threadNoteOns.tick[n];
+						uint32_t gate = (tick <= nTick) ? 1 : (uint32_t)(tick - nTick);
+
+						result.channelTracks[channel].notes.Emplace(
+							chunk.index, channel, nTick, threadNoteOns.note[n], gate, threadNoteOns.vel[n]
+						);
 						result.numNotes++;
 					}
 				}
 				continue;
 			}
 
-			threadNoteOns.emplace_back(chunk.index, channel, tick, data1, 0, vel);
+			threadNoteOns.Emplace(chunk.index, channel, tick, data1, 0, vel);
 			uint16_t index = ((uint16_t)data1 << 4) | channel;
 			threadUnendedNotes[index].push_back(localCurrNoteId++);
 			continue;

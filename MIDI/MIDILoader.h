@@ -29,9 +29,8 @@ private:
 	std::string file;
 	std::array<std::unique_ptr<MIDITrack>, 16> channels{};
 	std::array<uint32_t, 16> colors{};
-	// std::unordered_map<uint16_t, std::stack<size_t>> unendedNotes{};
 	std::array<std::vector<size_t>, 2048> unendedNotes{};
-	std::vector<NoteEvent> noteons{};
+	NoteSequence noteons;
 	std::shared_ptr<MIDISequence> seq;
 	std::shared_ptr<InputStream> is;
 	std::shared_ptr<ProgressInputStream> pis;
