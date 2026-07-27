@@ -866,6 +866,8 @@ void MIDIRenderer::RenderNotes()
 
 	for (uint8_t id : kbIDs)
 	{
+		NoteEvent* lastNote = nullptr;
+
 		std::vector<NoteEvent>& notesNote = notes[id];
 
 #pragma region Note culling
@@ -965,6 +967,19 @@ void MIDIRenderer::RenderNotes()
 				notesPassed++;
 				polyphony++;
 			}
+
+			// skip rendering this note if it's basically the same one lol
+			if (lastNote &&
+				n.tick == lastNote->tick &&
+				n.note == lastNote->note &&
+				n.channel == lastNote->channel &&
+				n.track == lastNote->track &&
+				n.gate == lastNote->gate)
+			{
+				continue;
+			}
+
+			lastNote = &n;
 
 			renderNotes[noteID++] = RenderNote(
 				keyPos[id],
