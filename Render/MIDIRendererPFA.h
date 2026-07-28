@@ -81,6 +81,8 @@ private:
 	std::unique_ptr<Buffer> notesEBO;
 
 	std::array<RenderPFANote, NOTE_BUFFER_SIZE> renderNotes{};
+	// colors for notes
+	std::vector<RenderColor> noteColors;
 	#pragma endregion
 
 	#pragma region PFA "Globals"
