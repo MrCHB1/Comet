@@ -1035,10 +1035,13 @@ void MIDIRenderer::UploadNoteBuffer(size_t count)
 
 	notesIBO->Bind();
 
-	glBufferSubData(GL_ARRAY_BUFFER,
-		0,
-		count * sizeof(RenderNote),
-		renderNotes.data());
+	GLbitfield mapFlags = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT;
+	void* ptr = glMapBufferRange(GL_ARRAY_BUFFER, 0, count * sizeof(RenderNote), mapFlags);
+	if (ptr)
+	{
+		memcpy(ptr, renderNotes.data(), count * sizeof(RenderNote));
+		glUnmapBuffer(GL_ARRAY_BUFFER);
+	}
 
 	glDrawElementsInstanced(
 		GL_TRIANGLES,

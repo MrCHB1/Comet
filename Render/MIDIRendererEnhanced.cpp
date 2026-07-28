@@ -74,11 +74,11 @@ void MIDIRendererEnhanced::Initialize()
         notesIBO->Bind();
         notesIBO->SetData(renderNotes, GL_DYNAMIC_DRAW);
 
-        notesVAO->SetFloatAttribute(1, 1, sizeof(RenderNote), offsetof(RenderNote, left));
-        notesVAO->SetFloatAttribute(2, 1, sizeof(RenderNote), offsetof(RenderNote, right));
-        notesVAO->SetFloatAttribute(3, 1, sizeof(RenderNote), offsetof(RenderNote, start));
-        notesVAO->SetFloatAttribute(4, 1, sizeof(RenderNote), offsetof(RenderNote, end));
-        notesVAO->SetIntAttribute(5, 1, sizeof(RenderNote), offsetof(RenderNote, color));
+        notesVAO->SetFloatAttribute(1, 1, sizeof(RenderNote3D), offsetof(RenderNote3D, left));
+        notesVAO->SetFloatAttribute(2, 1, sizeof(RenderNote3D), offsetof(RenderNote3D, right));
+        notesVAO->SetFloatAttribute(3, 1, sizeof(RenderNote3D), offsetof(RenderNote3D, start));
+        notesVAO->SetFloatAttribute(4, 1, sizeof(RenderNote3D), offsetof(RenderNote3D, end));
+        notesVAO->SetIntAttribute(5, 1, sizeof(RenderNote3D), offsetof(RenderNote3D, color));
 
         glVertexAttribDivisor(1, 1);
         glVertexAttribDivisor(2, 1);
@@ -1121,10 +1121,13 @@ void MIDIRendererEnhanced::UploadNoteBuffer(size_t count)
 
     notesIBO->Bind();
 
-    glBufferSubData(GL_ARRAY_BUFFER,
-        0,
-        count * sizeof(RenderNote),
-        renderNotes.data());
+    GLbitfield mapFlags = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT;
+    void* ptr = glMapBufferRange(GL_ARRAY_BUFFER, 0, count * sizeof(RenderNote3D), mapFlags);
+    if (ptr)
+    {
+        memcpy(ptr, renderNotes.data(), count * sizeof(RenderNote3D));
+        glUnmapBuffer(GL_ARRAY_BUFFER);
+    }
 
     glDrawElementsInstanced(
         GL_TRIANGLES,

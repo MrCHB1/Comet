@@ -9,21 +9,27 @@ void RenderColor::SetColor(uint32_t color, float dark, float veryDark)
 	origBgr = color;
 	primary = color;
 
-	uint32_t a = (color >> 24u) & 0xFFu;
+	uint32_t a_mask = color & 0xFF000000u;
+
 	uint32_t r = (color >> 16u) & 0xFFu;
 	uint32_t g = (color >> 8u) & 0xFFu;
-	uint32_t b = (color >> 0u) & 0xFFu;
+	uint32_t b = color & 0xFFu;
 
-	uint32_t dr = std::min(static_cast<uint32_t>(r * dark), 255u);
-	uint32_t dg = std::min(static_cast<uint32_t>(g * dark), 255u);
-	uint32_t db = std::min(static_cast<uint32_t>(b * dark), 255u);
+	// Convert the float multipliers to 8.8 fixed-point format (scale by 256)
+	// This reduces 6 floating point multiplies down to 2
+	uint32_t i_dark = static_cast<uint32_t>(dark * 256.0f);
+	uint32_t i_veryDark = static_cast<uint32_t>(veryDark * 256.0f);
 
-	uint32_t vdr = std::min(static_cast<uint32_t>(r * veryDark), 255u);
-	uint32_t vdg = std::min(static_cast<uint32_t>(g * veryDark), 255u);
-	uint32_t vdb = std::min(static_cast<uint32_t>(b * veryDark), 255u);
+	uint32_t dr = std::min((r * i_dark) >> 8, 255u);
+	uint32_t dg = std::min((g * i_dark) >> 8, 255u);
+	uint32_t db = std::min((b * i_dark) >> 8, 255u);
 
-	this->dark = (a << 24) | (dr << 16) | (dg << 8) | db;
-	this->veryDark = (a << 24) | (vdr << 16) | (vdg << 8) | vdb;
+	uint32_t vdr = std::min((r * i_veryDark) >> 8, 255u);
+	uint32_t vdg = std::min((g * i_veryDark) >> 8, 255u);
+	uint32_t vdb = std::min((b * i_veryDark) >> 8, 255u);
+
+	this->dark = a_mask | (dr << 16) | (dg << 8) | db;
+	this->veryDark = a_mask | (vdr << 16) | (vdg << 8) | vdb;
 }
 
 static const float SharpRatio = 0.65f;
@@ -649,6 +655,7 @@ void MIDIRendererPFA::RenderImmediateRects()
 		size_t verticesToDraw = rectsToDraw * 4;
 		size_t vertexOffset = rectsDrawn * 4;
 
+		glBufferData(GL_ARRAY_BUFFER, RECTS_PER_PASS * 4 * sizeof(RectVertex), nullptr, GL_DYNAMIC_DRAW);
 		glBufferSubData(GL_ARRAY_BUFFER, 0, verticesToDraw * sizeof(RectVertex), immediateRects.data() + vertexOffset);
 		glDrawElements(GL_TRIANGLES, rectsToDraw * 6, GL_UNSIGNED_INT, nullptr);
 		rectsDrawn += rectsToDraw;
@@ -684,6 +691,7 @@ void MIDIRendererPFA::RenderNotes()
 	BufferBind vboBind(*notesVBO);
 	BufferBind eboBind(*notesEBO);
 	BufferBind iboBind(*notesIBO);
+	if (notesIBO) notesIBO->Bind();
 
 	size_t noteID = 0;
 	size_t notesPassed = 0;
@@ -888,12 +896,13 @@ void MIDIRendererPFA::UploadNoteBuffer(size_t count)
 {
 	if (!notesIBO) return;
 
-	notesIBO->Bind();
-
-	glBufferSubData(GL_ARRAY_BUFFER,
-		0,
-		count * sizeof(RenderPFANote),
-		renderNotes.data());
+	GLbitfield mapFlags = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT;
+	void* ptr = glMapBufferRange(GL_ARRAY_BUFFER, 0, count * sizeof(RenderPFANote), mapFlags);
+	if (ptr)
+	{
+		memcpy(ptr, renderNotes.data(), count * sizeof(RenderPFANote));
+		glUnmapBuffer(GL_ARRAY_BUFFER);
+	}
 
 	glDrawElementsInstanced(
 		GL_TRIANGLES,
