@@ -86,8 +86,12 @@ in vec3 LocalUnitPos;
 in float KeyPos;
 
 uniform float keyGlowFactor;
+uniform float keyboardBrightness;
 uniform vec3 cameraPos;
 uniform float animTime;
+uniform bool noteHsvShiftEnabled;
+uniform vec3 noteHsvShifts;
+uniform float noteHsvShiftStrength;
 
 out vec4 fragColor;
 
@@ -106,6 +110,53 @@ float noise(vec2 p) {
     return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
 
+vec3 rgbToHsv(vec3 rgb)
+{
+    vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+
+    vec4 p = mix(
+        vec4(rgb.bg, K.wz),
+        vec4(rgb.gb, K.xy),
+        step(rgb.b, rgb.g)
+    );
+
+    vec4 q = mix(
+        vec4(p.xyw, rgb.r),
+        vec4(rgb.r, p.yzx),
+        step(p.x, rgb.r)
+    );
+
+    float d = q.x - min(q.w, q.y);
+    float e = 1e-10;
+
+    return vec3(
+        abs(q.z + (q.w - q.y) / (6.0 * d + e)), // H
+        d / (q.x + e),                          // S
+        q.x                                     // V
+    );
+}
+
+vec3 hsvToRgb(vec3 hsv)
+{
+    vec3 rgb = clamp(
+        abs(mod(hsv.x * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0,
+        0.0,
+        1.0
+    );
+
+    return hsv.z * mix(vec3(1.0), rgb, hsv.y);
+}
+
+vec3 applyHsvShift(vec3 rgb, vec3 shift)
+{
+    vec3 hsv = rgbToHsv(rgb);
+    hsv += shift;
+    hsv.x = fract(hsv.x);      // wrap hue
+    hsv.y = clamp(hsv.y, 0.0, 1.0);
+    hsv.z = clamp(hsv.z, 0.0, 1.0);
+    return hsvToRgb(hsv);
+}
+
 void main()
 {
     bool isBlack = (meta & (1u << 25u)) != 0u;
@@ -118,6 +169,15 @@ void main()
         float(meta & 0xFFu)
     ) / 255.0f;
 
+    if (noteHsvShiftEnabled)
+    {
+        float bottomHeight = 0.35;
+        float bottomMask = LocalUnitPos.z;
+        
+        vec3 shiftedColor = applyHsvShift(noteColor, noteHsvShifts);
+        noteColor = mix(noteColor, shiftedColor, bottomMask * noteHsvShiftStrength);
+    }
+
     if (isPressed)
     {
         vec2 uv = (LocalUnitPos.xz + vec2(hash(vec2(KeyPos, 0.0f)) * 3.248f, 0.0f)) * vec2(4.0f, 12.0f);
@@ -127,6 +187,7 @@ void main()
 
         vec2 warpedUV = uv + vec2(n1, n2);
         float warp = noise(warpedUV);
+
         vec3 surfaceColor = mix(noteColor, noteColor * 1.8f, warp);
 
         float uvWidth = fwidth(LocalUnitPos.x);
@@ -167,7 +228,7 @@ void main()
         );
         float specStrength = isBlack ? 0.7 : 0.4;
 
-        fragColor = vec4(baseColor * (ambient + (diffuse * 0.75)) + specular * specStrength, 1.0f);
+        fragColor = vec4((baseColor * (ambient + (diffuse * 0.75)) + specular * specStrength) * keyboardBrightness, 1.0f);
     }
 })";
 

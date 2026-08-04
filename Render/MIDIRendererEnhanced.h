@@ -26,6 +26,7 @@ struct EnhancedRendererSettings
     // keyboard settings
     float keyGlowFactor = 5.0f;
     float keyboardFOV = 45.0f;
+    float keyboardBrightness = 1.0f;
 
     // hsv shift settings
     bool hsvShiftEnabled = true;
