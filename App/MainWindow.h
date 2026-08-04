@@ -3,6 +3,7 @@
 #include "UI/NavigationBar.h"
 #include "MIDIApp.h"
 #include <GLFW/glfw3.h>
+#include <string>
 
 struct WindowRect
 {
@@ -19,6 +20,7 @@ public:
 	bool CanShowNavigationBar();
 	bool IsFullscreen() { return fullscreen; }
 	void ToggleFullscreen();
+	void SetTitleInfo(std::string midiName = "");
 	GLFWwindow* GetInternalWindow() { return window; }
 private:
 	// called before glfw initialization
@@ -40,6 +42,7 @@ private:
 	DialogManager dialogManager;
 	GLFWwindow* window = nullptr;
 	WindowRect lastWindowRect;
-	const char* title = "Window";
+	std::string title = "Window";
+	std::string titleInfo = "No MIDI Loaded";
 	bool fullscreen = false;
 };

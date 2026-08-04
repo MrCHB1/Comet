@@ -38,7 +38,7 @@ void MIDIApp::LoadMIDI(const char* path)
 	std::shared_ptr<AbstractMIDILoader> loader = CreateLoader(path);
 	prog = loader;
 
-	std::thread([this, loader]() {
+	std::thread([this, loader, path]() {
 		std::shared_ptr<MIDISequence> seq;
 		try
 		{
@@ -70,6 +70,8 @@ void MIDIApp::LoadMIDI(const char* path)
 			this->seqLength = seq->CalcLengthMilliseconds() / 1000.0;
 
 			this->audioThread->Start(seq, this->timer);
+			std::filesystem::path filePath = path;
+			this->mainWindow->SetTitleInfo(filePath.filename().string());
 		}
 	}).detach();
 	return;
@@ -81,6 +83,7 @@ void MIDIApp::UnloadMIDI()
 	renderer->UnloadSequence();
 	hasSequence = false;
 	audioThread->Reset();
+	mainWindow->SetTitleInfo();
 }
 
 // called after glfw/glad initialization has finished, and is safe to load stuff, such as images, for rendering
