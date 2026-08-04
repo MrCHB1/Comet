@@ -17,7 +17,7 @@
 
 MainWindow::MainWindow(const char* title)
 {
-	this->title = title;
+	this->title = std::string(title);
 	InitializeApp();
 	InitializeDialogs();
 	InitializeUI();
@@ -128,7 +128,7 @@ bool MainWindow::InitializeGLFW()
 	MIDIPlayerConfig* cfg = midiApp->GetConfig();
 	int width = cfg->render.GetWidth(), height = cfg->render.GetHeight();
 
-	window = glfwCreateWindow(width, height, title, nullptr, nullptr);
+	window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
 	if (!window)
 	{
 		std::cerr << "Failed to create GLFW window" << std::endl;
@@ -193,6 +193,13 @@ void MainWindow::LoadWindowIcon()
 void MainWindow::PostInit()
 {
 	glfwSwapInterval(midiApp->GetConfig()->render.GetVSync() ? 1 : 0);
+	SetTitleInfo();
+}
+
+void MainWindow::SetTitleInfo(std::string midiName)
+{
+	titleInfo = midiName.empty() ? "No MIDI Loaded" : midiName;
+	glfwSetWindowTitle(window, (title + " | " + titleInfo).c_str());
 }
 
 void MainWindow::Run()
