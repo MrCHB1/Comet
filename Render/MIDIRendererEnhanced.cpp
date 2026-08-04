@@ -274,6 +274,10 @@ void MIDIRendererEnhanced::Initialize()
         ShaderBind keyboardBind(*keyboardProgram);
 
         keyboardProgram->SetFloat("keyGlowFactor", rendererSettings.keyGlowFactor);
+        keyboardProgram->SetFloat("keyboardBrightness", 1.0f);
+        keyboardProgram->SetInt("noteHsvShiftEnabled", rendererSettings.hsvShiftEnabled ? 1 : 0);
+        keyboardProgram->SetFloat("noteHsvShiftStrength", rendererSettings.hsvShiftStrength);
+        keyboardProgram->SetVec3("noteHsvShifts", rendererSettings.hsvShifts);
     }
 
     {
@@ -1008,8 +1012,15 @@ void MIDIRendererEnhanced::RenderSettings()
 
                 if (shouldForwardUniform)
                 {
-                    ShaderBind notesBind(*notesProgram);
-                    notesProgram->SetVec3("noteHsvShifts", rendererSettings.hsvShifts);
+                    {
+                        ShaderBind notesBind(*notesProgram);
+                        notesProgram->SetVec3("noteHsvShifts", rendererSettings.hsvShifts);
+                    }
+
+                    {
+                        ShaderBind keyboardBind(*keyboardProgram);
+                        keyboardProgram->SetVec3("noteHsvShifts", rendererSettings.hsvShifts);
+                    }
                 }
             }
             ImGui::EndTabItem();
@@ -1025,6 +1036,17 @@ void MIDIRendererEnhanced::RenderSettings()
                 ShaderBind keyboardBind(*keyboardProgram);
                 keyboardProgram->SetFloat("keyGlowFactor", rendererSettings.keyGlowFactor);
             }
+
+            ImGui::Text("Keyboard brightness");
+            ImGui::SameLine();
+            float keyboardBrightness = rendererSettings.keyboardBrightness;
+            if (ImGui::SliderFloat("##keyboardBrightness", &keyboardBrightness, 0.1f, 1.0f))
+            {
+                rendererSettings.keyboardBrightness = std::clamp(keyboardBrightness, 0.1f, 1.0f);
+                ShaderBind keyboardBind(*keyboardProgram);
+                keyboardProgram->SetFloat("keyboardBrightness", rendererSettings.keyboardBrightness);
+            }
+
             ImGui::Text("Keyboard FOV");
             ImGui::SameLine();
             float keyboardFOV = rendererSettings.keyboardFOV;
