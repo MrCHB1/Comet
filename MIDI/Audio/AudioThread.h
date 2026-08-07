@@ -3,6 +3,7 @@
 #include "MIDI/MIDISequence.h"
 #include "MIDI/Timer/MIDITimer.h"
 #include "MIDIOut.h"
+#include "MIDIAudio.h"
 #include <memory>
 #include <atomic>
 #include <mutex>
@@ -22,7 +23,7 @@ struct CompareTick
 	}
 };
 
-class AudioThread
+class AudioThread : public AudioEngine
 {
 public:
 	AudioThread(std::shared_ptr<MIDIOut> midiOut) : midiOut(midiOut) { }
@@ -30,8 +31,19 @@ public:
 	{
 		Stop();
 	}
-	void Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDITimer> timer);
-	void Stop()
+
+	void Initialize() override
+	{
+
+	}
+
+	void Destroy() override
+	{
+		Stop();
+	}
+
+	void Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDITimer> timer) override;
+	void Stop() override
 	{
 		stopFlag = true;
 		if (audioThread.joinable())
@@ -40,18 +52,18 @@ public:
 		}
 		threadWorking = false;
 	}
-	void Reset()
+	void Reset() override
 	{
 		if (!threadWorking) return;
 		Stop();
 	}
 
-	void MuteAudio()
+	void Mute() override
 	{
 		audioMuted = true;
 	}
 
-	void UnmuteAudio()
+	void Unmute() override
 	{
 		audioMuted = false;
 	}

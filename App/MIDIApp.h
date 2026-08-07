@@ -14,8 +14,7 @@
 #include "Render/BlurredQuadRenderer.h"
 #include "VideoRender/RenderSettings.h"
 #include "FFmpeg/FFmpegPipe.h"
-#include "MIDI/Audio/MIDIOut.h"
-#include "MIDI/Audio/AudioThread.h"
+#include "MIDI/Audio/MIDIAudio.h"
 #include <memory>
 #include <mutex>
 #include <atomic>
@@ -173,8 +172,7 @@ private:
 	std::shared_ptr<RenderView> renderView;
 	std::shared_ptr<Progress> prog;
 	std::shared_ptr<MIDITimer> timer;
-	std::shared_ptr<MIDIOut> midiOut;
-	std::unique_ptr<AudioThread> audioThread;
+	std::shared_ptr<MIDIAudio> midiAudio;
 	std::atomic_bool loading = false;
 
 	#pragma region Framebuffer for rendering
