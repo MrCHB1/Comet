@@ -69,7 +69,8 @@ void MIDIApp::LoadMIDI(const char* path)
 			this->hasSequence = true;
 			this->seqLength = seq->CalcLengthMilliseconds() / 1000.0;
 
-			this->audioThread->Start(seq, this->timer);
+			// this->audioThread->Start(seq, this->timer);
+			this->midiAudio->Start(seq, this->timer);
 			std::filesystem::path filePath = path;
 			this->mainWindow->SetTitleInfo(filePath.filename().string());
 		}
@@ -82,7 +83,7 @@ void MIDIApp::UnloadMIDI()
 	if (!hasSequence) return;
 	renderer->UnloadSequence();
 	hasSequence = false;
-	audioThread->Reset();
+	midiAudio->Reset();
 	mainWindow->SetTitleInfo();
 }
 
@@ -122,8 +123,7 @@ void MIDIApp::LoadResources()
 #endif
 
 	// load audio stuff
-	midiOut = std::make_shared<MIDIOut>();
-	audioThread = std::make_unique<AudioThread>(midiOut);
+	midiAudio = std::make_shared<MIDIAudio>();
 }
 
 void MIDIApp::LoadColorPalettes()
@@ -378,7 +378,7 @@ void MIDIApp::PrepareRendering()
 
 	lastRenderStartTimeMs = (double)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
 	if (!timer->IsPaused()) timer->Pause();
-	audioThread->MuteAudio();
+	midiAudio->Mute();
 	GetRenderer()->ResetRenderer();
 }
 
@@ -400,6 +400,6 @@ void MIDIApp::FinalizeRendering()
 	double endRenderTime = (double)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
 	std::cout << "Rendered MIDI in " << Utils::FormatDuration2(endRenderTime - lastRenderStartTimeMs) << "!" << std::endl;
 
-	audioThread->UnmuteAudio();
+	midiAudio->Unmute();
 	GetRenderer()->ResetRenderer();
 }
