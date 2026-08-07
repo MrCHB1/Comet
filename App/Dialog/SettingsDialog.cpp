@@ -22,6 +22,12 @@ void SettingsDialog::DrawContent()
 
 			ImGui::EndTabItem();
 		}
+		if (ImGui::BeginTabItem("Audio"))
+		{
+			DrawAudioTab();
+
+			ImGui::EndTabItem();
+		}
 		if (ImGui::BeginTabItem("MIDI"))
 		{
 			DrawMIDITab();
@@ -485,6 +491,37 @@ void SettingsDialog::DrawVisualTab()
 	}
 
 	ImGui::EndChild();
+}
+
+void SettingsDialog::DrawAudioTab()
+{
+	MIDIAudio* midiAudio = app->GetMIDIAudio();
+
+	ImGui::Text("Audio Engine");
+	AudioEngineList& engineList = midiAudio->GetEngineList();
+	size_t engineIndex = 0;
+	for (auto& engine : engineList)
+	{
+		if (engine == nullptr)
+		{
+			engineIndex++;
+			continue;
+		}
+
+		AudioEngineType type = (AudioEngineType)engineIndex;
+
+		bool isSupported = engine->IsSupported();
+
+		ImGui::BeginDisabled(!isSupported);
+		if (ImGui::RadioButton(engine->GetName().c_str(), midiAudio->GetCurrentEngineType() == type))
+			midiAudio->SwitchEngine(type);
+
+		if (!isSupported)
+			ImGui::SetItemTooltip("This engine is not supported on your platform.");
+		ImGui::EndDisabled();
+
+		engineIndex++;
+	}
 }
 
 void SettingsDialog::DrawMIDITab()

@@ -123,7 +123,7 @@ void MIDIApp::LoadResources()
 #endif
 
 	// load audio stuff
-	midiAudio = std::make_shared<MIDIAudio>();
+	midiAudio = std::make_unique<MIDIAudio>();
 }
 
 void MIDIApp::LoadColorPalettes()
