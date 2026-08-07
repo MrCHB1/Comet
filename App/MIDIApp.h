@@ -80,6 +80,11 @@ public:
 	void RenderMIDIVideo(const RenderSettings& renderSettings);
 	void RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt);
 
+	MIDIAudio* GetMIDIAudio()
+	{
+		return midiAudio.get();
+	}
+
 	ThemesList* GetThemeList()
 	{
 		return themesList.get();
@@ -172,7 +177,7 @@ private:
 	std::shared_ptr<RenderView> renderView;
 	std::shared_ptr<Progress> prog;
 	std::shared_ptr<MIDITimer> timer;
-	std::shared_ptr<MIDIAudio> midiAudio;
+	std::unique_ptr<MIDIAudio> midiAudio;
 	std::atomic_bool loading = false;
 
 	#pragma region Framebuffer for rendering

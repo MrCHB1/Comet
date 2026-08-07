@@ -32,6 +32,16 @@ public:
 		Stop();
 	}
 
+	std::string GetName() override
+	{
+		return "Realtime Audio";
+	}
+
+	bool IsSupported() override
+	{
+		return true;
+	}
+
 	void Initialize() override
 	{
 
@@ -66,6 +76,11 @@ public:
 	void Unmute() override
 	{
 		audioMuted = false;
+	}
+
+	bool IsPlaying() override
+	{
+		return threadWorking;
 	}
 private:
 	std::shared_ptr<MIDIOut> midiOut;

@@ -16,5 +16,6 @@ private:
 
 	void DrawAppTab();
 	void DrawVisualTab();
+	void DrawAudioTab();
 	void DrawMIDITab();
 };
