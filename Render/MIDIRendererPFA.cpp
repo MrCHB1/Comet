@@ -960,3 +960,23 @@ void MIDIRendererPFA::SetBarColor(uint32_t color)
 {
 	kbRed.SetColor(color & 0xFFFFFF, 0.5);
 }
+
+YAML::Node MIDIRendererPFA::GetSettings()
+{
+	YAML::Node node;
+
+	node["middleC"] = settings.showMiddleCSquare;
+	node["showLines"] = settings.showLines;
+	node["roundedNotes"] = settings.roundedNoteLengths;
+
+	return node;
+}
+
+void MIDIRendererPFA::LoadSettings(const YAML::Node& node)
+{
+	if (!node) return;
+
+	LOAD_VAL(node, "middleC", settings.showMiddleCSquare);
+	LOAD_VAL(node, "showLines", settings.showLines);
+	LOAD_VAL(node, "roundedNotes", settings.roundedNoteLengths);
+}

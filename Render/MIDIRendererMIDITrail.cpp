@@ -1674,3 +1674,96 @@ void MIDIRendererMIDITrail::ResetRenderer()
 		key.MarkPressed(false);
 	}
 }
+
+YAML::Node MIDIRendererMIDITrail::GetSettings()
+{
+	YAML::Node node;
+	
+	YAML::Node rendering;
+	rendering["notes"]["3d"] = settings.notes3D;
+	rendering["notes"]["eat"] = settings.eatNotes;
+	rendering["notes"]["transparency"] = settings.noteTransparency;
+	rendering["frontCutoff"] = settings.frontRenderCutoff;
+	rendering["backCutoff"] = settings.backRenderCutoff;
+
+	YAML::Node keyboard;
+	keyboard["enabled"] = settings.showKeyboard;
+
+	YAML::Node camera;
+	camera["position"] = Utils::Vec3ToNode(settings.cameraPos);
+	camera["rotation"] = Utils::Vec3ToNode(settings.cameraRotation);
+	camera["fov"] = settings.cameraFOV;
+
+	YAML::Node measureLinesBorders;
+	measureLinesBorders["measureLinesEnabled"] = settings.showMeasureLines;
+	measureLinesBorders["outerBordersEnabled"] = settings.showOuterBorders;
+	measureLinesBorders["lineTransparency"] = settings.lineTransparency;
+
+	YAML::Node aura;
+	aura["enabled"] = settings.showAura;
+	aura["size"] = settings.auraSize;
+	aura["texture"] = settings.auraTexture.string();
+
+	node["rendering"] = rendering;
+	node["keyboard"] = keyboard;
+	node["camera"] = camera;
+	node["meassureLinesBorders"] = measureLinesBorders;
+	node["aura"] = aura;
+
+	return node;
+}
+
+void MIDIRendererMIDITrail::LoadSettings(const YAML::Node& node)
+{
+	if (!node) return;
+
+	if (node["rendering"])
+	{
+		auto rendering = node["rendering"];
+		if (rendering["notes"])
+		{
+			auto notes = rendering["notes"];
+			LOAD_VAL(notes, "3d", settings.notes3D);
+			LOAD_VAL(notes, "eat", settings.eatNotes);
+			LOAD_VAL(notes, "transparency", settings.noteTransparency);
+		}
+		LOAD_VAL(rendering, "frontCutoff", settings.frontRenderCutoff);
+		LOAD_VAL(rendering, "backCutoff", settings.backRenderCutoff);
+	}
+
+	if (node["keyboard"])
+	{
+		auto keyboard = node["keyboard"];
+		LOAD_VAL(keyboard, "enabled", settings.showKeyboard);
+	}
+
+	if (node["camera"])
+	{
+		auto camera = node["camera"];
+		if (camera["position"])
+		{
+			settings.cameraPos = Utils::NodeToVec3(camera["position"]);
+		}
+		if (camera["rotation"])
+		{
+			settings.cameraRotation = Utils::NodeToVec3(camera["rotation"]);
+		}
+		LOAD_VAL(camera, "fov", settings.cameraFOV);
+	}
+
+	if (node["meassureLinesBorders"])
+	{
+		auto measureLinesBorders = node["meassureLinesBorders"];
+		LOAD_VAL(measureLinesBorders, "measureLinesEnabled", settings.showMeasureLines);
+		LOAD_VAL(measureLinesBorders, "outerBordersEnabled", settings.showOuterBorders);
+		LOAD_VAL(measureLinesBorders, "lineTransparency", settings.lineTransparency);
+	}
+
+	if (node["aura"])
+	{
+		auto aura = node["aura"];
+		LOAD_VAL(aura, "enabled", settings.showAura);
+		LOAD_VAL(aura, "size", settings.auraSize);
+		LOAD_VAL(aura, "texture", settings.auraTexture.string());
+	}
+}

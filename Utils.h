@@ -11,6 +11,8 @@
 #include <type_traits>
 #include <chrono>
 #include <filesystem>
+#include <glm/glm.hpp>
+#include <yaml-cpp/yaml.h>
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -77,6 +79,11 @@ namespace Utils
 	}
 	void AddFilePickerField(const char* label, std::filesystem::path& path, const char* extension, bool saving = false);
 	
+	YAML::Node Vec3ToNode(glm::vec3 vector);
+	glm::vec3 NodeToVec3(const YAML::Node& node);
+	YAML::Node Vec4ToNode(glm::vec4 vector);
+	glm::vec4 NodeToVec4(const YAML::Node& node);
+
 	namespace Dialogs
 	{
 		enum DialogType

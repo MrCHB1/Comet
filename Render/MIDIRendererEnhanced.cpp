@@ -6,6 +6,7 @@
 #include "App/MIDIApp.h"
 #include "App/Models.h"
 #include <algorithm>
+#include "Utils.h"
 
 const std::vector<float> CUBE_VERTICES = {
     // front face
@@ -261,6 +262,16 @@ void MIDIRendererEnhanced::Initialize()
     #pragma endregion
 
     #pragma region uniforms setup
+    SetupUniforms();
+    #pragma endregion
+
+    initialized = true;
+    CalcKeyPosAndWidth();
+    UpdateMSAAFramebuffer();
+}
+
+void MIDIRendererEnhanced::SetupUniforms()
+{
     {
         ShaderBind notesBind(*notesProgram);
 
@@ -287,10 +298,6 @@ void MIDIRendererEnhanced::Initialize()
         mistProgram->SetFloat("mistSpeed", rendererSettings.mistSpeed);
         mistProgram->SetFloat("mistScale", rendererSettings.mistScale);
     }
-
-    initialized = true;
-    CalcKeyPosAndWidth();
-    UpdateMSAAFramebuffer();
 }
 
 void MIDIRendererEnhanced::LoadSequence(std::shared_ptr<MIDISequence> sequence)
@@ -1242,4 +1249,127 @@ void MIDIRendererEnhanced::OnResize(int width, int height)
 
     // update msaa buffers
     UpdateMSAAFramebuffer();
+}
+
+YAML::Node MIDIRendererEnhanced::GetSettings()
+{
+    YAML::Node node;
+    
+    YAML::Node visual;
+    visual["msaa"] = static_cast<int>(rendererSettings.msaa);
+    visual["exposure"] = rendererSettings.exposure;
+
+    YAML::Node keyboard;
+    keyboard["keyGlowFactor"] = rendererSettings.keyGlowFactor;
+    keyboard["fov"] = rendererSettings.keyboardFOV;
+    keyboard["brightness"] = rendererSettings.keyboardBrightness;
+
+    YAML::Node notes;
+    notes["outlineGlowFactor"] = rendererSettings.noteOutlineGlowFactor;
+    notes["hsv"]["shiftEnabled"] = rendererSettings.hsvShiftEnabled;
+    notes["hsv"]["shiftStrength"] = rendererSettings.hsvShiftStrength;
+    notes["hsv"]["shifts"] = Utils::Vec3ToNode(rendererSettings.hsvShifts);
+
+    YAML::Node saber;
+    auto saberColor = rendererSettings.saberColor;
+    saber["color"] = Utils::EncodeColor(ImVec4(
+        saberColor.x,
+        saberColor.y,
+        saberColor.z,
+        1.0
+    ));
+    saber["brightness"] = rendererSettings.saberBrightness;
+
+    YAML::Node mist;
+    mist["enabled"] = rendererSettings.mistEnabled;
+
+    YAML::Node particles;
+    particles["enabled"] = rendererSettings.particlesEnabled;
+
+    node["visual"] = visual;
+    node["notes"] = notes;
+    node["keyboard"] = keyboard;
+    node["saber"] = saber;
+    node["mist"] = mist;
+    node["particles"] = particles;
+
+    return node;
+}
+
+void MIDIRendererEnhanced::LoadSettings(const YAML::Node& node)
+{
+    if (!node) return;
+
+    if (node["visual"])
+    {
+        auto visual = node["visual"];
+        int msaaVal = static_cast<int>(rendererSettings.msaa);
+        LOAD_VAL(visual, "msaa", msaaVal);
+        rendererSettings.msaa = static_cast<decltype(rendererSettings.msaa)>(msaaVal);
+        LOAD_VAL(visual, "exposure", rendererSettings.exposure);
+    }
+
+    if (node["keyboard"])
+    {
+        auto keyboard = node["keyboard"];
+        LOAD_VAL(keyboard, "keyGlowFactor", rendererSettings.keyGlowFactor);
+        LOAD_VAL(keyboard, "fov", rendererSettings.keyboardFOV);
+        LOAD_VAL(keyboard, "brightness", rendererSettings.keyboardBrightness);
+    }
+
+    if (node["notes"])
+    {
+        auto notes = node["notes"];
+        LOAD_VAL(notes, "outlineGlowFactor", rendererSettings.noteOutlineGlowFactor);
+
+        if (notes["hsv"])
+        {
+            auto hsv = notes["hsv"];
+            LOAD_VAL(hsv, "shiftEnabled", rendererSettings.hsvShiftEnabled);
+            LOAD_VAL(hsv, "shiftStrength", rendererSettings.hsvShiftStrength);
+            if (hsv["shifts"])
+            {
+                rendererSettings.hsvShifts = Utils::NodeToVec3(hsv["shifts"]);
+            }
+        }
+    }
+
+    if (node["saber"])
+    {
+        auto saber = node["saber"];
+        LOAD_VAL(saber, "brightness", rendererSettings.saberBrightness);
+        if (saber["color"])
+        {
+            std::variant<std::string, uint32_t> colorInput;
+            try
+            {
+                colorInput = saber["color"].as<std::string>();
+            }
+            catch (...)
+            {
+                colorInput = saber["color"].as<uint32_t>();
+            }
+
+            auto parsedColor = Utils::ParseColor(colorInput, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+            if (parsedColor)
+            {
+                rendererSettings.saberColor = glm::vec3(parsedColor->x, parsedColor->y, parsedColor->z);
+                
+            }
+        }
+    }
+
+    if (node["mist"])
+    {
+        auto mist = node["mist"];
+        LOAD_VAL(mist, "enabled", rendererSettings.mistEnabled);
+    }
+
+    if (node["particles"])
+    {
+        auto particles = node["particles"];
+        LOAD_VAL(particles, "enabled", rendererSettings.particlesEnabled);
+    }
+
+    SetupUniforms();
 }

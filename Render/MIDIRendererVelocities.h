@@ -70,6 +70,10 @@ public:
 	void LoadSequence(std::shared_ptr<MIDISequence> seq) override;
 	void UnloadSequence() override;
 	void Render(double deltaTime) override;
+
+	std::string GetSerializationKey() const override { return "velocities"; }
+	// YAML::Node GetSettings() override;
+	// void LoadSettings(const YAML::Node& node) override;
 private:
 	std::mutex renderMutex;
 	double lastTime;

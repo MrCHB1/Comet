@@ -377,4 +377,42 @@ namespace Utils
         ImGui::InputText("##pickedFilePath", buf.data(), buf.size(), ImGuiInputTextFlags_ReadOnly);
         ImGui::PopID();
     }
+
+    YAML::Node Vec3ToNode(glm::vec3 vector)
+    {
+        YAML::Node node;
+        node["x"] = vector.x;
+        node["y"] = vector.y;
+        node["z"] = vector.z;
+        return node;
+    }
+
+    glm::vec3 NodeToVec3(const YAML::Node& node)
+    {
+        glm::vec3 vector{};
+        vector.x = node["x"].as<float>();
+        vector.y = node["y"].as<float>();
+        vector.z = node["z"].as<float>();
+        return vector;
+    }
+
+    YAML::Node Vec4ToNode(glm::vec4 vector)
+    {
+        YAML::Node node;
+        node["x"] = vector.x;
+        node["y"] = vector.y;
+        node["z"] = vector.z;
+        node["w"] = vector.w;
+        return node;
+    }
+
+    glm::vec4 NodeToVec4(const YAML::Node& node)
+    {
+        glm::vec4 vector{};
+        vector.x = node["x"].as<float>();
+        vector.y = node["y"].as<float>();
+        vector.z = node["z"].as<float>();
+        vector.w = node["w"].as<float>();
+        return vector;
+    }
 }

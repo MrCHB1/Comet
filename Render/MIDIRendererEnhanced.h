@@ -182,11 +182,16 @@ public:
     void ResetSettings() override;
     void OnResize(int width, int height) override;
     void ResetRenderer() override;
+
+    std::string GetSerializationKey() const override { return "enhanced"; }
+    YAML::Node GetSettings() override;
+    void LoadSettings(const YAML::Node& node) override;
 private:
     uint32_t msaaFBO = 0;
     uint32_t msaaColorTexture = 0;
     uint32_t msaaDepthRBO = 0;
 
+    void SetupUniforms();
     int GetMSAASamples() const
     {
         switch (rendererSettings.msaa)
