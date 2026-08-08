@@ -30,7 +30,7 @@ public:
 
 	// displays the engine's settings. kinda weird to define the method here but makes stuff easier ig
 	virtual void RenderSettings() { }
-private:
+protected:
 	std::shared_ptr<MIDISequence> seq;
 	std::shared_ptr<MIDITimer> timer;
 };

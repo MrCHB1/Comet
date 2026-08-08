@@ -520,7 +520,14 @@ void SettingsDialog::DrawAudioTab()
 			ImGui::SetItemTooltip("This engine is not supported on your platform.");
 		ImGui::EndDisabled();
 
+		ImGui::Spacing();
+
 		engineIndex++;
+	}
+
+	if (ImGui::CollapsingHeader("Engine Settings", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		midiAudio->GetCurrentEngine()->RenderSettings();
 	}
 }
 

@@ -338,7 +338,17 @@ namespace Utils
 
     bool FolderExists(const std::string& path)
     {
-        return std::filesystem::exists(path) && std::filesystem::is_directory(path);
+        return FileExists(path) && std::filesystem::is_directory(path);
+    }
+
+    bool FileExists(const std::string& path)
+    {
+        return std::filesystem::exists(path);
+    }
+
+    bool FileExists(const std::wstring& path)
+    {
+        return std::filesystem::exists(path);
     }
 
     void AddFilePickerField(const char* label, std::filesystem::path& path, const char* extension, bool saving)

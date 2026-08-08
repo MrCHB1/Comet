@@ -3,6 +3,7 @@
 // Used by Comet.rc
 //
 #define IDI_ICON1                       101
+#define IDR_SOUNDFONT                   103
 
 // Next default values for new objects
 // 
