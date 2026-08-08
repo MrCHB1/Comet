@@ -145,11 +145,14 @@ struct MIDIPlayerConfig
 
 	int version = 0;
 	std::string language = "en";
+
 	ConfigApp app{};
 	ConfigMIDI midi{};
 	ConfigNavigation navigation{};
 	ConfigRender render{};
 	ConfigOverlayInfo overlayInfo{};
+
+	YAML::Node audioSettings;
 
 	void LoadConfigOrDefault();
 	void SaveConfig();

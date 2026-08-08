@@ -38,6 +38,10 @@ public:
     void Mute() override;
     void Unmute() override;
 
+    std::string GetSerializationKey() override { return "prerenderedAudio"; }
+    YAML::Node GetSettings() override;
+    void LoadSettings(const YAML::Node& node) override;
+
     bool IsPlaying() override;
 
     // UI for soundfonts and voices
