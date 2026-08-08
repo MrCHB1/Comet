@@ -81,6 +81,8 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 			render.loopColors = renderSec->GetBoolean("loopColors", true);
 			render.paletteID = renderSec->GetInt("paletteID", 0);
 
+			render.SetCurrentRenderer(static_cast<RendererType>(renderSec->GetInt("rendererType", 0)));
+
 			this->render = render;
 		}
 
@@ -125,6 +127,7 @@ void MIDIPlayerConfig::SaveConfig()
 	config["render"]["useImageColors"] = render.GetUseColorsFromImage();
 	config["render"]["loopColors"] = render.loopColors;
 	config["render"]["paletteID"] = render.paletteID;
+	config["render"]["rendererType"] = static_cast<int>(render.GetCurrentRenderer());
 
 	if (audioSettings.IsDefined())
 	{
