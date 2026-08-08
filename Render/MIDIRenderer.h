@@ -127,6 +127,9 @@ public:
 		// keyboardBackground->SetColor(glm::vec3(r, g, b));
 	}
 
+	std::string GetSerializationKey() const override { return "default"; }
+	YAML::Node GetSettings() override;
+	void LoadSettings(const YAML::Node& node) override;
 private:
 #pragma region Keyboard and note textures
 	std::unique_ptr<GPUImage> textureNote;

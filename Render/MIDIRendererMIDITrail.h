@@ -128,6 +128,10 @@ public:
 	void Render(double deltaTime) override;
 	void RenderSettings() override;
 	void ResetSettings() override;
+
+	std::string GetSerializationKey() const override { return "miditrail"; }
+	YAML::Node GetSettings() override;
+	void LoadSettings(const YAML::Node& node) override;
 private:
 	MIDITrailSettings settings{};
 	#pragma region Keyboard Data

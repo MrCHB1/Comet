@@ -10,6 +10,9 @@
 #include "Config/MIDIPlayerConfig.h"
 #include "QuadDrawer.h"
 
+#define LOAD_VAL(n, key, target) \
+        if (n && n[key]) { target = n[key].as<std::decay_t<decltype(target)>>(); }
+
 class AbstractMIDIRenderer;
 class MIDIApp;
 
@@ -95,4 +98,8 @@ public:
 	{
 		this->noteCounterInfo = noteCounterInfo;
 	}
+
+	virtual std::string GetSerializationKey() const = 0;
+	virtual YAML::Node GetSettings() { return YAML::Node(); }
+	virtual void LoadSettings(const YAML::Node& node) {}
 };

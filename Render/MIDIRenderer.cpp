@@ -1051,3 +1051,14 @@ void MIDIRenderer::UploadNoteBuffer(size_t count)
 		count
 	);
 }
+
+YAML::Node MIDIRenderer::GetSettings()
+{
+	// TODO: Migrate version 1 config to new modular config
+	return YAML::Node();
+}
+
+void MIDIRenderer::LoadSettings(const YAML::Node& node)
+{
+	// TODO: Migrate version 1 config to new modular config
+}

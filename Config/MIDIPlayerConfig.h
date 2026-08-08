@@ -153,6 +153,7 @@ struct MIDIPlayerConfig
 	ConfigOverlayInfo overlayInfo{};
 
 	YAML::Node audioSettings;
+	YAML::Node renderersSettings;
 
 	void LoadConfigOrDefault();
 	void SaveConfig();

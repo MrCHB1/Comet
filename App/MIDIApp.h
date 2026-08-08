@@ -34,6 +34,10 @@ public:
 		{
 			config.audioSettings = midiAudio->GetSettings();
 		}
+		if (renderer)
+		{
+			config.renderersSettings[renderer->GetSerializationKey()] = renderer->GetSettings();
+		}
 		config.SaveConfig();
 		Models::UnloadModels();
 	}
@@ -52,6 +56,13 @@ public:
 		int height = config.render.GetHeight();
 		noteCounterRenderer->OnResize(width, height); // hacky but oh well
 
+		// save current renderer settings before destroying it
+		if (this->renderer)
+		{
+			std::string oldKey = this->renderer->GetSerializationKey();
+			config.renderersSettings[oldKey] = this->renderer->GetSettings();
+		}
+
 		// get renderer's sequence so the new one can automatically load it
 		std::shared_ptr<MIDISequence> seq;
 		if (this->renderer) seq = GetRenderer()->GetSequence();
@@ -60,6 +71,13 @@ public:
 		this->renderer->OnResize(width, height);
 		this->renderer->SetNoteCounter(noteCounterInfo);
 		this->renderer->Initialize();
+
+		// load new renderer settings IF they exist in config storage
+		std::string newKey = this->renderer->GetSerializationKey();
+		if (config.renderersSettings[newKey])
+		{
+			this->renderer->LoadSettings(config.renderersSettings[newKey]);
+		}
 
 		if (seq != nullptr) this->renderer->LoadSequence(seq);
 

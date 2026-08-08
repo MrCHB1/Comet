@@ -88,6 +88,11 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 		{
 			audioSettings = root["audio"];
 		}
+		
+		if (root["renderers"])
+		{
+			renderersSettings = root["renderers"];
+		}
 	}
 	catch (...)
 	{
@@ -124,6 +129,11 @@ void MIDIPlayerConfig::SaveConfig()
 	if (audioSettings.IsDefined())
 	{
 		config["audio"] = audioSettings;
+	}
+
+	if (renderersSettings.IsDefined())
+	{
+		config["renderers"] = renderersSettings;
 	}
 
 	std::ofstream file("./config.yml");

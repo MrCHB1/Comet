@@ -62,6 +62,10 @@ public:
 		settings = PFARenderSettings();
 	}
 	void OnResize(int width, int height) override;
+
+	std::string GetSerializationKey() const override { return "pfa"; }
+	YAML::Node GetSettings() override;
+	void LoadSettings(const YAML::Node& node) override;
 private:
 	std::vector<RectVertex> immediateRects;
 	PFARenderSettings settings{};
