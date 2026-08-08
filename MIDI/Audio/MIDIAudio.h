@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <memory>
+#include <yaml-cpp/yaml.h>
 
 #include "MIDIOut.h"
 #include "MIDI/MIDISequence.h"
@@ -18,7 +19,11 @@ public:
 	virtual void Destroy() = 0;
 
 	virtual std::string GetName() { return "Audio"; }
+	virtual std::string GetSerializationKey() { return "audio"; }
 	virtual bool IsSupported() { return true; }
+
+	virtual YAML::Node GetSettings() { return YAML::Node(); }
+	virtual void LoadSettings(const YAML::Node& node) {}
 
 	virtual void Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDITimer> timer) = 0;
 	virtual void Stop() = 0;
@@ -92,6 +97,9 @@ public:
 
 	void SwitchEngine(AudioEngineType engine);
 	AudioEngineList& GetEngineList();
+
+	YAML::Node GetSettings();
+	void LoadSettings(const YAML::Node& node);
 private:
 	std::shared_ptr<MIDIOut> midiOut;
 	AudioEngineType currentEngine = AudioEngineType::Realtime;

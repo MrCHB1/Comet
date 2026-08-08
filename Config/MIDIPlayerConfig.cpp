@@ -19,7 +19,8 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 			return;
 		}
 
-		config = ConfigSection(YAML::Load(stream));
+		YAML::Node root = YAML::Load(stream);
+		config = ConfigSection(root);
 
 		std::optional<ConfigSection> appSec = config->GetSection("app");
 		
@@ -82,6 +83,11 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 
 			this->render = render;
 		}
+
+		if (root["audio"])
+		{
+			audioSettings = root["audio"];
+		}
 	}
 	catch (...)
 	{
@@ -92,7 +98,7 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 void MIDIPlayerConfig::SaveConfig()
 {
 	YAML::Node config;
-	config["version"] = 1;
+	config["version"] = 2;
 
 	config["app"]["themeID"] = app.currThemeID;
 
@@ -114,6 +120,11 @@ void MIDIPlayerConfig::SaveConfig()
 	config["render"]["useImageColors"] = render.GetUseColorsFromImage();
 	config["render"]["loopColors"] = render.loopColors;
 	config["render"]["paletteID"] = render.paletteID;
+
+	if (audioSettings.IsDefined())
+	{
+		config["audio"] = audioSettings;
+	}
 
 	std::ofstream file("./config.yml");
 	file << config;

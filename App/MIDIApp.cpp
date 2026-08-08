@@ -124,6 +124,8 @@ void MIDIApp::LoadResources()
 
 	// load audio stuff
 	midiAudio = std::make_unique<MIDIAudio>();
+	midiAudio->LoadSettings(config.audioSettings);
+	midiAudio->GetCurrentEngine()->Initialize();
 }
 
 void MIDIApp::LoadColorPalettes()

@@ -581,6 +581,91 @@ DWORD CALLBACK PrerenderedEngine::PlaybackStreamProc(HSTREAM handle, void* buffe
     return length;
 }
 
+void PrerenderedEngine::LoadSoundfonts(std::vector<std::wstring> paths)
+{
+    std::wstring soundfontPath;
+    if (paths.empty())
+    {
+        WCHAR binPath[512]{ };
+        GetModuleFileNameW(NULL, binPath, 512);
+        std::wstring::size_type pos = std::wstring(binPath).find_last_of(L"\\/");
+        std::wstring defaultPath = std::wstring(binPath).substr(0, pos) +
+            L"\\assets\\soundfonts\\GeneralUser-GS.sf2";
+
+        if (!Utils::FileExists(defaultPath.c_str()))
+        {
+            std::filesystem::create_directories(std::filesystem::path(defaultPath).parent_path());
+
+            HRSRC rc = FindResourceW(
+                NULL,
+                MAKEINTRESOURCEW(IDR_SOUNDFONT),
+                MAKEINTRESOURCEW(10)
+            );
+            if (!rc) throw std::runtime_error("Failed to load embedded Soundfont");
+
+            HGLOBAL rcData = LoadResource(NULL, rc);
+            int rSize = SizeofResource(NULL, rc);
+            unsigned char* data = (unsigned char*)LockResource(rcData);
+            if (!data) throw std::runtime_error("That's funny... the embedded soundfont data failed to load!");
+
+            std::ofstream file;
+            file.open(defaultPath, std::ios::binary);
+            file.write((char*)data, rSize);
+            file.close();
+        }
+        paths = { defaultPath };
+        soundfontPaths = { ConvertFromWideString(defaultPath) };
+    }
+
+    BASSMIDI::LoadSoundfonts(paths);
+}
+
+void PrerenderedEngine::WrappedCopy(float* src, int pos, int srcCount, float* dst, int pos2, int count)
+{
+    if (pos + count > srcCount)
+    {
+        memcpy(dst + pos2, src + pos, (srcCount - pos) * sizeof(float));
+        count -= (srcCount - pos);
+        pos = 0;
+    }
+    memcpy(dst + pos2, src + pos, count * sizeof(float));
+}
+
+void PrerenderedEngine::ResizeBuffer(double newBufferLengthSecs)
+{
+    if (newBufferLengthSecs < BUFFER_SECS_MIN) newBufferLengthSecs = BUFFER_SECS_MIN;
+    if (newBufferLengthSecs > BUFFER_SECS_MAX) newBufferLengthSecs = BUFFER_SECS_MAX;
+
+    awaitingReset.store(true);
+
+    bool wasPlaying = isPlaying;
+    if (renderThread.joinable())
+    {
+        stopFlag = true;
+        renderThread.join();
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(bufferMutex);
+        free(audioBuffer);
+
+        bufferSeconds = newBufferLengthSecs;
+        bufferLength = SAMPLE_RATE * 2 * newBufferLengthSecs;
+        audioBuffer = (float*)malloc(bufferLength * sizeof(float));
+        memset(audioBuffer, 0, bufferLength * sizeof(float));
+
+        bufferWritePos = 0;
+        bufferReadPos = 0;
+    }
+
+    awaitingReset.store(false);
+
+    if (wasPlaying && seq && timer)
+    {
+        StartPrerender(true, GetPlayerTime());
+    }
+}
+
 void PrerenderedEngine::RenderSettings()
 {
     bool shouldApplyChanges = false;
@@ -630,7 +715,7 @@ void PrerenderedEngine::RenderSettings()
                     std::filesystem::path p(soundfontPaths[i]);
                     std::string fileName = p.filename().string();
                     if (fileName.empty()) fileName = soundfontPaths[i];
-                    
+
                     std::string label = std::to_string(i + 1) + ": " + fileName + "##" + std::to_string(i);
                     if (ImGui::Selectable(label.c_str(), isSelected))
                     {
@@ -750,88 +835,55 @@ void PrerenderedEngine::RenderSettings()
     }
 }
 
-void PrerenderedEngine::LoadSoundfonts(std::vector<std::wstring> paths)
+YAML::Node PrerenderedEngine::GetSettings()
 {
-    std::wstring soundfontPath;
-    if (paths.empty())
-    {
-        WCHAR binPath[512]{ };
-        GetModuleFileNameW(NULL, binPath, 512);
-        std::wstring::size_type pos = std::wstring(binPath).find_last_of(L"\\/");
-        std::wstring defaultPath = std::wstring(binPath).substr(0, pos) +
-            L"\\assets\\soundfonts\\GeneralUser-GS.sf2";
+    YAML::Node node;
+    node["maxVoices"] = maxVoices;
+    node["noFx"] = noFx;
+    node["bufferSeconds"] = bufferSeconds;
 
-        if (!Utils::FileExists(defaultPath.c_str()))
+    YAML::Node sfNode(YAML::NodeType::Sequence);
+    for (const auto& path : soundfontPaths)
+    {
+        sfNode.push_back(path);
+    }
+    node["soundfonts"] = sfNode;
+
+    node["attackRate"] = attackRate;
+    node["releaseRate"] = releaseRate;
+    node["reduceHighPitch"] = reduceHighPitch;
+    node["strength"] = strength;
+    node["minThresh"] = minThresh;
+    node["velocityThresh"] = velocityThresh;
+
+    return node;
+}
+
+void PrerenderedEngine::LoadSettings(const YAML::Node& node)
+{
+    if (!node) return;
+
+    if (node["maxVoices"]) maxVoices = node["maxVoices"].as<int>();
+    if (node["noFx"]) noFx = node["noFx"].as<bool>();
+    if (node["bufferSeconds"]) bufferSeconds = node["bufferSeconds"].as<double>();
+
+    if (node["soundfonts"] && node["soundfonts"].IsSequence())
+    {
+        soundfontPaths.clear();
+        for (const auto& sf : node["soundfonts"])
         {
-            std::filesystem::create_directories(std::filesystem::path(defaultPath).parent_path());
-
-            HRSRC rc = FindResourceW(
-                NULL,
-                MAKEINTRESOURCEW(IDR_SOUNDFONT),
-                MAKEINTRESOURCEW(10)
-            );
-            if (!rc) throw std::runtime_error("Failed to load embedded Soundfont");
-
-            HGLOBAL rcData = LoadResource(NULL, rc);
-            int rSize = SizeofResource(NULL, rc);
-            unsigned char* data = (unsigned char*)LockResource(rcData);
-            if (!data) throw std::runtime_error("That's funny... the embedded soundfont data failed to load!");
-
-            std::ofstream file;
-            file.open(defaultPath, std::ios::binary);
-            file.write((char*)data, rSize);
-            file.close();
+            soundfontPaths.push_back(sf.as<std::string>());
         }
-        paths = { defaultPath };
-        soundfontPaths = { ConvertFromWideString(defaultPath) };
     }
 
-    BASSMIDI::LoadSoundfonts(paths);
+    if (node["attackRate"]) attackRate = node["attackRate"].as<double>();
+    if (node["releaseRate"]) releaseRate = node["releaseRate"].as<double>();
+    if (node["reduceHighPitch"]) reduceHighPitch = node["reduceHighPitch"].as<bool>();
+    if (node["strength"]) strength = node["strength"].as<double>();
+    if (node["minThresh"]) minThresh = node["minThresh"].as<double>();
+    if (node["velocityThresh"]) velocityThresh = node["velocityThresh"].as<double>();
+
+    ResizeBuffer(bufferSeconds);
 }
 
-void PrerenderedEngine::WrappedCopy(float* src, int pos, int srcCount, float* dst, int pos2, int count)
-{
-    if (pos + count > srcCount)
-    {
-        memcpy(dst + pos2, src + pos, (srcCount - pos) * sizeof(float));
-        count -= (srcCount - pos);
-        pos = 0;
-    }
-    memcpy(dst + pos2, src + pos, count * sizeof(float));
-}
-
-void PrerenderedEngine::ResizeBuffer(double newBufferLengthSecs)
-{
-    if (newBufferLengthSecs < BUFFER_SECS_MIN) newBufferLengthSecs = BUFFER_SECS_MIN;
-    if (newBufferLengthSecs > BUFFER_SECS_MAX) newBufferLengthSecs = BUFFER_SECS_MAX;
-
-    awaitingReset.store(true);
-
-    bool wasPlaying = isPlaying;
-    if (renderThread.joinable())
-    {
-        stopFlag = true;
-        renderThread.join();
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(bufferMutex);
-        free(audioBuffer);
-
-        bufferSeconds = newBufferLengthSecs;
-        bufferLength = SAMPLE_RATE * 2 * newBufferLengthSecs;
-        audioBuffer = (float*)malloc(bufferLength * sizeof(float));
-        memset(audioBuffer, 0, bufferLength * sizeof(float));
-
-        bufferWritePos = 0;
-        bufferReadPos = 0;
-    }
-
-    awaitingReset.store(false);
-
-    if (wasPlaying && seq && timer)
-    {
-        StartPrerender(true, GetPlayerTime());
-    }
-}
 #endif

@@ -30,6 +30,10 @@ public:
 	MIDIApp(MainWindow* mainWindow);
 	~MIDIApp()
 	{
+		if (midiAudio)
+		{
+			config.audioSettings = midiAudio->GetSettings();
+		}
 		config.SaveConfig();
 		Models::UnloadModels();
 	}
