@@ -33,6 +33,8 @@ namespace Utils
 	std::string DecodeBase64(const std::string& encoded);
 	void OpenURL(const std::string& url);
 	void OpenFolder(const std::string& path);
+	bool FileExists(const std::string& path);
+	bool FileExists(const std::wstring& path);
 	bool FolderExists(const std::string& path);
 	template <typename T>
 	double GetCurrTime()

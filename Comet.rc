@@ -1,3 +1,4 @@
 #include "resource.h"
 
 IDI_ICON1 ICON "assets/icons/icon32.ico"
+IDR_SOUNDFONT RCDATA "assets/soundfonts/GeneralUser-GS.sf2"
