@@ -32,6 +32,8 @@ MainWindow::MainWindow(const char* title)
 	ImGui::CreateContext();
 	CometDefaultThemes::InitializeDefaultThemes();
 	InitializeTheme();
+	// load fonts here
+	midiApp->BuildFontAtlas();
 	ImGuiIO& io = ImGui::GetIO();
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
 	

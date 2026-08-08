@@ -158,6 +158,16 @@ void MIDIApp::LoadResources()
 	midiAudio->GetCurrentEngine()->Initialize();
 }
 
+void MIDIApp::BuildFontAtlas()
+{
+	fontList = std::make_unique<FontList>();
+
+	auto& io = ImGui::GetIO();
+	io.Fonts->AddFontDefault();
+
+	fontList->RegisterFontsIntoAtlas(io.Fonts, 18.0f);
+}
+
 void MIDIApp::LoadColorPalettes()
 {
 	if (colorList == nullptr)

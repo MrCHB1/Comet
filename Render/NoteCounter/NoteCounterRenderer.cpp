@@ -66,6 +66,20 @@ void NoteCounterRenderer::Render(float heightOffset)
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(-10.0f, 2.0f));
 
+	// font magic
+	ImFont* fontToUse = nullptr;
+	for (const auto& f : app->GetFontList()->GetFonts())
+	{
+		if (f.path == config->overlayInfo.selectedFontPath)
+		{
+			fontToUse = f.font;
+			break;
+		}
+	}
+
+	if (fontToUse) ImGui::PushFont(fontToUse);
+	else ImGui::PushFont(Fonts::MonoFont);
+
 	if (ImGui::Begin("noteCounter", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar))
 	{
 		ImGui::SetWindowFontScale(counterScale);
@@ -75,8 +89,6 @@ void NoteCounterRenderer::Render(float heightOffset)
 
 			ImGui::TableSetupColumn("Name");
 			ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoClip);
-
-			ImGui::PushFont(Fonts::MonoFont);
 
 			// height calculation may be tricky lol
 			if (noteCounterInfo->tick.shown)
@@ -128,8 +140,6 @@ void NoteCounterRenderer::Render(float heightOffset)
 				FormatText(buf, "%.1f", noteCounterInfo->fps.value);
 				RightAlignedTableText(buf);
 			}
-			
-			ImGui::PopFont();
 
 			lastCounterWidth = ImGui::GetWindowWidth();
 			lastCounterHeight = ImGui::GetWindowHeight();
@@ -141,6 +151,8 @@ void NoteCounterRenderer::Render(float heightOffset)
 	ImGui::End();
 	ImGui::PopStyleVar(3);
 	ImGui::PopStyleColor(2);
+
+	ImGui::PopFont();
 }
 
 void NoteCounterRenderer::OnResize(int width, int height)
