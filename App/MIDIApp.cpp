@@ -11,6 +11,10 @@
 #include "FFmpeg/FFmpegCommandBuilder.h"
 #include "Utils.h"
 #include "../Render/MIDIRendererPFA.h"
+#include "../Render/MIDIRendererEnhanced.h"
+#include "../Render/MIDIRendererChannels.h"
+#include "../Render/MIDIRendererMIDITrail.h"
+#include "../Render/MIDIRendererVelocities.h"
 
 MIDIApp::MIDIApp(MainWindow* mainWindow)
 {
@@ -109,7 +113,33 @@ void MIDIApp::LoadResources()
 #ifdef COMET_DEBUG
 	std::cout << std::endl << "[MIDIApp] Initializing render engine...\n" << std::endl;
 #endif
-	SetRenderer<MIDIRendererPFA>();
+	RendererType currRenderer = config.render.GetCurrentRenderer();
+	
+	switch (currRenderer)
+	{
+		case RendererType::PFA:
+			SetRenderer<MIDIRendererPFA>();
+			break;
+		case RendererType::Default:
+			SetRenderer<MIDIRenderer>();
+			break;
+		case RendererType::Enhanced:
+			SetRenderer<MIDIRendererEnhanced>();
+			break;
+		case RendererType::MIDITrail:
+			SetRenderer<MIDIRendererMIDITrail>();
+			break;
+		case RendererType::Channels:
+			SetRenderer<MIDIRendererChannels>();
+			break;
+		case RendererType::Velocities:
+			SetRenderer<MIDIRendererVelocities>();
+			break;
+		default:
+			SetRenderer<MIDIRendererPFA>();
+			break;
+	}
+
 	blurredQuadRenderer = std::make_unique<BlurredQuadRenderer>();
 	blurredQuadRenderer->SetSceneTexture(renderer->GetSceneTexture());
 	
