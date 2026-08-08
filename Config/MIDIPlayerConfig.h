@@ -25,6 +25,7 @@ struct MIDIPlayerConfig
 		static constexpr float MAX_SCALE = 8.0f;
 
 		float scale = 1.0f;
+		std::string selectedFontPath = "";
 		bool showDuration = false;
 	};
 

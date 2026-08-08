@@ -377,6 +377,44 @@ void SettingsDialog::DrawVisualTab()
 				if (ImGui::RadioButton("Top Right", alignment == NoteCounterAlignment::TopRight))
 					counterRenderer->SetCounterAlignment(NoteCounterAlignment::TopRight);
 
+				// ======== FONTS ========
+				FontList* fontList = app->GetFontList();
+				std::vector<FontEntry>& fonts = fontList->GetFonts();
+
+				std::string currentFontName = "Default";
+				for (const auto& f : fonts)
+				{
+					if (f.path == config->overlayInfo.selectedFontPath)
+					{
+						currentFontName = f.name;
+						break;
+					}
+				}
+
+				ImGui::Text("Font");
+				ImGui::SameLine();
+				if (ImGui::BeginCombo("##counterFontCombo", currentFontName.c_str()))
+				{
+					if (ImGui::Selectable("Default", config->overlayInfo.selectedFontPath.empty()))
+					{
+						config->overlayInfo.selectedFontPath = "";
+					}
+
+					for (const auto& f : fonts)
+					{
+						bool isSelected = (config->overlayInfo.selectedFontPath == f.path);
+						if (ImGui::Selectable(f.name.c_str(), isSelected))
+						{
+							config->overlayInfo.selectedFontPath = f.path;
+						}
+
+						if (isSelected)
+						{
+							ImGui::SetItemDefaultFocus();
+						}
+					}
+					ImGui::EndCombo();
+				}
 
 				ImGui::Text("Background color");
 				ImGui::SameLine();

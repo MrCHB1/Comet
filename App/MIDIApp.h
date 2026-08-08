@@ -21,6 +21,7 @@
 #include <chrono>
 #include "Models.h"
 #include "UI/Themes/Themes.h"
+#include "FontList.h"
 
 class MainWindow;
 
@@ -112,6 +113,11 @@ public:
 		return themesList.get();
 	}
 
+	FontList* GetFontList()
+	{
+		return fontList.get();
+	}
+
 	NoteCounterInfo* GetNoteCounterInfo()
 	{
 		return noteCounterInfo.get();
@@ -164,6 +170,8 @@ public:
 		return rendering.load();
 	}
 
+	void BuildFontAtlas();
+
 	void Update();
 	void RunFrame();
 	void CaptureFrame();
@@ -189,6 +197,7 @@ private:
 	MIDIPlayerConfig config;
 
 	std::unique_ptr<ThemesList> themesList;
+	std::unique_ptr<FontList> fontList;
 	std::unique_ptr<AbstractMIDIRenderer> renderer;
 	std::unique_ptr<NavigationBar> navigationBar;
 	std::shared_ptr<NoteCounterInfo> noteCounterInfo;
