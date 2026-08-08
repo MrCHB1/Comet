@@ -1372,4 +1372,5 @@ void MIDIRendererEnhanced::LoadSettings(const YAML::Node& node)
     }
 
     SetupUniforms();
+    if (rendererSettings.msaa != MSAASetting::None) UpdateMSAAFramebuffer();
 }
