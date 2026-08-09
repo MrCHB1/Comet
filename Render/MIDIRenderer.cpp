@@ -907,9 +907,10 @@ void MIDIRenderer::RenderNotes()
 			{
 				while (noteBegin > 0)
 				{
+					size_t prev = noteBegin - 1;
 					double noteEnd = isTimeBased
-						? (double)(notesNote.tick[noteBegin - 1] + notesNote.gate[noteBegin - 1]) * invTimeMultiplier
-						: (double)(notesNote.tick[noteBegin - 1] + notesNote.gate[noteBegin - 1]);
+						? (double)(notesNote.tick[prev] + notesNote.gate[prev]) * invTimeMultiplier
+						: (double)(notesNote.tick[prev] + notesNote.gate[prev]);
 
 					if (noteEnd <= accTime) break;
 					--noteBegin;
@@ -1035,7 +1036,16 @@ void MIDIRenderer::RenderNotes()
 	if (!noteCounterInfo->npsHistory.empty())
 	{
 		uint64_t notesOneSecondAgo = noteCounterInfo->npsHistory.front().totalNotes;
-		noteCounterInfo->notesPerSecond.value = static_cast<uint64_t>(notesPassed) - notesOneSecondAgo;
+		uint64_t currentNotes = static_cast<uint64_t>(notesPassed);
+
+		if (currentNotes >= notesOneSecondAgo)
+		{
+			noteCounterInfo->notesPerSecond.value = currentNotes - notesOneSecondAgo;
+		}
+		else
+		{
+			noteCounterInfo->notesPerSecond.value = 0;
+		}
 	}
 	else
 	{
