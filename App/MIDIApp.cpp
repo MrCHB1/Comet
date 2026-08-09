@@ -42,7 +42,7 @@ void MIDIApp::LoadMIDI(const char* path)
 	std::shared_ptr<AbstractMIDILoader> loader = CreateLoader(path);
 	prog = loader;
 
-	std::thread([this, loader, path]() {
+	std::thread([this, loader, pathStr = std::string(path)]() {
 		std::shared_ptr<MIDISequence> seq;
 		try
 		{
@@ -75,7 +75,7 @@ void MIDIApp::LoadMIDI(const char* path)
 
 			// this->audioThread->Start(seq, this->timer);
 			this->midiAudio->Start(seq, this->timer);
-			std::filesystem::path filePath = path;
+			std::filesystem::path filePath = pathStr;
 			this->mainWindow->SetTitleInfo(filePath.filename().string());
 		}
 	}).detach();

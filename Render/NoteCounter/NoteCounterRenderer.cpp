@@ -229,6 +229,12 @@ void NoteCounterRenderer::RenderMIDITrail(float counterScale)
 			hasFirstField = true;
 		}
 
+		if (noteCounterInfo->fps.shown && !app->IsRendering())
+		{
+			if (hasFirstField) stats << "  ";
+			stats << "FPS:" << std::fixed << std::setprecision(1) << noteCounterInfo->fps.value;
+		}
+
 		ImGui::Text(stats.str().c_str());
 
 		lastCounterWidth = ImGui::GetWindowWidth();
