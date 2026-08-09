@@ -12,6 +12,7 @@
 #include "resource.h"
 #include <Windows.h>
 #include <sstream>
+#include "App/Dialog/DialogMacros.h"
 
 // helper to convert char* to wchar_t* for BASSMIDI Soundfont loading
 static std::wstring ConvertToWideString(const std::string& str)
@@ -387,6 +388,7 @@ void PrerenderedEngine::RenderLoop(double initialStartTime)
 void PrerenderedEngine::TimerLoop()
 {
     bool lastPaused = false;
+    float lastTimerTime = -1.0f;
     while (!timerCheckStop)
     {
         std::shared_ptr<MIDITimer> currentTimer;
@@ -397,18 +399,19 @@ void PrerenderedEngine::TimerLoop()
 
         if (currentTimer)
         {
+            const float currTime = currentTimer->Elapsed();
+            const bool paused = currentTimer->IsPaused();
+
             if (currentTimer->HasNavigatedRecently())
             {
-                StartPrerender(false, currentTimer->Elapsed());
+                const bool seekBack = currTime < lastTimerTime;
+                StartPrerender(seekBack, currTime);
+                lastTimerTime = currTime;
             }
 
-            bool paused = currentTimer->IsPaused();
-            if (paused != lastPaused)
+            if (lastPaused && !paused)
             {
-                if (!paused)
-                {
-                    SyncPlayer(currentTimer->Elapsed());
-                }
+                SyncPlayer(currTime);
             }
 
             lastPaused = paused;
@@ -452,7 +455,8 @@ void PrerenderedEngine::StartPrerender(bool force, double time)
 {
     if (!force)
     {
-        if (time + 0.1 > GetPlayerTime() + GetBufferSeconds() || time + 0.01 < GetPlayerTime())
+        const double playerTime = GetPlayerTime();
+        if (time + 0.1 > playerTime + GetBufferSeconds() || time + 0.01 < playerTime)
         {
             force = true;
         }
@@ -674,34 +678,45 @@ void PrerenderedEngine::RenderSettings()
     {
         if (ImGui::BeginTabItem("General"))
         {
-            ImGui::Text("Prerendered Engine Settings");
-            ImGui::Separator();
-
-            ImGui::Text("Voices");
-            ImGui::SameLine();
-            if (ImGui::InputInt("##maxVoices", &maxVoices))
+            SECTION_HEADER("Engine Settings");
+            BEGIN_SECTION("##engineSettings")
             {
-                if (maxVoices > 100000) maxVoices = 100000;
-                if (maxVoices < 32) maxVoices = 32;
-                shouldApplyChanges = true;
+                SETUP_SECTION;
+
+                SECTION_ENTRY(SECTION_LABEL("Voices"),
+                    {
+                        if (ImGui::InputInt("##maxVoices", &maxVoices))
+                        {
+                            if (maxVoices > 100000) maxVoices = 100000;
+                            if (maxVoices < 32) maxVoices = 32;
+                            shouldApplyChanges = true;
+                        }
+                    });
+
+                SECTION_ENTRY(
+                    TABLE_LABEL_TOOLTIP(
+                        "Disable effects",
+                        "Disables various effects such as reverb and chorus. This may speed up rendering."
+                    ),
+                    {
+                        if (ImGui::Checkbox("##noFx", &noFx)) shouldApplyChanges = true;
+
+                    });
+
+                SECTION_ENTRY(SECTION_LABEL("Buffer length (s)"),
+                    {
+                        float bufferLength = this->bufferSeconds;
+                        if (ImGui::SliderFloat("##bufferLength", &bufferLength, BUFFER_SECS_MIN, BUFFER_SECS_MAX))
+                        {
+                            ResizeBuffer(bufferLength);
+                            shouldApplyChanges = true;
+                        }
+                        ImGui::Text("RAM Usage: %i bytes", this->bufferLength * sizeof(float));
+                    });
+
+                END_SECTION;
             }
 
-            ImGui::Text("Disable effects");
-            ImGui::SameLine();
-            if (ImGui::Checkbox("##noFx", &noFx)) shouldApplyChanges = true;
-            ImGui::SetItemTooltip("Disables various effects such as reverb and chorus. This may speed up rendering.");
-
-            ImGui::Spacing();
-
-            float bufferLength = this->bufferSeconds;
-            ImGui::Text("Buffer length (s)");
-            ImGui::SameLine();
-            if (ImGui::SliderFloat("##bufferLength", &bufferLength, BUFFER_SECS_MIN, BUFFER_SECS_MAX))
-            {
-                ResizeBuffer(bufferLength);
-                shouldApplyChanges = true;
-            }
-            ImGui::Text("RAM Usage: %i bytes", this->bufferLength * sizeof(float));
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Soundfonts"))
@@ -792,21 +807,30 @@ void PrerenderedEngine::RenderSettings()
         }
         if (ImGui::BeginTabItem("Limiter"))
         {
-            float attackRate = this->attackRate;
-            ImGui::Text("Attack Rate");
-            ImGui::SameLine();
-            ImGui::SliderFloat("##limAttack", &attackRate, 0.1, 1.5);
-            if (attackRate < 0.1) attackRate = 0.1;
-            if (attackRate > 1.5) attackRate = 1.5;
-            this->attackRate = attackRate;
+            BEGIN_SECTION("##limiter")
+            {
+                SETUP_SECTION;
+                
+                SECTION_ENTRY(SECTION_LABEL("Attack rate"),
+                    {
+                        float attackRate = this->attackRate;
+                        ImGui::SliderFloat("##limAttack", &attackRate, 0.1, 1.5);
+                        if (attackRate < 0.1) attackRate = 0.1;
+                        if (attackRate > 1.5) attackRate = 1.5;
+                        this->attackRate = attackRate;
+                    });
 
-            float releaseRate = this->releaseRate;
-            ImGui::Text("Release Rate");
-            ImGui::SameLine();
-            ImGui::SliderFloat("##limRelease", &releaseRate, 0.005, 0.1);
-            if (releaseRate < 0.005) releaseRate = 0.005;
-            if (releaseRate > 0.1) releaseRate = 0.1;
-            this->releaseRate = releaseRate;
+                SECTION_ENTRY(SECTION_LABEL("Release rate"),
+                    {
+                        float releaseRate = this->releaseRate;
+                        ImGui::SliderFloat("##limRelease", &releaseRate, 0.005, 0.1);
+                        if (releaseRate < 0.005) releaseRate = 0.005;
+                        if (releaseRate > 0.1) releaseRate = 0.1;
+                        this->releaseRate = releaseRate;
+                    });
+
+                END_SECTION;
+            }
 
             ImGui::EndTabItem();
         }

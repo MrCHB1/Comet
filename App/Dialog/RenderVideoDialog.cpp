@@ -13,6 +13,8 @@
 #include <unistd.h>
 #endif
 
+#include "DialogMacros.h"
+
 std::filesystem::path GetBinaryDirectory()
 {
 #if defined(_WIN32)
@@ -71,275 +73,386 @@ void RenderVideoDialog::DetectFFmpeg()
 
 void RenderVideoDialog::DrawContent()
 {
-	bool hasSequence = app->hasSequence;
-	bool canRender = hasSequence && hasFFmpeg;
+    bool hasSequence = app->hasSequence;
+    bool canRender = hasSequence && hasFFmpeg;
 
-	// TODO: preview window here
-	ImGui::SetWindowFontScale(1.5f);
-	ImGui::Text("Input");
-	ImGui::SetWindowFontScale(1.0f);
+    SECTION_HEADER_LARGE("Input");
+    BEGIN_SECTION("##input")
+    {
+        SETUP_SECTION;
 
-	ImGui::Text("FFmpeg executable");
-	ImGui::SameLine();
-	ImGui::SetNextItemWidth(300);
-	
-	if (hasFFmpeg)
-	{
-		ImGui::Text("FFmpeg is installed!");
-	}
-	else
-	{
-		ImGui::TextColored(ImVec4(0.5f, 0.0f, 0.0f, 1.0f), "No ffmpeg found! Please download it to render videos.");
-	}
-	
-	if (ImGui::SmallButton("Get FFMPEG"))
-	{
-		// open browser to ffmpeg download page
-		Utils::OpenURL(FFMPEG_DOWNLOAD_URL);
-	}
+        SECTION_ENTRY(SECTION_LABEL("FFmpeg executable"),
+            {
+                if (hasFFmpeg)
+                {
+                    ImGui::Text("FFmpeg is installed!");
+                }
+                else
+                {
+                    ImGui::TextColored(
+                        ImVec4(0.5f, 0.0f, 0.0f, 1.0f),
+                        "No FFmpeg found!"
+                    );
 
-	if (!hasFFmpeg)
-	{
-		ImGui::SameLine();
-		if (ImGui::SmallButton("Detect FFMPEG"))
-		{
-			DetectFFmpeg();
-		}
-	}
+                    if (ImGui::SmallButton("Get FFmpeg"))
+                    {
+                        Utils::OpenURL(FFMPEG_DOWNLOAD_URL);
+                    }
 
-	ImGui::Text("MIDI");
-	ImGui::SameLine();
-	if (hasSequence)
-	{
-		ImGui::Text("Will render the currently loaded MIDI");
-	}
-	else
-	{
-		ImGui::TextColored(ImVec4(0.5f, 0.0f, 0.0f, 1.0f), "You need to load a MIDI first before rendering.");
-	}
+                    ImGui::SameLine();
 
-	ImGui::Text("Include Audio");
-	ImGui::SameLine();
-	ImGui::Checkbox("##includeAudio", &renderSettings.includeAudio);
-	if (renderSettings.includeAudio)
-	{
-		Utils::AddFilePickerField("", renderSettings.audioPath, "mp3,ogg,wav,flac");
-	}
+                    if (ImGui::SmallButton("Detect FFmpeg"))
+                    {
+                        DetectFFmpeg();
+                    }
+                }
+            });
 
-	ImGui::Separator();
-	ImGui::SetWindowFontScale(1.5f);
-	ImGui::Text("Render Item");
-	ImGui::SetWindowFontScale(1.0f);
+        SECTION_ENTRY(SECTION_LABEL("MIDI"),
+            {
+                if (hasSequence)
+                {
+                    ImGui::Text("Will render the currently loaded MIDI");
+                }
+                else
+                {
+                    ImGui::TextColored(
+                        ImVec4(0.5f, 0.0f, 0.0f, 1.0f),
+                        "No MIDI loaded"
+                    );
+                }
+            });
 
-	if (ImGui::BeginChild("RenderItem", ImVec2(0, 400), true, ImGuiWindowFlags_HorizontalScrollbar))
-	{
-		ImGui::Text("OUTPUT");
-		ImGui::NewLine();
+        SECTION_ENTRY(SECTION_LABEL("Include audio"),
+            {
+                ImGui::Checkbox(
+                    "##includeAudio",
+                    &renderSettings.includeAudio
+                );
 
-		ImGui::Text("Type");
+                if (renderSettings.includeAudio)
+                {
+                    Utils::AddFilePickerField(
+                        "",
+                        renderSettings.audioPath,
+                        "mp3,ogg,wav,flac"
+                    );
+                }
+            });
+    }
+    END_SECTION;
 
-		ImGui::SameLine();
-		if (ImGui::RadioButton("mp4", renderSettings.outputFormat == RenderOutputFormat::MP4))
-			renderSettings.outputFormat = RenderOutputFormat::MP4;
+    SECTION_HEADER_LARGE("Output");
+    BEGIN_SECTION("##output")
+    {
+        SETUP_SECTION;
 
-		ImGui::SameLine();
-		if (ImGui::RadioButton("mov", renderSettings.outputFormat == RenderOutputFormat::MOV))
-			renderSettings.outputFormat = RenderOutputFormat::MOV;
+        SECTION_ENTRY(SECTION_LABEL("Format"),
+            {
+                IMGUI_RADIO_BUTTON("MP4", renderSettings.outputFormat, RenderOutputFormat::MP4); ImGui::SameLine();
+                IMGUI_RADIO_BUTTON("MOV", renderSettings.outputFormat, RenderOutputFormat::MOV); ImGui::SameLine();
+                IMGUI_RADIO_BUTTON("AVI", renderSettings.outputFormat, RenderOutputFormat::AVI);
+            });
 
-		ImGui::SameLine();
-		if (ImGui::RadioButton("avi", renderSettings.outputFormat == RenderOutputFormat::AVI))
-			renderSettings.outputFormat = RenderOutputFormat::AVI;
+        SECTION_ENTRY(
+            TABLE_LABEL_TOOLTIP(
+                "GPU encoding",
+                "Use hardware-accelerated FFmpeg encoders when available."
+            ),
+            {
+                ImGui::Checkbox(
+                    "##gpuEncoding",
+                    &renderSettings.useGPUEncoding
+                );
+            });
 
-		ImGui::Text("Use GPU-Accelerated Encoders");
-		ImGui::SameLine();
-		ImGui::Checkbox("##gpuEncoding", &renderSettings.useGPUEncoding);
+        SECTION_ENTRY(SECTION_LABEL("Codec"),
+            {
+                if (renderSettings.useGPUEncoding)
+                {
+                    if (gpuEncoder == nullptr)
+                    {
+                        gpuEncoder = std::make_unique<FFmpegGPU>();
+                        renderSettings.gpuEncoder =
+                            gpuEncoder->GetCurrentEncoder();
+                    }
 
-		ImGui::Text("Codec");
+                    bool gpuEncoderAvailable = false;
 
-		if (renderSettings.useGPUEncoding)
-		{
-			if (gpuEncoder == nullptr)
-			{
-				gpuEncoder = std::make_unique<FFmpegGPU>();
-				renderSettings.gpuEncoder = gpuEncoder->GetCurrentEncoder();
-			}
-			
-			bool gpuEncoderAvailable = true;
-			if (gpuEncoder != nullptr)
-			{
-				const std::vector<std::string>& encoderList = gpuEncoder->GetEncoderList();
-				if (encoderList.size() == 0)
-				{
-					gpuEncoderAvailable = false;
-				}
-				else
-				{
-					for (const auto& encoder : encoderList)
-					{
-						ImGui::SameLine();
-						if (ImGui::RadioButton(encoder.c_str(), encoder == renderSettings.gpuEncoder))
-							renderSettings.gpuEncoder = encoder;
-					}
-				}
-			}
-			else
-			{
-				gpuEncoderAvailable = false;
-			}
+                    if (gpuEncoder != nullptr)
+                    {
+                        const auto& encoderList =
+                            gpuEncoder->GetEncoderList();
 
-			if (!gpuEncoderAvailable)
-			{
-				ImGui::SameLine();
-				ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.0f, 1.0f), "GPU Encoding is not currently available on your system. Ensure FFmpeg is installed properly and your drivers are updated.");
-			}
-		}
-		else
-		{
-			ImGui::SameLine();
-			if (ImGui::RadioButton("H.264", renderSettings.codec == RenderCodec::H264))
-				renderSettings.codec = RenderCodec::H264;
+                        if (!encoderList.empty())
+                        {
+                            gpuEncoderAvailable = true;
 
-			ImGui::SameLine();
-			if (ImGui::RadioButton("H.265", renderSettings.codec == RenderCodec::H265))
-				renderSettings.codec = RenderCodec::H265;
-		}
-		
+                            for (const auto& encoder : encoderList)
+                            {
+                                IMGUI_RADIO_BUTTON(
+                                    encoder.c_str(),
+                                    renderSettings.gpuEncoder,
+                                    encoder
+                                );
 
-		ImGui::Checkbox("Type encoding options (for advanced FFMpeg users)", &renderSettings.allowAdvancedEncoding);
-		if (renderSettings.allowAdvancedEncoding)
-		{
-			// char* buf = renderSettings.advancedEncodingOptions.data();
-			static char buf[4096];
-			strncpy(buf, renderSettings.advancedEncodingOptions.c_str(), sizeof(buf));
-			if (ImGui::InputTextMultiline("##advancedOptions", buf, sizeof(buf)))
-			{
-				renderSettings.advancedEncodingOptions = buf;
-			}
-		}
+                                ImGui::SameLine();
+                            }
 
-		ImGui::Separator();
-		ImGui::Text("ENCODING");
-		ImGui::NewLine();
+                            ImGui::NewLine();
+                        }
+                    }
 
-		ImGui::Text("Preset");
-		ImGui::SameLine();
-		if (ImGui::BeginCombo("##presetCombo", FFmpegCommandBuilder::GetPreset(renderSettings.encodingPreset)))
-		{
-			for (int i = 0; i <= RenderEncodingPreset::PLACEBO; i++)
-			{
-				const char* presetName = "";
-				switch (i)
-				{
-					case RenderEncodingPreset::ULTRAFAST: presetName = "ultrafast"; break;
-					case RenderEncodingPreset::SUPERFAST: presetName = "superfast"; break;
-					case RenderEncodingPreset::VERYFAST: presetName = "veryfast"; break;
-					case RenderEncodingPreset::FASTER: presetName = "faster"; break;
-					case RenderEncodingPreset::FAST: presetName = "fast"; break;
-					case RenderEncodingPreset::MEDIUM: presetName = "medium"; break;
-					case RenderEncodingPreset::SLOW: presetName = "slow"; break;
-					case RenderEncodingPreset::SLOWER: presetName = "slower"; break;
-					case RenderEncodingPreset::VERYSLOW: presetName = "veryslow"; break;
-					case RenderEncodingPreset::PLACEBO: presetName = "placebo"; break;
-				}
-				bool selected = (renderSettings.encodingPreset == i);
-				if (ImGui::Selectable(presetName, selected))
-					renderSettings.encodingPreset = static_cast<RenderEncodingPreset>(i);
-				
-				if (selected)
-					ImGui::SetItemDefaultFocus();
-			}
-			ImGui::EndCombo();
-		}
+                    if (!gpuEncoderAvailable)
+                    {
+                        ImGui::TextColored(
+                            ImVec4(0.5f, 0.5f, 0.0f, 1.0f),
+                            "GPU encoding is not currently available. "
+                            "Ensure FFmpeg is installed properly and "
+                            "your drivers are updated."
+                        );
+                    }
+                }
+                else
+                {
+                    IMGUI_RADIO_BUTTON("H.264", renderSettings.codec, RenderCodec::H264); ImGui::SameLine();
+                    IMGUI_RADIO_BUTTON("H.265", renderSettings.codec, RenderCodec::H265); 
+                }
+            });
 
-		ImGui::Text("Target bitrate");
-		if (ImGui::RadioButton("Constant", renderSettings.encodingBitrate == RenderEncodingBitrate::CONSTANT))
-			renderSettings.encodingBitrate = RenderEncodingBitrate::CONSTANT;
-		ImGui::SameLine();
-		if (ImGui::RadioButton("Variable", renderSettings.encodingBitrate == RenderEncodingBitrate::VARIABLE))
-			renderSettings.encodingBitrate = RenderEncodingBitrate::VARIABLE;
+        SECTION_ENTRY(
+            TABLE_LABEL_TOOLTIP(
+                "Advanced options",
+                "Additional FFmpeg encoding options for advanced users. Only use this if you know what you're doing."
+            ),
+            {
+                ImGui::Checkbox("##advancedEncoding", &renderSettings.allowAdvancedEncoding);
 
-		if (renderSettings.encodingBitrate == RenderEncodingBitrate::CONSTANT)
-		{
-			ImGui::InputInt("Bitrate (Kbps)", &renderSettings.bitrateKbps);
-			if (renderSettings.bitrateKbps < 0) renderSettings.bitrateKbps = 0;
-		}
-		else
-		{
-			ImGui::InputInt("CRF", &renderSettings.crf);
-			CLAMP_VALUE(renderSettings.crf, 0, 51)
-		}
+                if (renderSettings.allowAdvancedEncoding)
+                {
+                    static char buf[4096];
 
-		ImGui::Separator();
-		ImGui::Text("RENDERING");
-		ImGui::NewLine();
+                    strncpy(buf, renderSettings.advancedEncodingOptions.c_str(), sizeof(buf));
 
-		ImGui::Text("Resolution");
-		ImGui::SameLine();
-		ImGui::SetNextItemWidth(100);
-		ImGui::InputInt("##width", &renderSettings.width, 0, 0);
-		CLAMP_VALUE(renderSettings.width, 128, 16384)
+                    buf[sizeof(buf) - 1] = '\0';
 
-		ImGui::SameLine();
-		ImGui::Text("x");
-		ImGui::SameLine();
-		ImGui::SetNextItemWidth(100);
-		ImGui::InputInt("##height", &renderSettings.height, 0, 0);
-		CLAMP_VALUE(renderSettings.height, 128, 16384);
+                    if (ImGui::InputTextMultiline("##advancedOptions", buf, sizeof(buf), ImVec2(-FLT_MIN, 100)))
+                    {
+                        renderSettings.advancedEncodingOptions = buf;
+                    }
+                }
+            });
 
-		ImGui::Text("Framerate");
-		ImGui::SameLine();
-		ImGui::SetNextItemWidth(100);
-		ImGui::InputInt("##framerate", &renderSettings.fps, 0, 0);
-		if (renderSettings.fps < 1) renderSettings.fps = 1;
+        END_SECTION;
+    }
 
-		const char* extension;
-		switch (renderSettings.outputFormat)
-		{
-			case RenderOutputFormat::AVI: extension = "avi"; break;
-			case RenderOutputFormat::MP4: extension = "mp4"; break;
-			case RenderOutputFormat::MOV: extension = "mov"; break;
-		}
+    SECTION_HEADER_LARGE("Encoding");
+    BEGIN_SECTION("##encoding")
+    {
+        SETUP_SECTION;
 
-		Utils::AddFilePickerField("Output path", renderSettings.outputPath, extension, true);
-		if (renderSettings.outputPath.empty())
-		{
-			ImGui::TextColored(ImVec4(0.5f, 0.0f, 0.0f, 1.0f), "Please specify the video's output path.");
-			canRender = false;
-		}
+        SECTION_ENTRY(SECTION_LABEL("Preset"),
+            {
+                if (ImGui::BeginCombo("##presetCombo", FFmpegCommandBuilder::GetPreset(renderSettings.encodingPreset)))
+                {
+                    for (int i = 0; i <= RenderEncodingPreset::PLACEBO; i++)
+                    {
+                        const char* presetName = "";
 
-		ImGui::Text("Render transparency mask");
-		ImGui::SameLine();
-		ImGui::Checkbox("##transparencyMaskCheckbox", &renderSettings.renderTransparencyMask);
-		if (renderSettings.renderTransparencyMask)
-		{
-			Utils::AddFilePickerField("Mask output path", renderSettings.maskOutputPath, extension, true);
-			if (renderSettings.maskOutputPath.empty())
-			{
-				ImGui::TextColored(ImVec4(0.5f, 0.0f, 0.0f, 1.0f), "Please specify the transparency mask's output path.");
-				canRender = false;
-			}
-		}
+                        switch (i)
+                        {
+                            case RenderEncodingPreset::ULTRAFAST:
+                                presetName = "ultrafast";
+                                break;
 
-		ImGui::EndChild();
-	}
+                            case RenderEncodingPreset::SUPERFAST:
+                                presetName = "superfast";
+                                break;
 
-	ImGui::BeginDisabled(!canRender);
-	if (ImGui::Button("Render!", ImVec2(-FLT_MIN, 0)))
-	{
-		app->RenderMIDIVideo(renderSettings);
-	}
-	if (ImGui::IsItemHovered())
-	{
-		ImGui::SetTooltip("Press 'esc' to cancel the render at any time. Video will be saved.");
-	}
-	ImGui::EndDisabled();
-	if (!canRender)
-	{
-		ImGui::TextColored(ImVec4(0.5f, 0.0f, 0.0f, 1.0f), "Cannot render; check above for errors.");
-	}
+                            case RenderEncodingPreset::VERYFAST:
+                                presetName = "veryfast";
+                                break;
 
-	if (ImGui::Button("Close"))
-	{
-		ImGui::CloseCurrentPopup();
-	}
+                            case RenderEncodingPreset::FASTER:
+                                presetName = "faster";
+                                break;
+
+                            case RenderEncodingPreset::FAST:
+                                presetName = "fast";
+                                break;
+
+                            case RenderEncodingPreset::MEDIUM:
+                                presetName = "medium";
+                                break;
+
+                            case RenderEncodingPreset::SLOW:
+                                presetName = "slow";
+                                break;
+
+                            case RenderEncodingPreset::SLOWER:
+                                presetName = "slower";
+                                break;
+
+                            case RenderEncodingPreset::VERYSLOW:
+                                presetName = "veryslow";
+                                break;
+
+                            case RenderEncodingPreset::PLACEBO:
+                                presetName = "placebo";
+                                break;
+                        }
+
+                        bool selected = renderSettings.encodingPreset == i;
+
+                        if (ImGui::Selectable(presetName, selected))
+                        {
+                            renderSettings.encodingPreset = static_cast<RenderEncodingPreset>(i);
+                        }
+
+                        if (selected) ImGui::SetItemDefaultFocus();
+                    }
+
+                    ImGui::EndCombo();
+                }
+            });
+
+        SECTION_ENTRY(SECTION_LABEL("Bitrate mode"),
+            {
+                IMGUI_RADIO_BUTTON("Constant", renderSettings.encodingBitrate, RenderEncodingBitrate::CONSTANT); ImGui::SameLine();
+                IMGUI_RADIO_BUTTON("Variable", renderSettings.encodingBitrate, RenderEncodingBitrate::VARIABLE);
+            });
+
+        if (renderSettings.encodingBitrate == RenderEncodingBitrate::CONSTANT)
+        {
+            SECTION_ENTRY(SECTION_LABEL("Bitrate (Kbps)"),
+                {
+                    ImGui::InputInt("##bitrate", &renderSettings.bitrateKbps);
+
+                    if (renderSettings.bitrateKbps < 0)
+                        renderSettings.bitrateKbps = 0;
+                });
+        }
+        else
+        {
+            SECTION_ENTRY(SECTION_LABEL("CRF"),
+                {
+                    ImGui::InputInt("##crf", &renderSettings.crf);
+                    CLAMP_VALUE(renderSettings.crf, 0, 51);
+                });
+        }
+        END_SECTION;
+    }
+    
+    SECTION_HEADER_LARGE("Rendering");
+
+    BEGIN_SECTION("##rendering")
+    {
+        SETUP_SECTION;
+
+        SECTION_ENTRY(SECTION_LABEL("Resolution"),
+            {
+                ImGui::SetNextItemWidth(100);
+                ImGui::InputInt("##width", &renderSettings.width, 0, 0);
+                CLAMP_VALUE(renderSettings.width, 128, 16384);
+
+                ImGui::SameLine();
+                ImGui::Text("x");
+                ImGui::SameLine();
+
+                ImGui::SetNextItemWidth(100);
+                ImGui::InputInt("##height", &renderSettings.height, 0, 0);
+                CLAMP_VALUE(renderSettings.height, 128, 16384);
+            });
+
+        SECTION_ENTRY(SECTION_LABEL("Framerate"),
+            {
+                ImGui::SetNextItemWidth(100);
+
+                ImGui::InputInt("##framerate", &renderSettings.fps, 0, 0);
+
+                if (renderSettings.fps < 1)
+                    renderSettings.fps = 1;
+            });
+
+        const char* extension = "mp4";
+
+        switch (renderSettings.outputFormat)
+        {
+            case RenderOutputFormat::AVI:
+                extension = "avi";
+                break;
+
+            case RenderOutputFormat::MP4:
+                extension = "mp4";
+                break;
+
+            case RenderOutputFormat::MOV:
+                extension = "mov";
+                break;
+        }
+
+        SECTION_ENTRY(SECTION_LABEL("Output path"),
+            {
+                Utils::AddFilePickerField("##outPath", renderSettings.outputPath, extension, true);
+
+                if (renderSettings.outputPath.empty())
+                {
+                    ImGui::TextColored(ImVec4(0.5f, 0.0f, 0.0f, 1.0f), "Please specify the video's output path.");
+
+                    canRender = false;
+                }
+            });
+
+        SECTION_ENTRY(SECTION_LABEL("Transparency mask"),
+            {
+                ImGui::Checkbox(
+                    "##transparencyMask",
+                    &renderSettings.renderTransparencyMask
+                );
+
+                if (renderSettings.renderTransparencyMask)
+                {
+                    Utils::AddFilePickerField("##alphaOutPath", renderSettings.maskOutputPath, extension, true);
+
+                    if (renderSettings.maskOutputPath.empty())
+                    {
+                        ImGui::TextColored(ImVec4(0.5f, 0.0f, 0.0f, 1.0f), "Please specify the transparency mask's output path.");
+                        canRender = false;
+                    }
+                }
+            });
+        END_SECTION;
+    }
+   
+    ImGui::Spacing();
+
+    ImGui::BeginDisabled(!canRender);
+
+    if (ImGui::Button("Render!", ImVec2(-FLT_MIN, 0)))
+    {
+        app->RenderMIDIVideo(renderSettings);
+    }
+
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip(
+            "Press 'esc' to cancel the render at any time. "
+            "Video will be saved."
+        );
+    }
+
+    ImGui::EndDisabled();
+
+    if (!canRender)
+    {
+        ImGui::TextColored(
+            ImVec4(0.5f, 0.0f, 0.0f, 1.0f),
+            "Cannot render; check above for errors."
+        );
+    }
+
+    if (ImGui::Button("Close"))
+    {
+        ImGui::CloseCurrentPopup();
+    }
 }

@@ -5,6 +5,7 @@
 #include "../MIDI/TempoMap.h"
 #include "Utils.h"
 #include <algorithm>
+#include "App/Dialog/DialogMacros.h"
 
 #pragma region Shaders
 
@@ -601,13 +602,22 @@ void MIDIRenderer::RenderSettings()
 		if (ImGui::BeginTabItem("Piano"))
 		{
 			auto colors = config->render.GetBarColor();
-			float barColor[3]{ colors.x, colors.y, colors.z };
-			ImGui::Text("Bar color");
-			ImGui::SameLine();
-			if (ImGui::ColorEdit3("##barColor", barColor))
+
+			BEGIN_SECTION("##pianoSettings")
 			{
-				config->render.SetBarColor(barColor[0], barColor[1], barColor[2]);
-				SetBarColor(barColor[0], barColor[1], barColor[2]);
+				SETUP_SECTION;
+
+				SECTION_ENTRY(SECTION_LABEL("Bar color"),
+					{
+						float barColor[3]{ colors.x, colors.y, colors.z };
+						if (ImGui::ColorEdit3("##barColor", barColor))
+						{
+							config->render.SetBarColor(barColor[0], barColor[1], barColor[2]);
+							SetBarColor(barColor[0], barColor[1], barColor[2]);
+						}
+					});
+
+				END_SECTION;
 			}
 
 			ImGui::EndTabItem();
