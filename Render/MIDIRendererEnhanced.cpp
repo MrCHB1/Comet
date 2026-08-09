@@ -557,6 +557,8 @@ void MIDIRendererEnhanced::RenderNotes()
                 ? (double)(nTick + nGate) * invTimeMultiplier
                 : (double)(nTick + nGate);
 
+            if (noteStart > accTime + viewRegion) break;
+
             if (noteEnd <= accTime)
             {
                 notesPassed++;

@@ -194,7 +194,7 @@ void MIDIApp::Update()
 	}
 	else
 	{
-		double time = Utils::GetCurrTime<std::chrono::microseconds>() / 1000000;
+		double time = Utils::GetCurrTime<std::chrono::microseconds>() / 1000000.0;
 		renderer->Render(time - lastFrameTime);
 		noteCounterInfo->fps = 1.0 / (time - lastFrameTime);
 		lastFrameTime = time;

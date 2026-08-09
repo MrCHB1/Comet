@@ -1270,6 +1270,10 @@ void MIDIRendererMIDITrail::RenderNotes()
 
 		#pragma endregion
 
+		double frontCutoffTime = isTimeBased ?
+			playbackSeconds + viewRegion * settings.frontRenderCutoff :
+			time + renderView->viewTicks * settings.frontRenderCutoff;
+
 		bool isBlack = KEY_IS_BLACK(id);
 		for (size_t i = noteBegin; i < noteEnd; ++i)
 		{
@@ -1283,6 +1287,8 @@ void MIDIRendererMIDITrail::RenderNotes()
 			double noteEnd = isTimeBased
 				? (double)(nTick + nGate) * invTimeMultiplier
 				: (double)(nTick + nGate);
+
+			if (noteStart > frontCutoffTime) break;
 
 			if (noteEnd <= backCutoffTime)
 			{
