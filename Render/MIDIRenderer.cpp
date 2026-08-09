@@ -877,51 +877,55 @@ void MIDIRenderer::RenderNotes()
 #pragma region Note culling
 
 		size_t noteBegin = startRenderIDs[id];
+		size_t noteEnd = endRenderIDs[id];
 
-		if (lastTime < time)
+		if (lastTime != time)
 		{
-			while (noteBegin < notesNote.Size())
+			if (lastTime < time)
 			{
-				double noteEnd = isTimeBased
-					? (double)(notesNote.tick[noteBegin] + notesNote.gate[noteBegin]) * invTimeMultiplier
-					: (double)(notesNote.tick[noteBegin] + notesNote.gate[noteBegin]);
+				while (noteBegin < notesNote.Size())
+				{
+					double noteEnd = isTimeBased
+						? (double)(notesNote.tick[noteBegin] + notesNote.gate[noteBegin]) * invTimeMultiplier
+						: (double)(notesNote.tick[noteBegin] + notesNote.gate[noteBegin]);
 
-				if (noteEnd > accTime) break; // Note is still on screen
-				++noteBegin;
+					if (noteEnd > accTime) break;
+					++noteBegin;
+				}
 			}
-		}
-		else if (lastTime > time)
-		{
-			while (noteBegin > 0)
+			else if (lastTime > time)
 			{
-				size_t prev = noteBegin - 1;
-				double noteEnd = isTimeBased
-					? (double)(notesNote.tick[prev] + notesNote.gate[prev]) * invTimeMultiplier
-					: (double)(notesNote.tick[prev] + notesNote.gate[prev]);
+				while (noteBegin > 0)
+				{
+					double noteEnd = isTimeBased
+						? (double)(notesNote.tick[noteBegin - 1] + notesNote.gate[noteBegin - 1]) * invTimeMultiplier
+						: (double)(notesNote.tick[noteBegin - 1] + notesNote.gate[noteBegin - 1]);
 
-				if (noteEnd <= accTime) break;
-				--noteBegin;
+					if (noteEnd <= accTime) break;
+					--noteBegin;
+				}
 			}
-		}
 
-		auto searchStart = notesNote.tick.begin() + noteBegin;
-		auto endIt = notesNote.tick.end();
+			auto searchStart = notesNote.tick.begin() + noteBegin;
+			auto endIt = notesNote.tick.end();
 
-		if (isTimeBased)
-		{
-			double targetSecs = playbackSeconds + viewRegion;
-			long target10Us = static_cast<long>(targetSecs * TIME_BASED_MULTIPLIER);
-			endIt = std::upper_bound(searchStart, notesNote.tick.end(), target10Us);
-		}
-		else
-		{
-			long targetTick = time + renderView->viewTicks;
-			endIt = std::upper_bound(searchStart, notesNote.tick.end(), targetTick);
-		}
+			if (isTimeBased)
+			{
+				double targetSecs = playbackSeconds + viewRegion;
+				long target10Us = static_cast<long>(targetSecs * TIME_BASED_MULTIPLIER);
+				endIt = std::upper_bound(searchStart, notesNote.tick.end(), target10Us);
+			}
+			else
+			{
+				long targetTick = time + renderView->viewTicks;
+				endIt = std::upper_bound(searchStart, notesNote.tick.end(), targetTick);
+			}
 
-		size_t noteEnd = std::distance(notesNote.tick.begin(), endIt);
-		startRenderIDs[id] = noteBegin;
-		endRenderIDs[id] = noteEnd;
+			noteEnd = std::distance(notesNote.tick.begin(), endIt);
+			startRenderIDs[id] = noteBegin;
+			endRenderIDs[id] = noteEnd;
+		}
+		
 		notesPassed += noteBegin;
 
 #pragma endregion
@@ -940,6 +944,8 @@ void MIDIRenderer::RenderNotes()
 			double noteEnd = isTimeBased
 				? (double)(nTick + nGate) * invTimeMultiplier
 				: (double)(nTick + nGate);
+
+			if (noteStart > accTime + viewRegion) break;
 
 			if (noteEnd <= accTime)
 			{
