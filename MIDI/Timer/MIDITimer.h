@@ -34,6 +34,7 @@ public:
 	bool IsPaused() const { return paused; }
 
 	double Elapsed() const;
+	double GetPauseTime() const { return baseTime; }
 	double GetDeltaTime();
 private:
 	using clock = std::chrono::steady_clock;

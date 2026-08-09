@@ -107,7 +107,7 @@ void NoteCounterRenderer::Render(float heightOffset)
 
 void NoteCounterRenderer::RenderUMP(float counterScale)
 {
-	if (ImGui::Begin("noteCounter", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar))
+	if (ImGui::Begin("noteCounterUMP", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar))
 	{
 		ImGui::SetWindowFontScale(counterScale);
 		if (ImGui::BeginTable("counterStats", 2, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoClip))
@@ -180,7 +180,7 @@ void NoteCounterRenderer::RenderUMP(float counterScale)
 
 void NoteCounterRenderer::RenderMIDITrail(float counterScale)
 {
-	if (ImGui::Begin("noteCounter", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar))
+	if (ImGui::Begin("noteCounterMIDITrail", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar))
 	{
 		ImGui::SetWindowFontScale(counterScale);
 

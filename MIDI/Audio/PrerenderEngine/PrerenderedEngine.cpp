@@ -30,9 +30,9 @@ static std::string ConvertFromWideString(const std::wstring& str)
 
 PrerenderedEngine::PrerenderedEngine()
 {
-    bufferLength = SAMPLE_RATE * 2 * bufferSeconds;
-    audioBuffer = (float*)malloc(bufferLength * sizeof(float));
-    memset(audioBuffer, 0, bufferLength * sizeof(float));
+    bufferSize = SAMPLE_RATE * 2 * bufferSeconds;
+    audioBuffer = (float*)malloc(bufferSize * sizeof(float));
+    memset(audioBuffer, 0, bufferSize * sizeof(float));
 }
 
 PrerenderedEngine::~PrerenderedEngine()
@@ -154,7 +154,7 @@ void PrerenderedEngine::Stop()
 void PrerenderedEngine::Reset()
 {
     std::lock_guard<std::mutex> lock(bufferMutex);
-    memset(audioBuffer, 0, bufferLength * sizeof(float));
+    memset(audioBuffer, 0, bufferSize * sizeof(float));
     bufferWritePos = 0;
     bufferReadPos = 0;
 }
@@ -178,13 +178,13 @@ bool PrerenderedEngine::IsPlaying()
 
 void PrerenderedEngine::BassWriteWrapped(int start, int count)
 {
-    start = (start * 2) % bufferLength;
+    start = (start * 2) % bufferSize;
     count *= 2;
 
-    if (start + count > bufferLength)
+    if (start + count > bufferSize)
     {
-        bassMidi->Read(audioBuffer, start, bufferLength - start);
-        count -= bufferLength - start;
+        bassMidi->Read(audioBuffer, start, bufferSize - start);
+        count -= bufferSize - start;
         bassMidi->Read(audioBuffer, 0, count);
     }
     else
@@ -324,7 +324,7 @@ void PrerenderedEngine::RenderLoop(double initialStartTime)
             int spare, writeStart;
             {
                 std::lock_guard<std::mutex> lock(bufferMutex);
-                spare = (bufferReadPos + bufferLength / 2) - bufferWritePos;
+                spare = (bufferReadPos + bufferSize / 2) - bufferWritePos;
                 writeStart = bufferWritePos;
             }
 
@@ -367,7 +367,7 @@ void PrerenderedEngine::RenderLoop(double initialStartTime)
         int spare, writeStart;
         {
             std::lock_guard<std::mutex> lock(bufferMutex);
-            spare = (bufferReadPos + bufferLength / 2) - bufferWritePos;
+            spare = (bufferReadPos + bufferSize / 2) - bufferWritePos;
             writeStart = bufferWritePos;
         }
 
@@ -411,7 +411,9 @@ void PrerenderedEngine::TimerLoop()
 
             if (lastPaused && !paused)
             {
-                SyncPlayer(currTime);
+                const bool seekBack = currTime < currentTimer->GetPauseTime();
+                StartPrerender(seekBack, currTime);
+                lastTimerTime = currTime;
             }
 
             lastPaused = paused;
@@ -432,7 +434,7 @@ void PrerenderedEngine::ResetEvents()
 
 void PrerenderedEngine::KillLastGenerator()
 {
-    memset(audioBuffer, 0, bufferLength * sizeof(float));
+    memset(audioBuffer, 0, bufferSize * sizeof(float));
     stopFlag = true;
 
     if (generatorThread.joinable())
@@ -507,8 +509,8 @@ DWORD CALLBACK PrerenderedEngine::PlaybackStreamProc(HSTREAM handle, void* buffe
     float* fltBuffer = static_cast<float*>(buffer);
     int count = length / sizeof(float);
 
-    int readPos = engine->bufferReadPos % (engine->bufferLength / 2);
-    int writePos = engine->bufferWritePos % (engine->bufferLength / 2);
+    int readPos = engine->bufferReadPos % (engine->bufferSize / 2);
+    int writePos = engine->bufferWritePos % (engine->bufferSize / 2);
     if (engine->bufferReadPos + count / 2 > engine->bufferWritePos)
     {
         int copyCount = engine->bufferWritePos - engine->bufferReadPos;
@@ -519,7 +521,7 @@ DWORD CALLBACK PrerenderedEngine::PlaybackStreamProc(HSTREAM handle, void* buffe
 
         if (copyCount > 0)
         {
-            engine->WrappedCopy(engine->audioBuffer, readPos * 2, engine->bufferLength, fltBuffer, 0, copyCount * 2);
+            engine->WrappedCopy(engine->audioBuffer, readPos * 2, engine->bufferSize, fltBuffer, 0, copyCount * 2);
         }
 
         for (int i = copyCount * 2; i < count; i++)
@@ -529,7 +531,7 @@ DWORD CALLBACK PrerenderedEngine::PlaybackStreamProc(HSTREAM handle, void* buffe
     }
     else
     {
-        engine->WrappedCopy(engine->audioBuffer, readPos * 2, engine->bufferLength, fltBuffer, 0, count);
+        engine->WrappedCopy(engine->audioBuffer, readPos * 2, engine->bufferSize, fltBuffer, 0, count);
     }
 
     engine->bufferReadPos += count / 2;
@@ -654,9 +656,9 @@ void PrerenderedEngine::ResizeBuffer(double newBufferLengthSecs)
         free(audioBuffer);
 
         bufferSeconds = newBufferLengthSecs;
-        bufferLength = SAMPLE_RATE * 2 * newBufferLengthSecs;
-        audioBuffer = (float*)malloc(bufferLength * sizeof(float));
-        memset(audioBuffer, 0, bufferLength * sizeof(float));
+        bufferSize = SAMPLE_RATE * 2 * newBufferLengthSecs;
+        audioBuffer = (float*)malloc(bufferSize * sizeof(float));
+        memset(audioBuffer, 0, bufferSize * sizeof(float));
 
         bufferWritePos = 0;
         bufferReadPos = 0;
@@ -711,7 +713,8 @@ void PrerenderedEngine::RenderSettings()
                             ResizeBuffer(bufferLength);
                             shouldApplyChanges = true;
                         }
-                        ImGui::Text("RAM Usage: %i bytes", this->bufferLength * sizeof(float));
+                        std::string memoryUsage = Utils::FormatFilesize(this->bufferSize * sizeof(float), 2);
+                        ImGui::Text("RAM Usage: %s", memoryUsage);
                     });
 
                 END_SECTION;

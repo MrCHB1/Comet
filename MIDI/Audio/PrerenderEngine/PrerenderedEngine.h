@@ -116,7 +116,7 @@ private:
 
     // circular audio buffer
     float* audioBuffer = nullptr;
-    int bufferLength = 0;
+    int bufferSize = 0;
     int bufferWritePos = 0;
     int bufferReadPos = 0;
     std::mutex bufferMutex;
