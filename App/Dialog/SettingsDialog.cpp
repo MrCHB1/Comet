@@ -5,6 +5,7 @@
 #include "Render/MIDIRendererPFA.h"
 #include "Render/MIDIRendererChannels.h"
 #include "Render/MIDIRendererVelocities.h"
+#include "DialogMacros.h"
 
 void SettingsDialog::DrawContent()
 {
@@ -54,23 +55,32 @@ void SettingsDialog::DrawAppTab()
 		{
 			if (ImGui::BeginTabItem("General"))
 			{
-				ImGui::Text("VSync");
-				ImGui::SameLine();
-				bool vsync = config->render.GetVSync();
-				if (ImGui::Checkbox("##vsync", &vsync))
+				SECTION_HEADER("Rendering");
+
+				BEGIN_SECTION("##renderSec")
 				{
-					config->render.SetVSync(vsync);
-					glfwSwapInterval(vsync);
+					SETUP_SECTION;
+					TABLE_ENTRY(TABLE_LABEL("VSync"),
+					{
+						bool vsync = config->render.GetVSync();
+						if (ImGui::Checkbox("##vsync", &vsync))
+						{
+							config->render.SetVSync(vsync);
+							glfwSwapInterval(vsync);
+						}
+					});
+
+					TABLE_ENTRY({ TABLE_LABEL("FPS Limit"); ImGui::SetItemTooltip("When set to 0 then the FPS will be uncapped"); },
+						{
+							int fpsLimit = config->render.GetFPSLimit();
+							if (ImGui::InputInt("##fpsLimit", &fpsLimit))
+							{
+								config->render.SetFPSLimit(fpsLimit);
+							}
+						});
+					END_SECTION;
 				}
 
-				ImGui::Text("FPS Limit");
-				ImGui::SetItemTooltip("When set to 0 then the FPS will be uncapped");
-				ImGui::SameLine();
-				int fpsLimit = config->render.GetFPSLimit();
-				if (ImGui::InputInt("##fpsLimit", &fpsLimit))
-				{
-					config->render.SetFPSLimit(fpsLimit);
-				}
 				ImGui::EndTabItem();
 			}
 			if (ImGui::BeginTabItem("Theme"))
@@ -206,53 +216,54 @@ void SettingsDialog::DrawVisualTab()
 					bool setColorsFromPack = false;
 					bool setColorsFromList = false;
 
-					ImGui::TextUnformatted("Use colors from");
-					ImGui::SameLine();
-
-					if (ImGui::RadioButton("Resource pack", !config->render.GetUseColorsFromImage()))
+					BEGIN_SECTION("##noteColors")
 					{
-						config->render.SetUseColorsFromImage(false);
-						setColorsFromPack = true;
-					}
+						SETUP_SECTION;
 
-					ImGui::SameLine();
-					if (ImGui::RadioButton("Color list", config->render.GetUseColorsFromImage()))
-					{
-						config->render.SetUseColorsFromImage(true);
-						setColorsFromList = true;
-					}
+						TABLE_ENTRY(
+							TABLE_LABEL("Use colors from"),
+							if (ImGui::RadioButton("Resource pack", !config->render.GetUseColorsFromImage()))
+							{
+								config->render.SetUseColorsFromImage(false);
+								setColorsFromPack = true;
+							}
 
-					if (setColorsFromList)
-					{
-						auto& entry = colorList->GetCurrentPalette();
-						app->GetRenderer()->LoadColors(entry.palette);
-					}
-					else if (setColorsFromPack)
-					{
-						ResourcePackList* packList = app->GetPackList();
-						auto currPack = packList->GetActivePack();
-						auto noteColors = currPack->GetStream("noteColors.png");
+							if (ImGui::RadioButton("Color list", config->render.GetUseColorsFromImage()))
+							{
+								config->render.SetUseColorsFromImage(true);
+								setColorsFromList = true;
+							}
+						);
 
-						auto& colorAsset = app->GetRenderer()->GetColorAsset();
-						if (noteColors != nullptr)
+						if (setColorsFromList)
 						{
-							colorAsset.LoadColors(noteColors, currPack->GetNoteInfo()->loopColors);
+							auto& entry = colorList->GetCurrentPalette();
+							app->GetRenderer()->LoadColors(entry.palette);
 						}
-						else
+						else if (setColorsFromPack)
 						{
-							colorAsset.ResetColors();
-							colorAsset.LoadColors();
+							ResourcePackList* packList = app->GetPackList();
+							auto currPack = packList->GetActivePack();
+							auto noteColors = currPack->GetStream("noteColors.png");
+
+							auto& colorAsset = app->GetRenderer()->GetColorAsset();
+							if (noteColors != nullptr)
+							{
+								colorAsset.LoadColors(noteColors, currPack->GetNoteInfo()->loopColors);
+							}
+							else
+							{
+								colorAsset.ResetColors();
+								colorAsset.LoadColors();
+							}
 						}
+
+						END_SECTION;
 					}
 
-					ImGui::Spacing();
-					ImGui::SetWindowFontScale(1.2f);
-					ImGui::Text("Palette list");
-					ImGui::Spacing();
-					ImGui::SetWindowFontScale(1.0f);
+					SECTION_HEADER("Palette list");
 
 					ImGui::BeginDisabled(!config->render.GetUseColorsFromImage());
-
 					if (ImGui::Button("Refresh palette list"))
 					{
 						colorList->ReloadList();
@@ -271,9 +282,8 @@ void SettingsDialog::DrawVisualTab()
 					const ColorPaletteEntry& currPalette = colorList->GetCurrentPalette();
 
 					ImGui::BeginChild("PaletteScroll", ImVec2(0, 260), true, ImGuiWindowFlags_HorizontalScrollbar);
-
 					ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 8));
-
+					
 					for (size_t i = 0; i < palettes.size(); ++i)
 					{
 						const auto& palette = palettes[i];
@@ -335,13 +345,22 @@ void SettingsDialog::DrawVisualTab()
 
 					ImGui::PopStyleVar();
 					ImGui::EndChild();
-					ImGui::Text("Loop colors");
-					ImGui::SameLine();
-					if (ImGui::Checkbox("##loopColors", &config->render.loopColors))
+
+					BEGIN_SECTION("##noteColorsEnd")
 					{
-						auto& currPalette = colorList->GetCurrentPalette();
-						ColorAsset& colorAsset = app->GetRenderer()->GetColorAsset();
-						colorAsset.LoadColors(currPalette.palette, config->render.loopColors);
+						SETUP_SECTION;
+
+						TABLE_ENTRY(
+							TABLE_LABEL("Loop colors"),
+							if (ImGui::Checkbox("##loopColors", &config->render.loopColors))
+							{
+								auto& currPalette = colorList->GetCurrentPalette();
+								ColorAsset& colorAsset = app->GetRenderer()->GetColorAsset();
+								colorAsset.LoadColors(currPalette.palette, config->render.loopColors);
+							}
+						);
+
+						END_SECTION;
 					}
 					ImGui::EndDisabled();
 				}
@@ -356,154 +375,219 @@ void SettingsDialog::DrawVisualTab()
 				FontList* fontList = app->GetFontList();
 				std::vector<FontEntry>& fonts = fontList->GetFonts();
 
-				auto Section = [](const char* title)
-					{
-						ImGui::Spacing();
-						ImGui::SetWindowFontScale(1.2f);
-						ImGui::TextUnformatted(title);
-						ImGui::SetWindowFontScale(1.0f);
-						ImGui::Separator();
-						ImGui::Spacing();
-					};
+				SECTION_HEADER("Appearance");
 
-				auto Label = [](const char* text)
-					{
-						ImGui::AlignTextToFramePadding();
-						ImGui::TextUnformatted(text);
-					};
-
-				Section("Appearance");
-
-				if (ImGui::BeginTable("##nc_appearance", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadInnerX))
+				BEGIN_SECTION("##nc_appearance")
 				{
-					ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 160.0f);
-					ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+					SETUP_SECTION;
 
-					ImGui::TableNextRow();
-					ImGui::TableSetColumnIndex(0);
-					Label("Show note counter");
-					ImGui::TableSetColumnIndex(1);
-					ImGui::Checkbox("##showNoteCounter", &config->render.showCounter);
+					TABLE_ENTRY(
+						TABLE_LABEL("Show note counter"),
+						ImGui::Checkbox("##showNoteCounter", &config->render.showCounter);
+					);
 
-					ImGui::TableNextRow();
-					ImGui::TableSetColumnIndex(0);
-					Label("Scale");
-					ImGui::TableSetColumnIndex(1);
-					ImGui::SetNextItemWidth(-FLT_MIN);
-					ImGui::SliderFloat("##counterScale", &config->overlayInfo.scale,
-						config->overlayInfo.MIN_SCALE, config->overlayInfo.MAX_SCALE);
-
-					ImGui::TableNextRow();
-					ImGui::TableSetColumnIndex(0);
-					Label("Alignment");
-					ImGui::TableSetColumnIndex(1);
-
-					const auto alignment = counterRenderer->GetCounterAlignment();
-					if (ImGui::RadioButton("Top Left", alignment == NoteCounterAlignment::TopLeft))
-						counterRenderer->SetCounterAlignment(NoteCounterAlignment::TopLeft);
-
-					ImGui::BeginDisabled(counterRenderer->GetCounterStyle() != NoteCounterStyle::MIDITrail);
-					ImGui::SameLine();
-					if (ImGui::RadioButton("Top Center", alignment == NoteCounterAlignment::TopCenter))
-						counterRenderer->SetCounterAlignment(NoteCounterAlignment::TopCenter);
-					ImGui::EndDisabled();
-
-					ImGui::SameLine();
-					if (ImGui::RadioButton("Top Right", alignment == NoteCounterAlignment::TopRight))
-						counterRenderer->SetCounterAlignment(NoteCounterAlignment::TopRight);
-
-					ImGui::TableNextRow();
-					ImGui::TableSetColumnIndex(0);
-					Label("Blur behind");
-					ImGui::TableSetColumnIndex(1);
-					ImGui::Checkbox("##blurBehind", &config->overlayInfo.blurBehind);
-
-					ImGui::TableNextRow();
-					ImGui::TableSetColumnIndex(0);
-					Label("Font");
-					ImGui::TableSetColumnIndex(1);
-
-					std::string currentFontName = "Default";
-					for (const auto& f : fonts)
-					{
-						if (f.path == config->overlayInfo.selectedFontPath)
+					TABLE_ENTRY(
+						TABLE_LABEL("Scale"),
 						{
-							currentFontName = f.name;
-							break;
+							ImGui::SetNextItemWidth(-FLT_MIN);
+							ImGui::SliderFloat(
+								"##counterScale",
+								&config->overlayInfo.scale,
+								config->overlayInfo.MIN_SCALE,
+								config->overlayInfo.MAX_SCALE
+							);
 						}
-					}
+					);
 
-					if (ImGui::BeginCombo("##counterFontCombo", currentFontName.c_str()))
-					{
-						if (ImGui::Selectable("Default", config->overlayInfo.selectedFontPath.empty()))
-							config->overlayInfo.selectedFontPath.clear();
-
-						for (const auto& f : fonts)
+					TABLE_ENTRY(
+						TABLE_LABEL("Alignment"),
 						{
-							const bool isSelected = (config->overlayInfo.selectedFontPath == f.path);
-							if (ImGui::Selectable(f.name.c_str(), isSelected))
-								config->overlayInfo.selectedFontPath = f.path;
+							const auto alignment = counterRenderer->GetCounterAlignment();
 
-							if (isSelected)
-								ImGui::SetItemDefaultFocus();
+							if (ImGui::RadioButton(
+								"Top Left",
+								alignment == NoteCounterAlignment::TopLeft))
+							{
+								counterRenderer->SetCounterAlignment(
+									NoteCounterAlignment::TopLeft
+								);
+							}
+
+							ImGui::BeginDisabled(
+								counterRenderer->GetCounterStyle() != NoteCounterStyle::MIDITrail
+							);
+
+							ImGui::SameLine();
+
+							if (ImGui::RadioButton(
+								"Top Center",
+								alignment == NoteCounterAlignment::TopCenter))
+							{
+								counterRenderer->SetCounterAlignment(
+									NoteCounterAlignment::TopCenter
+								);
+							}
+
+							ImGui::EndDisabled();
+
+							ImGui::SameLine();
+
+							if (ImGui::RadioButton(
+								"Top Right",
+								alignment == NoteCounterAlignment::TopRight))
+							{
+								counterRenderer->SetCounterAlignment(
+									NoteCounterAlignment::TopRight
+								);
+							}
 						}
+					);
 
-						ImGui::EndCombo();
-					}
+					TABLE_ENTRY(
+						TABLE_LABEL("Blur behind"),
+						ImGui::Checkbox(
+							"##blurBehind",
+							&config->overlayInfo.blurBehind
+						);
+					);
 
-					ImGui::EndTable();
+					TABLE_ENTRY(
+						TABLE_LABEL("Font"),
+						{
+							std::string currentFontName = "Default";
+
+							for (const auto& f : fonts)
+							{
+								if (f.path == config->overlayInfo.selectedFontPath)
+								{
+									currentFontName = f.name;
+									break;
+								}
+							}
+
+							if (ImGui::BeginCombo(
+								"##counterFontCombo",
+								currentFontName.c_str()))
+							{
+								if (ImGui::Selectable(
+									"Default",
+									config->overlayInfo.selectedFontPath.empty()))
+								{
+									config->overlayInfo.selectedFontPath.clear();
+								}
+
+								for (const auto& f : fonts)
+								{
+									const bool isSelected =
+										config->overlayInfo.selectedFontPath == f.path;
+
+									if (ImGui::Selectable(
+										f.name.c_str(),
+										isSelected))
+									{
+										config->overlayInfo.selectedFontPath = f.path;
+									}
+
+									if (isSelected)
+										ImGui::SetItemDefaultFocus();
+								}
+
+								ImGui::EndCombo();
+							}
+						}
+					);
+
+					END_SECTION;
 				}
 
-				Section("Style");
 
-				if (ImGui::BeginTable("##nc_style", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadInnerX))
+				SECTION_HEADER("Style");
+
+				BEGIN_SECTION("##nc_style")
 				{
-					ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 160.0f);
-					ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+					SETUP_SECTION;
 
-					ImGui::TableNextRow();
-					ImGui::TableSetColumnIndex(0);
-					Label("Style");
-					ImGui::TableSetColumnIndex(1);
+					TABLE_ENTRY(
+						TABLE_LABEL("Style"),
+						{
+							const auto style = counterRenderer->GetCounterStyle();
 
-					const auto style = counterRenderer->GetCounterStyle();
-					if (ImGui::RadioButton("Ultralight MIDI Player", style == NoteCounterStyle::UMP))
-					{
-						counterRenderer->SetCounterStyle(NoteCounterStyle::UMP);
-						if (counterRenderer->GetCounterAlignment() == NoteCounterAlignment::TopCenter)
-							counterRenderer->SetCounterAlignment(NoteCounterAlignment::TopLeft);
-					}
+							if (ImGui::RadioButton(
+								"Ultralight MIDI Player",
+								style == NoteCounterStyle::UMP))
+							{
+								counterRenderer->SetCounterStyle(NoteCounterStyle::UMP);
 
-					ImGui::SameLine();
-					if (ImGui::RadioButton("MIDITrail", style == NoteCounterStyle::MIDITrail))
-					counterRenderer->SetCounterStyle(NoteCounterStyle::MIDITrail);
+								if (counterRenderer->GetCounterAlignment() ==
+									NoteCounterAlignment::TopCenter)
+								{
+									counterRenderer->SetCounterAlignment(
+										NoteCounterAlignment::TopLeft
+									);
+								}
+							}
 
-					ImGui::TableNextRow();
-					ImGui::TableSetColumnIndex(0);
-					Label("Background color");
-					ImGui::TableSetColumnIndex(1);
+							ImGui::SameLine();
 
-					std::array<float, 4> bgCol = counterRenderer->GetCounterBackground();
-					if (ImGui::ColorEdit4("##ncBg", bgCol.data(), ImGuiColorEditFlags_AlphaBar))
-						counterRenderer->SetCounterBackground(bgCol[0], bgCol[1], bgCol[2], bgCol[3]);
+							if (ImGui::RadioButton(
+								"MIDITrail",
+								style == NoteCounterStyle::MIDITrail))
+							{
+								counterRenderer->SetCounterStyle(
+									NoteCounterStyle::MIDITrail
+								);
+							}
+						}
+					);
 
-					ImGui::TableNextRow();
-					ImGui::TableSetColumnIndex(0);
-					Label("Text color");
-					ImGui::TableSetColumnIndex(1);
+					TABLE_ENTRY(
+						TABLE_LABEL("Background color"),
+						{
+							std::array<float, 4> bgCol =
+								counterRenderer->GetCounterBackground();
 
-					std::array<float, 3> txtCol = counterRenderer->GetCounterTextColor();
-					if (ImGui::ColorEdit3("##ncTxtCol", txtCol.data()))
-						counterRenderer->SetCounterTextColor(txtCol[0], txtCol[1], txtCol[2]);
+							if (ImGui::ColorEdit4(
+								"##ncBg",
+								bgCol.data(),
+								ImGuiColorEditFlags_AlphaBar))
+							{
+								counterRenderer->SetCounterBackground(
+									bgCol[0],
+									bgCol[1],
+									bgCol[2],
+									bgCol[3]
+								);
+							}
+						}
+					);
 
-					ImGui::EndTable();
+					TABLE_ENTRY(
+						TABLE_LABEL("Text color"),
+						{
+							std::array<float, 3> txtCol =
+								counterRenderer->GetCounterTextColor();
+
+							if (ImGui::ColorEdit3(
+								"##ncTxtCol",
+								txtCol.data()))
+							{
+								counterRenderer->SetCounterTextColor(
+									txtCol[0],
+									txtCol[1],
+									txtCol[2]
+								);
+							}
+						}
+					);
+
+					END_SECTION;
 				}
 
-				Section("Fields");
+				SECTION_HEADER("Fields");
 				ImGui::TextDisabled("Fields marked with an asterisk (*) are omitted from renders.");
 				ImGui::Spacing();
 
-				if (ImGui::BeginTable("##nc_fields", 2, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoPadInnerX))
+				BEGIN_SECTION("##nc_fields")
 				{
 					ImGui::TableNextRow();
 					ImGui::TableSetColumnIndex(0); ImGui::Checkbox("Tick", &counter->tick.shown);
@@ -521,7 +605,7 @@ void SettingsDialog::DrawVisualTab()
 					ImGui::TableSetColumnIndex(0); ImGui::Checkbox("FPS*", &counter->fps.shown);
 					ImGui::TableSetColumnIndex(1); ImGui::TextDisabled("");
 
-					ImGui::EndTable();
+					END_SECTION;
 				}
 
 				ImGui::EndTabItem();
@@ -529,67 +613,79 @@ void SettingsDialog::DrawVisualTab()
 			if (ImGui::BeginTabItem("Renderer"))
 			{
 				MIDIPlayerConfig* config = app->GetConfig();
-
-				ImGui::Text("Current Renderer");
 				RendererType currRenderer = config->render.GetCurrentRenderer();
-				if (ImGui::RadioButton("Piano From Above", currRenderer == RendererType::PFA))
-				{
-					if (currRenderer != RendererType::PFA)
-					{
-						config->render.SetCurrentRenderer(RendererType::PFA);
-						app->SetRenderer<MIDIRendererPFA>();
-						std::cout << "Switched to the PFA renderer" << std::endl;
-					}
-				}
 
-				if (ImGui::RadioButton("Textured", currRenderer == RendererType::Default))
+				BEGIN_SECTION("##renderer")
 				{
-					if (currRenderer != RendererType::Default)
-					{
-						config->render.SetCurrentRenderer(RendererType::Default);
-						app->SetRenderer<MIDIRenderer>();
-						std::cout << "Switched to the Textured renderer" << std::endl;
-					}
-				}
-				if (ImGui::RadioButton("Enhanced Graphics", currRenderer == RendererType::Enhanced))
-				{
-					if (currRenderer != RendererType::Enhanced)
-					{
-						config->render.SetCurrentRenderer(RendererType::Enhanced);
-						app->SetRenderer<MIDIRendererEnhanced>();
-						std::cout << "Switched to the enhanced graphics renderer" << std::endl;
-					}
-				}
+					SETUP_SECTION;
 
-				if (ImGui::RadioButton("MIDITrail", currRenderer == RendererType::MIDITrail))
-				{
-					if (currRenderer != RendererType::MIDITrail)
-					{
-						config->render.SetCurrentRenderer(RendererType::MIDITrail);
-						app->SetRenderer<MIDIRendererMIDITrail>();
-						std::cout << "Switched to the MIDITrail renderer" << std::endl;
-					}
-				}
+					TABLE_ENTRY(
+						TABLE_LABEL("Renderer"),
+						{
+							if (ImGui::RadioButton("Piano From Above", currRenderer == RendererType::PFA))
+							{
+								if (currRenderer != RendererType::PFA)
+								{
+									config->render.SetCurrentRenderer(RendererType::PFA);
+									app->SetRenderer<MIDIRendererPFA>();
+									std::cout << "Switched to the PFA renderer" << std::endl;
+								}
+							}
 
-				if (ImGui::RadioButton("Channels", currRenderer == RendererType::Channels))
-				{
-					if (currRenderer != RendererType::Channels)
-					{
-						config->render.SetCurrentRenderer(RendererType::Channels);
-						app->SetRenderer<MIDIRendererChannels>();
-						std::cout << "Switched to the Channels renderer" << std::endl;
-					}
-				}
+							if (ImGui::RadioButton("Textured", currRenderer == RendererType::Default))
+							{
+								if (currRenderer != RendererType::Default)
+								{
+									config->render.SetCurrentRenderer(RendererType::Default);
+									app->SetRenderer<MIDIRenderer>();
+									std::cout << "Switched to the Textured renderer" << std::endl;
+								}
+							}
+							if (ImGui::RadioButton("Enhanced Graphics", currRenderer == RendererType::Enhanced))
+							{
+								if (currRenderer != RendererType::Enhanced)
+								{
+									config->render.SetCurrentRenderer(RendererType::Enhanced);
+									app->SetRenderer<MIDIRendererEnhanced>();
+									std::cout << "Switched to the enhanced graphics renderer" << std::endl;
+								}
+							}
 
-				if (ImGui::RadioButton("Velocities", currRenderer == RendererType::Velocities))
-				{
-					if (currRenderer != RendererType::Velocities)
-					{
-						config->render.SetCurrentRenderer(RendererType::Velocities);
-						app->SetRenderer<MIDIRendererVelocities>();
-						std::cout << "Switched to the Velocities renderer" << std::endl;
-					}
+							if (ImGui::RadioButton("MIDITrail", currRenderer == RendererType::MIDITrail))
+							{
+								if (currRenderer != RendererType::MIDITrail)
+								{
+									config->render.SetCurrentRenderer(RendererType::MIDITrail);
+									app->SetRenderer<MIDIRendererMIDITrail>();
+									std::cout << "Switched to the MIDITrail renderer" << std::endl;
+								}
+							}
+
+							if (ImGui::RadioButton("Channels", currRenderer == RendererType::Channels))
+							{
+								if (currRenderer != RendererType::Channels)
+								{
+									config->render.SetCurrentRenderer(RendererType::Channels);
+									app->SetRenderer<MIDIRendererChannels>();
+									std::cout << "Switched to the Channels renderer" << std::endl;
+								}
+							}
+
+							if (ImGui::RadioButton("Velocities", currRenderer == RendererType::Velocities))
+							{
+								if (currRenderer != RendererType::Velocities)
+								{
+									config->render.SetCurrentRenderer(RendererType::Velocities);
+									app->SetRenderer<MIDIRendererVelocities>();
+									std::cout << "Switched to the Velocities renderer" << std::endl;
+								}
+							}
+						}
+					);
+
+					END_SECTION;
 				}
+				
 
 				ImGui::Spacing();
 
@@ -611,34 +707,46 @@ void SettingsDialog::DrawAudioTab()
 {
 	MIDIAudio* midiAudio = app->GetMIDIAudio();
 
-	ImGui::Text("Audio Engine");
-	AudioEngineList& engineList = midiAudio->GetEngineList();
-	size_t engineIndex = 0;
-	for (auto& engine : engineList)
+	// ImGui::Text("Audio Engine");
+	BEGIN_SECTION("##audioEngine")
 	{
-		if (engine == nullptr)
-		{
-			engineIndex++;
-			continue;
-		}
+		SETUP_SECTION;
 
-		AudioEngineType type = (AudioEngineType)engineIndex;
+		TABLE_ENTRY(
+			TABLE_LABEL("Audio engine"),
+			{
+				AudioEngineList & engineList = midiAudio->GetEngineList();
+				size_t engineIndex = 0;
+				for (auto& engine : engineList)
+				{
+					if (engine == nullptr)
+					{
+						engineIndex++;
+						continue;
+					}
 
-		bool isSupported = engine->IsSupported();
+					AudioEngineType type = (AudioEngineType)engineIndex;
 
-		ImGui::BeginDisabled(!isSupported);
-		if (ImGui::RadioButton(engine->GetName().c_str(), midiAudio->GetCurrentEngineType() == type))
-			midiAudio->SwitchEngine(type);
+					bool isSupported = engine->IsSupported();
 
-		if (!isSupported)
-			ImGui::SetItemTooltip("This engine is not supported on your platform.");
-		ImGui::EndDisabled();
+					ImGui::BeginDisabled(!isSupported);
+					if (ImGui::RadioButton(engine->GetName().c_str(), midiAudio->GetCurrentEngineType() == type))
+						midiAudio->SwitchEngine(type);
 
-		ImGui::Spacing();
+					if (!isSupported)
+						ImGui::SetItemTooltip("This engine is not supported on your platform.");
+					ImGui::EndDisabled();
 
-		engineIndex++;
+					ImGui::Spacing();
+
+					engineIndex++;
+				}
+			}
+		);
+
+		END_SECTION;
 	}
-
+	
 	if (ImGui::CollapsingHeader("Engine Settings", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		midiAudio->GetCurrentEngine()->RenderSettings();
@@ -648,17 +756,27 @@ void SettingsDialog::DrawAudioTab()
 void SettingsDialog::DrawMIDITab()
 {
 	auto* config = app->GetConfig();
-	ImGui::Text("MIDI loading threads");
 
-	ImGui::SameLine();
-	if (ImGui::RadioButton("Single-threaded", !config->midi.multithreadedLoading))
-		config->midi.multithreadedLoading = false;
+	BEGIN_SECTION("##midiSettings")
+	{
+		SETUP_SECTION;
 
-	ImGui::SameLine();
-	if (ImGui::RadioButton("Multi-threaded", config->midi.multithreadedLoading))
-		config->midi.multithreadedLoading = true;
+		TABLE_ENTRY(
+			TABLE_LABEL("MIDI loading threads"),
+			{
+				if (ImGui::RadioButton("Single-threaded", !config->midi.multithreadedLoading))
+					config->midi.multithreadedLoading = false;
 
-	ImGui::Text("Time-based loading");
-	ImGui::SameLine();
-	ImGui::Checkbox("##timebasedLoading", &config->midi.timeBasedLoading);
+				if (ImGui::RadioButton("Multi-threaded", config->midi.multithreadedLoading))
+					config->midi.multithreadedLoading = true;
+			}
+		);
+
+		TABLE_ENTRY(
+			TABLE_LABEL("Time-based loading"),
+			{ ImGui::Checkbox("##timebasedLoading", &config->midi.timeBasedLoading); }
+		);
+
+		END_SECTION;
+	}
 }
