@@ -11,7 +11,7 @@
 	ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 160.0f); \
 	ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 
-#define TABLE_ENTRY(a, ...) \
+#define SECTION_ENTRY(a, ...) \
 	do { ImGui::TableNextRow();\
 		ImGui::TableSetColumnIndex(0);\
 		a; \
@@ -19,9 +19,21 @@
 		__VA_ARGS__ \
 	} while (0)
 
-#define TABLE_LABEL(text) \
+#define SECTION_LABEL(text) \
 	ImGui::AlignTextToFramePadding(); \
 	ImGui::TextUnformatted(text)
+
+#define TABLE_LABEL_TOOLTIP(text, tooltip) \
+	ImGui::AlignTextToFramePadding(); \
+	ImGui::TextUnformatted(text); \
+	ImGui::SetItemTooltip(tooltip)
+
+#define SECTION_HEADER_LARGE(title) ImGui::Spacing(); \
+	ImGui::SetWindowFontScale(1.5f); \
+	ImGui::TextUnformatted(title); \
+	ImGui::SetWindowFontScale(1.0f); \
+	ImGui::Separator(); \
+	ImGui::Spacing()
 
 #define SECTION_HEADER(title) ImGui::Spacing(); \
 	ImGui::SetWindowFontScale(1.2f); \
@@ -29,3 +41,6 @@
 	ImGui::SetWindowFontScale(1.0f); \
 	ImGui::Separator(); \
 	ImGui::Spacing()
+
+#define IMGUI_RADIO_BUTTON(label, variable, value) \
+    if (ImGui::RadioButton(label, variable == value)) variable = value

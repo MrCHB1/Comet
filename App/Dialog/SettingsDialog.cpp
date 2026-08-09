@@ -60,7 +60,7 @@ void SettingsDialog::DrawAppTab()
 				BEGIN_SECTION("##renderSec")
 				{
 					SETUP_SECTION;
-					TABLE_ENTRY(TABLE_LABEL("VSync"),
+					SECTION_ENTRY(SECTION_LABEL("VSync"),
 					{
 						bool vsync = config->render.GetVSync();
 						if (ImGui::Checkbox("##vsync", &vsync))
@@ -70,7 +70,7 @@ void SettingsDialog::DrawAppTab()
 						}
 					});
 
-					TABLE_ENTRY({ TABLE_LABEL("FPS Limit"); ImGui::SetItemTooltip("When set to 0 then the FPS will be uncapped"); },
+					SECTION_ENTRY({ SECTION_LABEL("FPS Limit"); ImGui::SetItemTooltip("When set to 0 then the FPS will be uncapped"); },
 						{
 							int fpsLimit = config->render.GetFPSLimit();
 							if (ImGui::InputInt("##fpsLimit", &fpsLimit))
@@ -167,27 +167,44 @@ void SettingsDialog::DrawAppTab()
 			}
 			if (ImGui::BeginTabItem("Navigation"))
 			{
-				ImGui::Text("Always hide navigation bar");
-				ImGui::SetItemTooltip("Enabling this will always hide the menu/navigation bar, unless the mouse is near it.");
-				ImGui::SameLine();
-				ImGui::Checkbox("##hideNavigationbar", &config->navigation.alwaysHideBar);
+				BEGIN_SECTION("##navi")
+				{
+					SETUP_SECTION;
+					
+					SECTION_ENTRY(
+						TABLE_LABEL_TOOLTIP(
+							"Always hide navigation bar",
+							"Enabling this will always hide the menu/navigation bar, unless the mouse is near it."
+						),
+						ImGui::Checkbox("##hideNavigationbar", &config->navigation.alwaysHideBar);
+					);
+
+					SECTION_ENTRY(
+						SECTION_LABEL("Jump forward secs"),
+						{
+							float jumpForwardSecs = config->navigation.seekForwardSeconds;
+							if (ImGui::InputFloat("##forwardSecs", &jumpForwardSecs, ImGuiInputTextFlags_NoHorizontalScroll))
+							{
+								config->navigation.seekForwardSeconds = std::clamp(jumpForwardSecs, 0.0001f, 10.0f);
+							}
+						}
+					);
+
+					SECTION_ENTRY(
+						SECTION_LABEL("Jump backward secs"),
+						{
+							float jumpBackwardSecs = config->navigation.seekBackwardSeconds;
+							if (ImGui::InputFloat("##backwardSecs", &jumpBackwardSecs, ImGuiInputTextFlags_NoHorizontalScroll))
+							{
+								config->navigation.seekBackwardSeconds = std::clamp(jumpBackwardSecs, 0.0001f, 10.0f);
+							}
+						}
+					);
+
+					END_SECTION;
+				}
+
 				ImGui::EndTabItem();
-
-				ImGui::Text("Jump forward secs");
-				ImGui::SameLine();
-				float jumpForwardSecs = config->navigation.seekForwardSeconds;
-				if (ImGui::InputFloat("##forwardSecs", &jumpForwardSecs, ImGuiInputTextFlags_NoHorizontalScroll))
-				{
-					config->navigation.seekForwardSeconds = std::clamp(jumpForwardSecs, 0.0001f, 10.0f);
-				}
-
-				ImGui::Text("Jump backward secs");
-				ImGui::SameLine();
-				float jumpBackwardSecs = config->navigation.seekBackwardSeconds;
-				if (ImGui::InputFloat("##backwardSecs", &jumpBackwardSecs, ImGuiInputTextFlags_NoHorizontalScroll))
-				{
-					config->navigation.seekBackwardSeconds = std::clamp(jumpBackwardSecs, 0.0001f, 10.0f);
-				}
 			}
 			ImGui::EndTabBar();
 		}
@@ -220,8 +237,8 @@ void SettingsDialog::DrawVisualTab()
 					{
 						SETUP_SECTION;
 
-						TABLE_ENTRY(
-							TABLE_LABEL("Use colors from"),
+						SECTION_ENTRY(
+							SECTION_LABEL("Use colors from"),
 							if (ImGui::RadioButton("Resource pack", !config->render.GetUseColorsFromImage()))
 							{
 								config->render.SetUseColorsFromImage(false);
@@ -350,8 +367,8 @@ void SettingsDialog::DrawVisualTab()
 					{
 						SETUP_SECTION;
 
-						TABLE_ENTRY(
-							TABLE_LABEL("Loop colors"),
+						SECTION_ENTRY(
+							SECTION_LABEL("Loop colors"),
 							if (ImGui::Checkbox("##loopColors", &config->render.loopColors))
 							{
 								auto& currPalette = colorList->GetCurrentPalette();
@@ -381,13 +398,13 @@ void SettingsDialog::DrawVisualTab()
 				{
 					SETUP_SECTION;
 
-					TABLE_ENTRY(
-						TABLE_LABEL("Show note counter"),
+					SECTION_ENTRY(
+						SECTION_LABEL("Show note counter"),
 						ImGui::Checkbox("##showNoteCounter", &config->render.showCounter);
 					);
 
-					TABLE_ENTRY(
-						TABLE_LABEL("Scale"),
+					SECTION_ENTRY(
+						SECTION_LABEL("Scale"),
 						{
 							ImGui::SetNextItemWidth(-FLT_MIN);
 							ImGui::SliderFloat(
@@ -399,8 +416,8 @@ void SettingsDialog::DrawVisualTab()
 						}
 					);
 
-					TABLE_ENTRY(
-						TABLE_LABEL("Alignment"),
+					SECTION_ENTRY(
+						SECTION_LABEL("Alignment"),
 						{
 							const auto alignment = counterRenderer->GetCounterAlignment();
 
@@ -443,16 +460,16 @@ void SettingsDialog::DrawVisualTab()
 						}
 					);
 
-					TABLE_ENTRY(
-						TABLE_LABEL("Blur behind"),
+					SECTION_ENTRY(
+						SECTION_LABEL("Blur behind"),
 						ImGui::Checkbox(
 							"##blurBehind",
 							&config->overlayInfo.blurBehind
 						);
 					);
 
-					TABLE_ENTRY(
-						TABLE_LABEL("Font"),
+					SECTION_ENTRY(
+						SECTION_LABEL("Font"),
 						{
 							std::string currentFontName = "Default";
 
@@ -507,8 +524,8 @@ void SettingsDialog::DrawVisualTab()
 				{
 					SETUP_SECTION;
 
-					TABLE_ENTRY(
-						TABLE_LABEL("Style"),
+					SECTION_ENTRY(
+						SECTION_LABEL("Style"),
 						{
 							const auto style = counterRenderer->GetCounterStyle();
 
@@ -540,8 +557,8 @@ void SettingsDialog::DrawVisualTab()
 						}
 					);
 
-					TABLE_ENTRY(
-						TABLE_LABEL("Background color"),
+					SECTION_ENTRY(
+						SECTION_LABEL("Background color"),
 						{
 							std::array<float, 4> bgCol =
 								counterRenderer->GetCounterBackground();
@@ -561,8 +578,8 @@ void SettingsDialog::DrawVisualTab()
 						}
 					);
 
-					TABLE_ENTRY(
-						TABLE_LABEL("Text color"),
+					SECTION_ENTRY(
+						SECTION_LABEL("Text color"),
 						{
 							std::array<float, 3> txtCol =
 								counterRenderer->GetCounterTextColor();
@@ -619,8 +636,8 @@ void SettingsDialog::DrawVisualTab()
 				{
 					SETUP_SECTION;
 
-					TABLE_ENTRY(
-						TABLE_LABEL("Renderer"),
+					SECTION_ENTRY(
+						SECTION_LABEL("Renderer"),
 						{
 							if (ImGui::RadioButton("Piano From Above", currRenderer == RendererType::PFA))
 							{
@@ -712,8 +729,8 @@ void SettingsDialog::DrawAudioTab()
 	{
 		SETUP_SECTION;
 
-		TABLE_ENTRY(
-			TABLE_LABEL("Audio engine"),
+		SECTION_ENTRY(
+			SECTION_LABEL("Audio engine"),
 			{
 				AudioEngineList & engineList = midiAudio->GetEngineList();
 				size_t engineIndex = 0;
@@ -761,8 +778,8 @@ void SettingsDialog::DrawMIDITab()
 	{
 		SETUP_SECTION;
 
-		TABLE_ENTRY(
-			TABLE_LABEL("MIDI loading threads"),
+		SECTION_ENTRY(
+			SECTION_LABEL("MIDI loading threads"),
 			{
 				if (ImGui::RadioButton("Single-threaded", !config->midi.multithreadedLoading))
 					config->midi.multithreadedLoading = false;
@@ -772,8 +789,8 @@ void SettingsDialog::DrawMIDITab()
 			}
 		);
 
-		TABLE_ENTRY(
-			TABLE_LABEL("Time-based loading"),
+		SECTION_ENTRY(
+			SECTION_LABEL("Time-based loading"),
 			{ ImGui::Checkbox("##timebasedLoading", &config->midi.timeBasedLoading); }
 		);
 

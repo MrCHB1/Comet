@@ -3,6 +3,7 @@
 #include "MIDI/TempoMap.h"
 #include "Utils.h"
 #include <algorithm>
+#include "App/Dialog/DialogMacros.h"
 
 const std::array<float, 24> CUBE_VERTICES = {
 	0.0f, 1.0f, 0.0f,
@@ -920,61 +921,82 @@ void MIDIRendererMIDITrail::RenderSettings()
 	{
 		if (ImGui::BeginTabItem("Rendering"))
 		{
-			ImGui::Text("3D notes");
-			ImGui::SameLine();
-			ImGui::Checkbox("##3dNotes", &settings.notes3D);
-
-			ImGui::Text("Eat notes");
-			ImGui::SameLine();
-			if (ImGui::Checkbox("##eatNotes", &settings.eatNotes))
+			SECTION_HEADER("Note appearance");
+			BEGIN_SECTION("##noteAppearance")
 			{
-				if (settings.eatNotes)
-					UpdateSeparatorLines(settings.frontRenderCutoff, 0);
-				else
-					UpdateSeparatorLines(settings.frontRenderCutoff, settings.backRenderCutoff);
+				SETUP_SECTION;
 
-				{
-					ShaderBind shaderBind(*notesProgram);
-					notesProgram->SetInt("eatNotes", settings.eatNotes ? 1 : 0);
-				}
-			}
+				SECTION_ENTRY(SECTION_LABEL("3D notes"),
+					{
+						ImGui::Checkbox("##3dNotes", &settings.notes3D);
+					});
 
-			ImGui::Text("Note transparency");
-			ImGui::SameLine();
-			float noteTransparency = settings.noteTransparency;
-			if (ImGui::SliderFloat("##noteTransparency", &noteTransparency, 0.0f, 1.0f))
-			{
-				settings.noteTransparency = std::clamp(noteTransparency, 0.0f, 1.0f);
+				SECTION_ENTRY(SECTION_LABEL("Eat notes"),
+					{
+						if (ImGui::Checkbox("##eatNotes", &settings.eatNotes))
+						{
+							if (settings.eatNotes)
+								UpdateSeparatorLines(settings.frontRenderCutoff, 0);
+							else
+								UpdateSeparatorLines(settings.frontRenderCutoff, settings.backRenderCutoff);
+
+							{
+								ShaderBind shaderBind(*notesProgram);
+								notesProgram->SetInt("eatNotes", settings.eatNotes ? 1 : 0);
+							}
+						}
+					});
+
+				SECTION_ENTRY(SECTION_LABEL("Transparency"),
+					{
+						float noteTransparency = settings.noteTransparency;
+						if (ImGui::SliderFloat("##noteTransparency", &noteTransparency, 0.0f, 1.0f))
+						{
+							settings.noteTransparency = std::clamp(noteTransparency, 0.0f, 1.0f);
+						}
+					});
+
+				END_SECTION;
 			}
 
 			bool updateSeparatorLines = false;
-			ImGui::Spacing();
-			ImGui::Text("Front render cutoff");
-			ImGui::SameLine();
-			float frontRenderCutuff = settings.frontRenderCutoff;
-			if (ImGui::SliderFloat("##frontRenderCutoff", &settings.frontRenderCutoff, 1.0f, 40.0f))
+
+			SECTION_HEADER("Rendering");
+			BEGIN_SECTION("##renderingSection")
 			{
-				settings.frontRenderCutoff = std::clamp(frontRenderCutuff, 1.0f, 40.0f);
-				updateSeparatorLines = true;
-			}
+				SETUP_SECTION;
 
-			ImGui::Text("Back render cutoff");
-			ImGui::SameLine();
-			float backRenderCutoff = settings.backRenderCutoff;
-			if (ImGui::SliderFloat("##backRenderCutoff", &backRenderCutoff, 0.0f, 20.0f))
-			{
-				settings.backRenderCutoff = std::clamp(backRenderCutoff, 0.0f, 20.0f);
-				for (auto& id : startRenderIDs)
-				{
-					id = 0;
-				}
+				SECTION_ENTRY(SECTION_LABEL("Front render cutoff"),
+					{
+						float frontRenderCutuff = settings.frontRenderCutoff;
+						if (ImGui::SliderFloat("##frontRenderCutoff", &settings.frontRenderCutoff, 1.0f, 40.0f))
+						{
+							settings.frontRenderCutoff = std::clamp(frontRenderCutuff, 1.0f, 40.0f);
+							updateSeparatorLines = true;
+						}
+					});
 
-				for (auto& id : endRenderIDs)
-				{
-					id = 0;
-				}
+				SECTION_ENTRY(SECTION_LABEL("Back render cutoff"),
+					{
+						float backRenderCutoff = settings.backRenderCutoff;
+						if (ImGui::SliderFloat("##backRenderCutoff", &backRenderCutoff, 0.0f, 20.0f))
+						{
+							settings.backRenderCutoff = std::clamp(backRenderCutoff, 0.0f, 20.0f);
+							for (auto& id : startRenderIDs)
+							{
+								id = 0;
+							}
 
-				updateSeparatorLines = true;
+							for (auto& id : endRenderIDs)
+							{
+								id = 0;
+							}
+
+							updateSeparatorLines = true;
+						}
+					});
+
+				END_SECTION;
 			}
 
 			if (updateSeparatorLines)
@@ -986,65 +1008,112 @@ void MIDIRendererMIDITrail::RenderSettings()
 		}
 		if (ImGui::BeginTabItem("Keyboard"))
 		{
-			ImGui::Text("Show keyboard");
-			ImGui::SameLine();
-			ImGui::Checkbox("##showKeyboard", &settings.showKeyboard);
+			BEGIN_SECTION("##keyboardSec")
+			{
+				SETUP_SECTION;
+				SECTION_ENTRY(SECTION_LABEL("Show keyboard"),
+					{
+						ImGui::Checkbox("##showKeyboard", &settings.showKeyboard);
+					});
+				END_SECTION;
+			}
 
 			ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem("Camera"))
 		{
-			ImGui::DragFloat3("Camera position", glm::value_ptr(settings.cameraPos), 0.1f);
-			ImGui::DragFloat3("Camera rotation", glm::value_ptr(settings.cameraRotation), 0.1f);
-			float cameraFOV = settings.cameraFOV;
-			if (ImGui::SliderFloat("Camera FOV", &cameraFOV, 1.0f, 120.0f))
+			BEGIN_SECTION("##cameraSec")
 			{
-				settings.cameraFOV = std::clamp(cameraFOV, 1.0f, 120.0f);
+				SETUP_SECTION;
+
+				SECTION_ENTRY(SECTION_LABEL("Position"),
+					{
+						ImGui::DragFloat3("##cameraPos", glm::value_ptr(settings.cameraPos), 0.1f);
+					});
+				SECTION_ENTRY(SECTION_LABEL("Rotation"),
+					{
+						ImGui::DragFloat3("##cameraRot", glm::value_ptr(settings.cameraRotation), 0.1f);
+					});
+				SECTION_ENTRY(SECTION_LABEL("FOV"),
+					{
+						float cameraFOV = settings.cameraFOV;
+						if (ImGui::SliderFloat("##cameraFOV", &cameraFOV, 1.0f, 120.0f))
+						{
+							settings.cameraFOV = std::clamp(cameraFOV, 1.0f, 120.0f);
+						}
+					});
+
+				END_SECTION;
 			}
 
 			ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem("Measure Lines & Borders"))
 		{
-			ImGui::Text("Show measure lines");
-			ImGui::SameLine();
-			ImGui::Checkbox("##showMeasureLines", &settings.showMeasureLines);
-
-			ImGui::Text("Show outer borders");
-			ImGui::SameLine();
-			ImGui::Checkbox("##showBorders", &settings.showOuterBorders);
-
-			ImGui::Text("Line transparency");
-			ImGui::SameLine();
-			float lineTransparency = settings.lineTransparency;
-			if (ImGui::SliderFloat("##lineTransparency", &lineTransparency, 0.0f, 1.0f))
+			BEGIN_SECTION("##measureLines")
 			{
-				settings.lineTransparency = std::clamp(lineTransparency, 0.0f, 1.0f);
+				SETUP_SECTION;
+
+				SECTION_ENTRY(SECTION_LABEL("Show measure lines"),
+					{
+						ImGui::Checkbox("##showMeasureLines", &settings.showMeasureLines);
+					});
+
+				SECTION_ENTRY(SECTION_LABEL("Show outer borders"),
+					{
+						ImGui::Checkbox("##showBorders", &settings.showOuterBorders);
+					});
+
+				SECTION_ENTRY(SECTION_LABEL("Line transparency"),
+					{
+						float lineTransparency = settings.lineTransparency;
+						if (ImGui::SliderFloat("##lineTransparency", &lineTransparency, 0.0f, 1.0f))
+						{
+							settings.lineTransparency = std::clamp(lineTransparency, 0.0f, 1.0f);
+						}
+					});
+
+				END_SECTION;
 			}
+
 			ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem("Aura"))
 		{
-			ImGui::Text("Show aura");
-			ImGui::SameLine();
-			ImGui::Checkbox("##showAura", &settings.showAura);
-
-			ImGui::Text("Aura size");
-			ImGui::SameLine();
-			float auraSize = settings.auraSize;
-			if (ImGui::SliderFloat("##auraSize", &auraSize, 0.03f, 0.08f))
+			BEGIN_SECTION("##aura")
 			{
-				settings.auraSize = std::clamp(auraSize, 0.03f, 0.08f);
+				SETUP_SECTION;
+
+				SECTION_ENTRY(SECTION_LABEL("Show aura"), 
+					{
+						ImGui::Checkbox("##showAura", &settings.showAura);
+					});
+
+				SECTION_ENTRY(SECTION_LABEL("Aura size"),
+					{
+						float auraSize = settings.auraSize;
+						if (ImGui::SliderFloat("##auraSize", &auraSize, 0.03f, 0.08f))
+						{
+							settings.auraSize = std::clamp(auraSize, 0.03f, 0.08f);
+						}
+					});
+
+				SECTION_ENTRY(SECTION_LABEL("Aura texture"),
+					{
+						std::filesystem::path path = settings.auraTexture;
+						Utils::AddFilePickerField("##auraTexture", path, "png,jpg,jpeg");
+
+						if (path != settings.auraTexture)
+						{
+							settings.auraTexture = path;
+							LoadAuraTexture();
+						}
+					});
+
+				END_SECTION;
 			}
+
 			ImGui::EndTabItem();
-
-			std::filesystem::path path = settings.auraTexture;
-			Utils::AddFilePickerField("Aura texture", path, "png,jpg,jpeg");
-			if (path != settings.auraTexture)
-			{
-				settings.auraTexture = path;
-				LoadAuraTexture();
-			}
 		}
 		ImGui::EndTabBar();
 	}

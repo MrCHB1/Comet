@@ -7,6 +7,7 @@
 #include "App/Models.h"
 #include <algorithm>
 #include "Utils.h"
+#include "App/Dialog/DialogMacros.h"
 
 const std::vector<float> CUBE_VERTICES = {
     // front face
@@ -928,176 +929,285 @@ void MIDIRendererEnhanced::Render(double deltaTime)
    
 }
 
-#define IMGUI_RADIO_BUTTON(label, variable, value) \
-    if (ImGui::RadioButton(label, variable == value)) variable = value
-
 void MIDIRendererEnhanced::RenderSettings()
 {
     if (ImGui::BeginTabBar("##renderSettings"))
     {
         if (ImGui::BeginTabItem("Visual"))
         {
-            ImGui::Text("Exposure");
-            ImGui::SameLine();
-            float exposure = rendererSettings.exposure;
-            if (ImGui::SliderFloat("##exposure", &exposure, 0.0f, 5.0f))
+            SECTION_HEADER("Rendering");
+            BEGIN_SECTION("##rendering")
             {
-                rendererSettings.exposure = std::clamp(exposure, 0.0f, 5.0f);
+                SETUP_SECTION;
+
+                SECTION_ENTRY(SECTION_LABEL("Exposure"),
+                    {
+                        float exposure = rendererSettings.exposure;
+
+                        if (ImGui::SliderFloat("##exposure", &exposure, 0.05f, 5.0f))
+                        {
+                            rendererSettings.exposure = std::clamp(exposure, 0.05f, 5.0f);
+                        }
+                    });
+
+                SECTION_ENTRY(SECTION_LABEL("Anti-aliasing"),
+                    {
+                        MSAASetting previousMSAA = rendererSettings.msaa;
+
+                        IMGUI_RADIO_BUTTON("None", rendererSettings.msaa, MSAASetting::None);
+                        IMGUI_RADIO_BUTTON("Low (2x2)", rendererSettings.msaa, MSAASetting::AA2x2);
+                        IMGUI_RADIO_BUTTON("Medium (4x4)", rendererSettings.msaa, MSAASetting::AA4x4);
+                        IMGUI_RADIO_BUTTON("High (6x6)", rendererSettings.msaa, MSAASetting::AA6x6);
+
+                        if (previousMSAA != rendererSettings.msaa)
+                            UpdateMSAAFramebuffer();
+                    });
+
+                END_SECTION;
             }
 
-            ImGui::Text("Anti-aliasing");
-
-            MSAASetting previousMSAA = rendererSettings.msaa;
-
-            IMGUI_RADIO_BUTTON("None", rendererSettings.msaa, MSAASetting::None);
-            IMGUI_RADIO_BUTTON("Low (2x2)", rendererSettings.msaa, MSAASetting::AA2x2);
-            IMGUI_RADIO_BUTTON("Medium (4x4)", rendererSettings.msaa, MSAASetting::AA4x4);
-            IMGUI_RADIO_BUTTON("High (6x6)", rendererSettings.msaa, MSAASetting::AA6x6);
-
-            if (previousMSAA != rendererSettings.msaa) UpdateMSAAFramebuffer();
             ImGui::EndTabItem();
         }
+
         if (ImGui::BeginTabItem("Notes"))
         {
-            ImGui::Text("Note outline emission");
-            ImGui::SameLine();
-            float noteOutlineGlowFactor = rendererSettings.noteOutlineGlowFactor;
-            if (ImGui::SliderFloat("##noteOutlineGlow", &noteOutlineGlowFactor, 1.0f, 8.0f))
+            SECTION_HEADER("Note Appearance");
+            BEGIN_SECTION("##noteAppearance")
             {
-                rendererSettings.noteOutlineGlowFactor = std::clamp(noteOutlineGlowFactor, 1.0f, 8.0f);
-                ShaderBind notesBind(*notesProgram);
-                notesProgram->SetFloat("noteOutlineGlow", rendererSettings.noteOutlineGlowFactor);
-            }
+                SETUP_SECTION;
 
-            ImGui::Spacing();
-            ImGui::Text("Enable HSV shift");
-            ImGui::SameLine();
-       
-            if (ImGui::Checkbox("##hsvShift", &rendererSettings.hsvShiftEnabled))
-            {
-                ShaderBind notesBind(*notesProgram);
-                notesProgram->SetInt("noteHsvShiftEnabled", rendererSettings.hsvShiftEnabled ? 1 : 0);
-            }
-            if (rendererSettings.hsvShiftEnabled)
-            {
-                ImGui::Text("HSV strength");
-                ImGui::SameLine();
-                float hsvShiftStrength = rendererSettings.hsvShiftStrength;
-                if (ImGui::SliderFloat("##hsvStrength", &hsvShiftStrength, 0.0f, 1.0f))
-                {
-                    rendererSettings.hsvShiftStrength = std::clamp(hsvShiftStrength, 0.0f, 1.0f);
-                    ShaderBind notesBind(*notesProgram);
-                    notesProgram->SetFloat("noteHsvShiftStrength", rendererSettings.hsvShiftStrength);
-                }
-
-                bool shouldForwardUniform = false;
-
-                ImGui::Text("Hue shift");
-                ImGui::SameLine();
-                float hueShift = rendererSettings.hsvShifts.x;
-                if (ImGui::SliderFloat("##hsvHueShift", &hueShift, -1.0f, 1.0f))
-                {
-                    rendererSettings.hsvShifts.x = std::clamp(hueShift, -1.0f, 1.0f);
-                    shouldForwardUniform = true;
-                }
-
-                ImGui::Text("Saturation shift");
-                ImGui::SameLine();
-                float saturationShift = rendererSettings.hsvShifts.y;
-                if (ImGui::SliderFloat("##hsvSatShift", &saturationShift, -1.0f, 0.0f))
-                {
-                    rendererSettings.hsvShifts.y = std::clamp(saturationShift, -1.0f, 0.0f);
-                    shouldForwardUniform = true;
-                }
-
-                ImGui::Text("Value shift");
-                ImGui::SameLine();
-                float valueShift = rendererSettings.hsvShifts.z;
-                if (ImGui::SliderFloat("##hsvValShift", &valueShift, -1.0f, 0.0f))
-                {
-                    rendererSettings.hsvShifts.z = std::clamp(valueShift, -1.0f, 0.0f);
-                    shouldForwardUniform = true;
-                }
-
-                if (shouldForwardUniform)
-                {
+                SECTION_ENTRY(SECTION_LABEL("Outline emission"),
                     {
-                        ShaderBind notesBind(*notesProgram);
-                        notesProgram->SetVec3("noteHsvShifts", rendererSettings.hsvShifts);
-                    }
+                        float glow = rendererSettings.noteOutlineGlowFactor;
 
+                        if (ImGui::SliderFloat("##noteOutlineGlow", &glow, 1.0f, 8.0f))
+                        {
+                            rendererSettings.noteOutlineGlowFactor = std::clamp(glow, 1.0f, 8.0f);
+                            ShaderBind notesBind(*notesProgram);
+                            notesProgram->SetFloat("noteOutlineGlow", rendererSettings.noteOutlineGlowFactor);
+                        }
+                    });
+
+                END_SECTION;
+            }
+
+            SECTION_HEADER("HSV Shift");
+            BEGIN_SECTION("##hsvShift")
+            {
+                SETUP_SECTION;
+
+                SECTION_ENTRY(
+                    TABLE_LABEL_TOOLTIP(
+                        "Enable HSV shift",
+                        "Applies a hue, saturation, and value gradient shift to notes."
+                    ),
                     {
-                        ShaderBind keyboardBind(*keyboardProgram);
-                        keyboardProgram->SetVec3("noteHsvShifts", rendererSettings.hsvShifts);
+                        if (ImGui::Checkbox("##hsvShift", &rendererSettings.hsvShiftEnabled))
+                        {
+                            {
+                                ShaderBind notesBind(*notesProgram);
+                                notesProgram->SetInt("noteHsvShiftEnabled", rendererSettings.hsvShiftEnabled ? 1 : 0);
+                            }
+
+                            {
+                                ShaderBind keyboardBind(*keyboardProgram);
+                                keyboardProgram->SetInt("noteHsvShiftEnabled", rendererSettings.hsvShiftEnabled ? 1 : 0);
+                            }
+                        }
+                    });
+
+                if (rendererSettings.hsvShiftEnabled)
+                {
+                    SECTION_ENTRY(SECTION_LABEL("Strength"),
+                        {
+                            float strength = rendererSettings.hsvShiftStrength;
+
+                            if (ImGui::SliderFloat("##hsvStrength", &strength, 0.0f, 1.0f))
+                            {
+                                rendererSettings.hsvShiftStrength = std::clamp(strength, 0.0f, 1.0f);
+
+                                {
+                                    ShaderBind notesBind(*notesProgram);
+                                    notesProgram->SetFloat("noteHsvShiftStrength", rendererSettings.hsvShiftStrength);
+                                }
+
+                                {
+                                    ShaderBind keyboardBind(*keyboardProgram);
+                                    keyboardProgram->SetFloat("noteHsvShiftStrength", rendererSettings.hsvShiftStrength);
+                                }
+                            }
+                        });
+
+                    bool shouldForwardUniform = false;
+
+                    SECTION_ENTRY(SECTION_LABEL("Hue shift"),
+                        {
+                            float value = rendererSettings.hsvShifts.x;
+
+                            if (ImGui::SliderFloat("##hsvHueShift", &value, -1.0f, 1.0f))
+                            {
+                                rendererSettings.hsvShifts.x = std::clamp(value, -1.0f, 1.0f);
+                                shouldForwardUniform = true;
+                            }
+                        });
+
+                    SECTION_ENTRY(SECTION_LABEL("Saturation shift"),
+                        {
+                            float value = rendererSettings.hsvShifts.y;
+
+                            if (ImGui::SliderFloat("##hsvSatShift", &value, -1.0f, 1.0f))
+                            {
+                                rendererSettings.hsvShifts.y = std::clamp(value, -1.0f, 1.0f);
+                                shouldForwardUniform = true;
+                            }
+                        });
+
+                    SECTION_ENTRY(SECTION_LABEL("Value shift"),
+                        {
+                            float value = rendererSettings.hsvShifts.z;
+
+                            if (ImGui::SliderFloat("##hsvValShift", &value, -1.0f, 1.0f))
+                            {
+                                rendererSettings.hsvShifts.z = std::clamp(value, -1.0f, 1.0f);
+                                shouldForwardUniform = true;
+                            }
+                        });
+
+                    if (shouldForwardUniform)
+                    {
+                        {
+                            ShaderBind notesBind(*notesProgram);
+                            notesProgram->SetVec3("noteHsvShifts", rendererSettings.hsvShifts);
+                        }
+
+                        {
+                            ShaderBind keyboardBind(*keyboardProgram);
+                            keyboardProgram->SetVec3("noteHsvShifts", rendererSettings.hsvShifts);
+                        }
                     }
                 }
+
+                END_SECTION;
             }
+
             ImGui::EndTabItem();
         }
+
         if (ImGui::BeginTabItem("Keyboard"))
         {
-            ImGui::Text("Key glow factor");
-            ImGui::SameLine();
-            float keyGlowFactor = rendererSettings.keyGlowFactor;
-            if (ImGui::SliderFloat("##keyGlowFactor", &keyGlowFactor, 1.0f, 8.0f))
+            SECTION_HEADER("Keyboard Appearance");
+            BEGIN_SECTION("##keyboardAppearance")
             {
-                rendererSettings.keyGlowFactor = std::clamp(keyGlowFactor, 1.0f, 8.0f);
-                ShaderBind keyboardBind(*keyboardProgram);
-                keyboardProgram->SetFloat("keyGlowFactor", rendererSettings.keyGlowFactor);
-            }
+                SETUP_SECTION;
 
-            ImGui::Text("Keyboard brightness");
-            ImGui::SameLine();
-            float keyboardBrightness = rendererSettings.keyboardBrightness;
-            if (ImGui::SliderFloat("##keyboardBrightness", &keyboardBrightness, 0.1f, 1.0f))
-            {
-                rendererSettings.keyboardBrightness = std::clamp(keyboardBrightness, 0.1f, 1.0f);
-                ShaderBind keyboardBind(*keyboardProgram);
-                keyboardProgram->SetFloat("keyboardBrightness", rendererSettings.keyboardBrightness);
-            }
+                SECTION_ENTRY(SECTION_LABEL("Key glow"),
+                    {
+                        float value = rendererSettings.keyGlowFactor;
 
-            ImGui::Text("Keyboard FOV");
-            ImGui::SameLine();
-            float keyboardFOV = rendererSettings.keyboardFOV;
-            if (ImGui::SliderFloat("##keyboardFov", &keyboardFOV, 20.0f, 89.9f))
-            {
-                rendererSettings.keyboardFOV = std::clamp(keyboardFOV, 20.0f, 89.9f);
+                        if (ImGui::SliderFloat("##keyGlowFactor", &value, 1.0f, 8.0f))
+                        {
+                            rendererSettings.keyGlowFactor = std::clamp(value, 1.0f, 8.0f);
+
+                            ShaderBind keyboardBind(*keyboardProgram);
+                            keyboardProgram->SetFloat("keyGlowFactor", rendererSettings.keyGlowFactor);
+                        }
+                    });
+
+                SECTION_ENTRY(SECTION_LABEL("Brightness"),
+                    {
+                        float value = rendererSettings.keyboardBrightness;
+
+                        if (ImGui::SliderFloat("##keyboardBrightness", &value, 0.1f, 1.0f))
+                        {
+                            rendererSettings.keyboardBrightness = std::clamp(value, 0.1f, 1.0f);
+
+                            ShaderBind keyboardBind(*keyboardProgram);
+                            keyboardProgram->SetFloat("keyboardBrightness", rendererSettings.keyboardBrightness);
+                        }
+                    });
+
+                SECTION_ENTRY(SECTION_LABEL("Field of view"),
+                    {
+                        float value = rendererSettings.keyboardFOV;
+
+                        if (ImGui::SliderFloat("##keyboardFov", &value, 20.0f, 89.9f))
+                        {
+                            rendererSettings.keyboardFOV = std::clamp(value, 20.0f, 89.9f);
+                        }
+                    });
+
+                END_SECTION;
             }
 
             ImGui::EndTabItem();
         }
+
         if (ImGui::BeginTabItem("Saber"))
         {
-            ImGui::Text("Color");
-            ImGui::SameLine();
-            if (ImGui::ColorEdit3("##saberColor", &rendererSettings.saberColor.x))
+            SECTION_HEADER("Saber Appearance");
+            BEGIN_SECTION("##saberAppearance")
             {
-                ShaderBind mistBind(*mistProgram);
-                mistProgram->SetVec3("mistColor", rendererSettings.saberColor);
+                SETUP_SECTION;
+
+                SECTION_ENTRY(SECTION_LABEL("Color"),
+                    {
+                        if (ImGui::ColorEdit3("##saberColor", &rendererSettings.saberColor.x))
+                        {
+                            ShaderBind mistBind(*mistProgram);
+                            mistProgram->SetVec3("mistColor", rendererSettings.saberColor);
+                        }
+                    });
+
+                SECTION_ENTRY(SECTION_LABEL("Brightness"),
+                    {
+                        if (ImGui::SliderFloat("##saberBrightness", &rendererSettings.saberBrightness, 0.0f, 20.0f))
+                        {
+                            rendererSettings.saberBrightness = std::clamp(rendererSettings.saberBrightness, 0.0f, 20.0f);
+                        }
+                    });
+
+                END_SECTION;
             }
-            ImGui::Text("Brightness");
-            ImGui::SameLine();
-            float saberBrightness = rendererSettings.saberBrightness;
-            if (ImGui::SliderFloat("##saberBrightness", &saberBrightness, 0.0f, 20.0f))
-            {
-                rendererSettings.saberBrightness = saberBrightness;
-            }
+
             ImGui::EndTabItem();
         }
+
         if (ImGui::BeginTabItem("Mist"))
         {
-            ImGui::Text("Enable mist");
-            ImGui::SameLine();
-            ImGui::Checkbox("##enableMist", &rendererSettings.mistEnabled);
+            SECTION_HEADER("Mist");
+            BEGIN_SECTION("##mist")
+            {
+                SETUP_SECTION;
+
+                SECTION_ENTRY(SECTION_LABEL("Enable mist"),
+                    {
+                        ImGui::Checkbox("##enableMist", &rendererSettings.mistEnabled);
+                    });
+
+                END_SECTION;
+            }
+
             ImGui::EndTabItem();
         }
+
         if (ImGui::BeginTabItem("Particle system"))
         {
-            ImGui::Text("Enable particles");
-            ImGui::SameLine();
-            ImGui::Checkbox("##enableParticlles", &rendererSettings.particlesEnabled);
+            SECTION_HEADER("Particles");
+            BEGIN_SECTION("##particles")
+            {
+                SETUP_SECTION;
+
+                SECTION_ENTRY(SECTION_LABEL("Enable particles"),
+                    {
+                        ImGui::Checkbox("##enableParticles", &rendererSettings.particlesEnabled);
+                    });
+
+                END_SECTION;
+            }
+
             ImGui::EndTabItem();
         }
+
         ImGui::EndTabBar();
     }
 

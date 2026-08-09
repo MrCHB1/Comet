@@ -353,8 +353,12 @@ namespace Utils
 
     void AddFilePickerField(const char* label, std::filesystem::path& path, const char* extension, bool saving)
     {
-        ImGui::Text(label);
-        ImGui::SameLine();
+        if (strlen(label) >= 1 && label[0] != '#')
+        {
+            ImGui::Text(label);
+            ImGui::SameLine();
+        }
+
         ImGui::PushID(label);
         if (ImGui::Button("Browse..."))
         {
