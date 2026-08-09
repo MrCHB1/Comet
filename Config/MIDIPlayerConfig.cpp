@@ -36,6 +36,8 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 		{
 			ConfigOverlayInfo overlay;
 			overlay.scale = overlaySec->GetFloat("scale", 1.0f);
+			overlay.blurBehind = overlaySec->GetBoolean("blurBehind", true);
+			overlay.selectedFontPath = overlaySec->GetString("fontPath", "");
 
 			this->overlayInfo = overlay;
 		}
@@ -110,6 +112,8 @@ void MIDIPlayerConfig::SaveConfig()
 	config["app"]["themeID"] = app.currThemeID;
 
 	config["overlay"]["scale"] = overlayInfo.scale;
+	config["overlay"]["blurBehind"] = overlayInfo.blurBehind;
+	config["overlay"]["fontPath"] = overlayInfo.selectedFontPath;
 
 	config["midi"]["multithreaded"] = midi.multithreadedLoading;
 	config["midi"]["timeBased"] = midi.timeBasedLoading;

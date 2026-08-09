@@ -27,6 +27,7 @@ struct MIDIPlayerConfig
 		float scale = 1.0f;
 		std::string selectedFontPath = "";
 		bool showDuration = false;
+		bool blurBehind = true;
 	};
 
 	struct ConfigOverlay
