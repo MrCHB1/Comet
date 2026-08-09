@@ -1465,7 +1465,16 @@ void MIDIRendererMIDITrail::RenderNotes()
 	if (!noteCounterInfo->npsHistory.empty())
 	{
 		uint64_t notesOneSecondAgo = noteCounterInfo->npsHistory.front().totalNotes;
-		noteCounterInfo->notesPerSecond = static_cast<uint64_t>(notesPassed) - notesOneSecondAgo;
+		uint64_t currentNotes = static_cast<uint64_t>(notesPassed);
+
+		if (currentNotes >= notesOneSecondAgo)
+		{
+			noteCounterInfo->notesPerSecond.value = currentNotes - notesOneSecondAgo;
+		}
+		else
+		{
+			noteCounterInfo->notesPerSecond.value = 0;
+		}
 	}
 	else
 	{
