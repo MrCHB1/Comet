@@ -18,14 +18,14 @@ public:
 	void Render(float heightOffset);
 	void OnResize(int width, int height);
 
-	const NoteCounterAlignment& GetCounterAlignment() const
-	{
-		return counterAlignment;
-	}
-	void SetCounterAlignment(NoteCounterAlignment alignment)
-	{
-		counterAlignment = alignment;
-	}
+	void RenderUMP(float scale);
+	void RenderMIDITrail(float scale);
+
+	const NoteCounterAlignment& GetCounterAlignment() const { return counterAlignment; }
+	void SetCounterAlignment(NoteCounterAlignment alignment) { counterAlignment = alignment; }
+
+	const NoteCounterStyle& GetCounterStyle() const { return counterStyle; }
+	void SetCounterStyle(NoteCounterStyle style) { counterStyle = style; }
 
 	const std::array<float, 4> GetCounterBackground() const
 	{

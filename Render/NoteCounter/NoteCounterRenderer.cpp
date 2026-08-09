@@ -41,30 +41,6 @@ static void BeginNextCounterRow(const char* label)
 void NoteCounterRenderer::Render(float heightOffset)
 {
 	auto* config = app->GetConfig();
-	float counterScale = config->overlayInfo.scale;
-	float minCounterWidth = this->counterWidth * counterScale;
-
-	lastCounterYOffset = heightOffset;
-	switch (counterAlignment)
-	{
-		case NoteCounterAlignment::TopLeft:
-		{
-			ImGui::SetNextWindowPos(ImVec2(0, heightOffset), ImGuiCond_Always, ImVec2(0.0f, 0.0f));
-			break;
-		}
-		case NoteCounterAlignment::TopRight:
-		{
-			ImGui::SetNextWindowPos(ImVec2((float)width, heightOffset), ImGuiCond_Always, ImVec2(1.0f, 0.0f));
-			break;
-		}
-	}
-	
-	ImGui::SetNextWindowSizeConstraints(ImVec2(minCounterWidth, 0.0f), ImVec2(FLT_MAX, FLT_MAX));
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(5.0f * counterScale, 5.0f * counterScale));
-	ImGui::PushStyleColor(ImGuiCol_WindowBg, noteCounterBackgroundCol);
-	ImGui::PushStyleColor(ImGuiCol_Text, noteCounterTextCol);
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(-10.0f, 2.0f));
 
 	// font magic
 	ImFont* fontToUse = nullptr;
@@ -77,9 +53,60 @@ void NoteCounterRenderer::Render(float heightOffset)
 		}
 	}
 
+	lastCounterYOffset = heightOffset;
+	switch (counterAlignment)
+	{
+		case NoteCounterAlignment::TopLeft:
+		{
+			ImGui::SetNextWindowPos(ImVec2(0, heightOffset), ImGuiCond_Always, ImVec2(0.0f, 0.0f));
+			break;
+		}
+		case NoteCounterAlignment::TopCenter:
+		{
+			ImGui::SetNextWindowPos(ImVec2((float)width * 0.5f, heightOffset), ImGuiCond_Always, ImVec2(0.5f, 0.0f));
+			break;
+		}
+		case NoteCounterAlignment::TopRight:
+		{
+			ImGui::SetNextWindowPos(ImVec2((float)width, heightOffset), ImGuiCond_Always, ImVec2(1.0f, 0.0f));
+			break;
+		}
+	}
+
 	if (fontToUse) ImGui::PushFont(fontToUse);
 	else ImGui::PushFont(Fonts::MonoFont);
 
+	float counterScale = config->overlayInfo.scale;
+	float minCounterWidth = this->counterWidth * counterScale;
+
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(5.0f * counterScale, 5.0f * counterScale));
+	ImGui::PushStyleColor(ImGuiCol_WindowBg, noteCounterBackgroundCol);
+	ImGui::PushStyleColor(ImGuiCol_Text, noteCounterTextCol);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(-10.0f, 2.0f));
+
+	
+	switch (counterStyle)
+	{
+		case NoteCounterStyle::UMP:
+		{
+			ImGui::SetNextWindowSizeConstraints(ImVec2(minCounterWidth, 0.0f), ImVec2(FLT_MAX, FLT_MAX));
+			RenderUMP(counterScale);
+			break;
+		}
+		case NoteCounterStyle::MIDITrail:
+			RenderMIDITrail(counterScale);
+			break;
+		default: break;
+	}
+
+	ImGui::PopStyleVar(3);
+	ImGui::PopStyleColor(2);
+	ImGui::PopFont();
+}
+
+void NoteCounterRenderer::RenderUMP(float counterScale)
+{
 	if (ImGui::Begin("noteCounter", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar))
 	{
 		ImGui::SetWindowFontScale(counterScale);
@@ -112,21 +139,21 @@ void NoteCounterRenderer::Render(float heightOffset)
 				FormatText(buf, "%.1f", noteCounterInfo->bpm.value);
 				RightAlignedTableText(buf);
 			}
-			
+
 			if (noteCounterInfo->notesPassed.shown)
 			{
 				BeginNextCounterRow("Notes");
 				FormatText(buf, "%s", Utils::FormatWithCommas(noteCounterInfo->notesPassed.value).c_str());
 				RightAlignedTableText(buf);
 			}
-			
+
 			if (noteCounterInfo->notesPerSecond.shown)
 			{
 				BeginNextCounterRow("NPS");
 				FormatText(buf, "%s", Utils::FormatWithCommas(noteCounterInfo->notesPerSecond.value).c_str());
 				RightAlignedTableText(buf);
 			}
-			
+
 			if (noteCounterInfo->polyphony.shown)
 			{
 				BeginNextCounterRow("Polyphony");
@@ -149,10 +176,67 @@ void NoteCounterRenderer::Render(float heightOffset)
 		ImGui::SetWindowFontScale(1.0f);
 	}
 	ImGui::End();
-	ImGui::PopStyleVar(3);
-	ImGui::PopStyleColor(2);
+}
 
-	ImGui::PopFont();
+void NoteCounterRenderer::RenderMIDITrail(float counterScale)
+{
+	if (ImGui::Begin("noteCounter", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar))
+	{
+		ImGui::SetWindowFontScale(counterScale);
+
+		std::stringstream stats;
+		
+		bool hasFirstField = false;
+
+		if (noteCounterInfo->tick.shown)
+		{
+			stats << "TICK:" << Utils::FormatWithCommas(noteCounterInfo->tick.value) << "/" << noteCounterInfo->ppq.value;
+			hasFirstField = true;
+		}
+
+		if (noteCounterInfo->timeSeconds.shown)
+		{
+			if (hasFirstField) stats << "  ";
+			stats << "TIME:" << Utils::FormatDuration2(noteCounterInfo->timeSeconds.value * 1000);
+			hasFirstField = true;
+		}
+
+		if (noteCounterInfo->bpm.shown)
+		{
+			if (hasFirstField) stats << "  ";
+			stats << "BPM:" << std::fixed << std::setprecision(1) << noteCounterInfo->bpm.value;
+			hasFirstField = true;
+		}
+
+		if (noteCounterInfo->notesPassed.shown)
+		{
+			if (hasFirstField) stats << "  ";
+			stats << "NOTES:" << Utils::FormatWithCommas(noteCounterInfo->notesPassed.value);
+			hasFirstField = true;
+		}
+
+		if (noteCounterInfo->notesPerSecond.shown)
+		{
+			if (hasFirstField) stats << "  ";
+			stats << "NPS:" << Utils::FormatWithCommas(noteCounterInfo->notesPerSecond.value);
+			hasFirstField = true;
+		}
+
+		if (noteCounterInfo->polyphony.shown)
+		{
+			if (hasFirstField) stats << "  ";
+			stats << "POLY:" << Utils::FormatWithCommas(noteCounterInfo->polyphony.value);
+			hasFirstField = true;
+		}
+
+		ImGui::Text(stats.str().c_str());
+
+		lastCounterWidth = ImGui::GetWindowWidth();
+		lastCounterHeight = ImGui::GetWindowHeight();
+
+		ImGui::SetWindowFontScale(1.0f);
+	}
+	ImGui::End();
 }
 
 void NoteCounterRenderer::OnResize(int width, int height)
@@ -171,15 +255,20 @@ glm::vec2 NoteCounterRenderer::GetCounterPosition() const
 	float width = (float)lastCounterWidth / (float)this->width;
 	float height = GetCounterHeight() / (float)this->height;
 
+	float yPos = 1.0 - height - lastCounterYOffset / (float)this->height;
 	switch (counterAlignment)
 	{
 		case NoteCounterAlignment::TopLeft:
 		{
-			return glm::vec2(0.0, 1.0 - height - lastCounterYOffset / (float)this->height);
+			return glm::vec2(0.0, yPos);
+		}
+		case NoteCounterAlignment::TopCenter:
+		{
+			return glm::vec2(0.5f - width * 0.5f, yPos);
 		}
 		case NoteCounterAlignment::TopRight:
 		{
-			return glm::vec2(1.0 - width, 1.0 - height - lastCounterYOffset / (float)this->height);
+			return glm::vec2(1.0 - width, yPos);
 		}
 		default:
 			return glm::vec2(0.0f);
