@@ -44,6 +44,7 @@ struct RenderSettings
 
 	double midiStartDelay = 3.0;
 	bool includeAudio = false;
+	bool separateCounter = false;
 
 	std::filesystem::path audioPath = "";
 	std::filesystem::path outputPath = "";

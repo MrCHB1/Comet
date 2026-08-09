@@ -9,6 +9,7 @@ enum class NoteCounterStyle
 enum class NoteCounterAlignment
 {
 	TopLeft,
+	TopCenter, // only available for MIDITrail-style counter
 	TopRight
 };
 

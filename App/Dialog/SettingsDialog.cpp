@@ -352,105 +352,177 @@ void SettingsDialog::DrawVisualTab()
 			{
 				MIDIPlayerConfig* config = app->GetConfig();
 				NoteCounterRenderer* counterRenderer = app->GetNoteCounterRenderer();
-				
-				ImGui::SetWindowFontScale(1.2f);
-				ImGui::Text("Appearance");
-				ImGui::Spacing();
-				ImGui::SetWindowFontScale(1.0f);
-
-				ImGui::Text("Show note counter");
-				ImGui::SameLine();
-				ImGui::Checkbox("##showNoteCounter", &config->render.showCounter);
-
-				ImGui::Text("Scale");
-				ImGui::SameLine();
-				ImGui::SliderFloat("##counterScale", &config->overlayInfo.scale, config->overlayInfo.MIN_SCALE, config->overlayInfo.MAX_SCALE);
-
-				ImGui::Text("Alignment");
-				auto& alignment = counterRenderer->GetCounterAlignment();
-
-				ImGui::SameLine();
-				if (ImGui::RadioButton("Top Left", alignment == NoteCounterAlignment::TopLeft))
-					counterRenderer->SetCounterAlignment(NoteCounterAlignment::TopLeft);
-
-				ImGui::SameLine();
-				if (ImGui::RadioButton("Top Right", alignment == NoteCounterAlignment::TopRight))
-					counterRenderer->SetCounterAlignment(NoteCounterAlignment::TopRight);
-
-				ImGui::Text("Background color");
-				ImGui::SameLine();
-				std::array<float, 4> bgCol = counterRenderer->GetCounterBackground();
-				if (ImGui::ColorEdit4("##ncBg", bgCol.data()))
-				{
-					counterRenderer->SetCounterBackground(bgCol[0], bgCol[1], bgCol[2], bgCol[3]);
-				}
-
-				ImGui::Text("Text color");
-				ImGui::SameLine();
-				std::array<float, 3> txtCol = counterRenderer->GetCounterTextColor();
-				if (ImGui::ColorEdit3("##ncTxtCol", txtCol.data()))
-				{
-					counterRenderer->SetCounterTextColor(txtCol[0], txtCol[1], txtCol[2]);
-				}
-
-				// ======== FONTS ========
+				NoteCounterInfo* counter = app->GetNoteCounterInfo();
 				FontList* fontList = app->GetFontList();
 				std::vector<FontEntry>& fonts = fontList->GetFonts();
 
-				std::string currentFontName = "Default";
-				for (const auto& f : fonts)
-				{
-					if (f.path == config->overlayInfo.selectedFontPath)
+				auto Section = [](const char* title)
 					{
-						currentFontName = f.name;
-						break;
-					}
-				}
+						ImGui::Spacing();
+						ImGui::SetWindowFontScale(1.2f);
+						ImGui::TextUnformatted(title);
+						ImGui::SetWindowFontScale(1.0f);
+						ImGui::Separator();
+						ImGui::Spacing();
+					};
 
-				ImGui::Text("Font");
-				ImGui::SameLine();
-				if (ImGui::BeginCombo("##counterFontCombo", currentFontName.c_str()))
-				{
-					if (ImGui::Selectable("Default", config->overlayInfo.selectedFontPath.empty()))
+				auto Label = [](const char* text)
 					{
-						config->overlayInfo.selectedFontPath = "";
-					}
+						ImGui::AlignTextToFramePadding();
+						ImGui::TextUnformatted(text);
+					};
 
+				Section("Appearance");
+
+				if (ImGui::BeginTable("##nc_appearance", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadInnerX))
+				{
+					ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 160.0f);
+					ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0);
+					Label("Show note counter");
+					ImGui::TableSetColumnIndex(1);
+					ImGui::Checkbox("##showNoteCounter", &config->render.showCounter);
+
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0);
+					Label("Scale");
+					ImGui::TableSetColumnIndex(1);
+					ImGui::SetNextItemWidth(-FLT_MIN);
+					ImGui::SliderFloat("##counterScale", &config->overlayInfo.scale,
+						config->overlayInfo.MIN_SCALE, config->overlayInfo.MAX_SCALE);
+
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0);
+					Label("Alignment");
+					ImGui::TableSetColumnIndex(1);
+
+					const auto alignment = counterRenderer->GetCounterAlignment();
+					if (ImGui::RadioButton("Top Left", alignment == NoteCounterAlignment::TopLeft))
+						counterRenderer->SetCounterAlignment(NoteCounterAlignment::TopLeft);
+
+					ImGui::BeginDisabled(counterRenderer->GetCounterStyle() != NoteCounterStyle::MIDITrail);
+					ImGui::SameLine();
+					if (ImGui::RadioButton("Top Center", alignment == NoteCounterAlignment::TopCenter))
+						counterRenderer->SetCounterAlignment(NoteCounterAlignment::TopCenter);
+					ImGui::EndDisabled();
+
+					ImGui::SameLine();
+					if (ImGui::RadioButton("Top Right", alignment == NoteCounterAlignment::TopRight))
+						counterRenderer->SetCounterAlignment(NoteCounterAlignment::TopRight);
+
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0);
+					Label("Blur behind");
+					ImGui::TableSetColumnIndex(1);
+					ImGui::Checkbox("##blurBehind", &config->overlayInfo.blurBehind);
+
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0);
+					Label("Font");
+					ImGui::TableSetColumnIndex(1);
+
+					std::string currentFontName = "Default";
 					for (const auto& f : fonts)
 					{
-						bool isSelected = (config->overlayInfo.selectedFontPath == f.path);
-						if (ImGui::Selectable(f.name.c_str(), isSelected))
+						if (f.path == config->overlayInfo.selectedFontPath)
 						{
-							config->overlayInfo.selectedFontPath = f.path;
-						}
-
-						if (isSelected)
-						{
-							ImGui::SetItemDefaultFocus();
+							currentFontName = f.name;
+							break;
 						}
 					}
-					ImGui::EndCombo();
+
+					if (ImGui::BeginCombo("##counterFontCombo", currentFontName.c_str()))
+					{
+						if (ImGui::Selectable("Default", config->overlayInfo.selectedFontPath.empty()))
+							config->overlayInfo.selectedFontPath.clear();
+
+						for (const auto& f : fonts)
+						{
+							const bool isSelected = (config->overlayInfo.selectedFontPath == f.path);
+							if (ImGui::Selectable(f.name.c_str(), isSelected))
+								config->overlayInfo.selectedFontPath = f.path;
+
+							if (isSelected)
+								ImGui::SetItemDefaultFocus();
+						}
+
+						ImGui::EndCombo();
+					}
+
+					ImGui::EndTable();
 				}
 
-				ImGui::Text("Blur behind");
-				ImGui::SameLine();
-				ImGui::Checkbox("##blurBehind", &config->overlayInfo.blurBehind);
-					
-				ImGui::Separator();
-				ImGui::SetWindowFontScale(1.2f);
-				ImGui::Text("Fields");
-				ImGui::SetWindowFontScale(1.0f);
-				ImGui::Text("Fields marked with an asterisk (*) means they're omitted from renders.");
+				Section("Style");
+
+				if (ImGui::BeginTable("##nc_style", 2, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadInnerX))
+				{
+					ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 160.0f);
+					ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0);
+					Label("Style");
+					ImGui::TableSetColumnIndex(1);
+
+					const auto style = counterRenderer->GetCounterStyle();
+					if (ImGui::RadioButton("Ultralight MIDI Player", style == NoteCounterStyle::UMP))
+					{
+						counterRenderer->SetCounterStyle(NoteCounterStyle::UMP);
+						if (counterRenderer->GetCounterAlignment() == NoteCounterAlignment::TopCenter)
+							counterRenderer->SetCounterAlignment(NoteCounterAlignment::TopLeft);
+					}
+
+					ImGui::SameLine();
+					if (ImGui::RadioButton("MIDITrail", style == NoteCounterStyle::MIDITrail))
+					counterRenderer->SetCounterStyle(NoteCounterStyle::MIDITrail);
+
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0);
+					Label("Background color");
+					ImGui::TableSetColumnIndex(1);
+
+					std::array<float, 4> bgCol = counterRenderer->GetCounterBackground();
+					if (ImGui::ColorEdit4("##ncBg", bgCol.data(), ImGuiColorEditFlags_AlphaBar))
+						counterRenderer->SetCounterBackground(bgCol[0], bgCol[1], bgCol[2], bgCol[3]);
+
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0);
+					Label("Text color");
+					ImGui::TableSetColumnIndex(1);
+
+					std::array<float, 3> txtCol = counterRenderer->GetCounterTextColor();
+					if (ImGui::ColorEdit3("##ncTxtCol", txtCol.data()))
+						counterRenderer->SetCounterTextColor(txtCol[0], txtCol[1], txtCol[2]);
+
+					ImGui::EndTable();
+				}
+
+				Section("Fields");
+				ImGui::TextDisabled("Fields marked with an asterisk (*) are omitted from renders.");
 				ImGui::Spacing();
 
-				NoteCounterInfo* counter = app->GetNoteCounterInfo();
-				ImGui::Checkbox("Tick", &counter->tick.shown);
-				ImGui::Checkbox("Time", &counter->timeSeconds.shown);
-				ImGui::Checkbox("BPM", &counter->bpm.shown);
-				ImGui::Checkbox("Notes", &counter->notesPassed.shown);
-				ImGui::Checkbox("NPS", &counter->notesPerSecond.shown);
-				ImGui::Checkbox("Polyphony", &counter->polyphony.shown);
-				ImGui::Checkbox("FPS*", &counter->fps.shown);
+				if (ImGui::BeginTable("##nc_fields", 2, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoPadInnerX))
+				{
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0); ImGui::Checkbox("Tick", &counter->tick.shown);
+					ImGui::TableSetColumnIndex(1); ImGui::Checkbox("Time", &counter->timeSeconds.shown);
+
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0); ImGui::Checkbox("BPM", &counter->bpm.shown);
+					ImGui::TableSetColumnIndex(1); ImGui::Checkbox("Notes", &counter->notesPassed.shown);
+
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0); ImGui::Checkbox("NPS", &counter->notesPerSecond.shown);
+					ImGui::TableSetColumnIndex(1); ImGui::Checkbox("Polyphony", &counter->polyphony.shown);
+
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0); ImGui::Checkbox("FPS*", &counter->fps.shown);
+					ImGui::TableSetColumnIndex(1); ImGui::TextDisabled("");
+
+					ImGui::EndTable();
+				}
 
 				ImGui::EndTabItem();
 			}
