@@ -4,7 +4,16 @@
 std::shared_ptr<std::istream> FolderResourcePack::GetStream(const std::string& name)
 {
 	fs::path fullPath = root / name;
-	return std::make_shared<std::ifstream>(fullPath, std::ios::binary);
+	
+	if (!fs::exists(fullPath) || !fs::is_regular_file(fullPath))
+	{
+		return nullptr;
+	}
+
+	auto stream = std::make_shared<std::ifstream>(fullPath, std::ios::binary);
+	if (!stream->is_open()) return nullptr;
+
+	return stream;
 }
 
 std::vector<std::string> FolderResourcePack::GetEntries()
