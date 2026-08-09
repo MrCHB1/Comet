@@ -377,6 +377,22 @@ void SettingsDialog::DrawVisualTab()
 				if (ImGui::RadioButton("Top Right", alignment == NoteCounterAlignment::TopRight))
 					counterRenderer->SetCounterAlignment(NoteCounterAlignment::TopRight);
 
+				ImGui::Text("Background color");
+				ImGui::SameLine();
+				std::array<float, 4> bgCol = counterRenderer->GetCounterBackground();
+				if (ImGui::ColorEdit4("##ncBg", bgCol.data()))
+				{
+					counterRenderer->SetCounterBackground(bgCol[0], bgCol[1], bgCol[2], bgCol[3]);
+				}
+
+				ImGui::Text("Text color");
+				ImGui::SameLine();
+				std::array<float, 3> txtCol = counterRenderer->GetCounterTextColor();
+				if (ImGui::ColorEdit3("##ncTxtCol", txtCol.data()))
+				{
+					counterRenderer->SetCounterTextColor(txtCol[0], txtCol[1], txtCol[2]);
+				}
+
 				// ======== FONTS ========
 				FontList* fontList = app->GetFontList();
 				std::vector<FontEntry>& fonts = fontList->GetFonts();
@@ -416,21 +432,9 @@ void SettingsDialog::DrawVisualTab()
 					ImGui::EndCombo();
 				}
 
-				ImGui::Text("Background color");
+				ImGui::Text("Blur behind");
 				ImGui::SameLine();
-				std::array<float, 4> bgCol = counterRenderer->GetCounterBackground();
-				if (ImGui::ColorEdit4("##ncBg", bgCol.data()))
-				{
-					counterRenderer->SetCounterBackground(bgCol[0], bgCol[1], bgCol[2], bgCol[3]);
-				}
-
-				ImGui::Text("Text color");
-				ImGui::SameLine();
-				std::array<float, 3> txtCol = counterRenderer->GetCounterTextColor();
-				if (ImGui::ColorEdit3("##ncTxtCol", txtCol.data()))
-				{
-					counterRenderer->SetCounterTextColor(txtCol[0], txtCol[1], txtCol[2]);
-				}
+				ImGui::Checkbox("##blurBehind", &config->overlayInfo.blurBehind);
 					
 				ImGui::Separator();
 				ImGui::SetWindowFontScale(1.2f);

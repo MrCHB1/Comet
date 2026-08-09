@@ -225,8 +225,11 @@ void MIDIApp::Update()
 		glm::vec2 counterResolution = noteCounterRenderer->GetCounterResolution();
 		float heightOffset = rendering || !mainWindow->CanShowNavigationBar() ? 0.0 : 56.0;
 		glm::vec2 counterPos = noteCounterRenderer->GetCounterPosition();
-		// the frosted glass effect, yay!
-		blurredQuadRenderer->Render({ glm::vec3(counterPos.x, counterPos.y, 0.0f), glm::vec2(counterResolution.x, counterResolution.y) });
+		
+		// the (now optional) frosted glass effect, yay!
+		if (config.overlayInfo.blurBehind)
+			blurredQuadRenderer->Render({ glm::vec3(counterPos.x, counterPos.y, 0.0f), glm::vec2(counterResolution.x, counterResolution.y) });
+		
 		noteCounterRenderer->Render(heightOffset);
 	}
 
