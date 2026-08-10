@@ -252,6 +252,39 @@ void MIDIRendererEnhanced::Initialize()
     }
 #pragma endregion
 
+#pragma region Flare buffers + data
+    flaresProgram = ShaderProgram::Create(flareVert, flareFrag);
+    flaresVAO = std::make_unique<VertexArray>();
+    flaresVBO = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
+    flaresIBO = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
+    flaresEBO = std::make_unique<Buffer>(GL_ELEMENT_ARRAY_BUFFER);
+
+    {
+        VertexArrayBind vaoBind(*flaresVAO);
+
+        flaresVBO->Bind();
+        flaresVBO->SetData(QUAD_VERTICES, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, (void*)0);
+
+        flaresEBO->Bind();
+        flaresEBO->SetData(QUAD_INDICES, GL_STATIC_DRAW);
+
+        flaresIBO->Bind();
+        flaresIBO->SetData(renderFlares, GL_DYNAMIC_DRAW);
+
+        flaresVAO->SetFloatAttribute(1, 1, sizeof(RenderFlare), offsetof(RenderFlare, left));
+        flaresVAO->SetFloatAttribute(2, 1, sizeof(RenderFlare), offsetof(RenderFlare, right));
+        flaresVAO->SetIntAttribute(3, 1, sizeof(RenderFlare), offsetof(RenderFlare, color));
+        flaresVAO->SetFloatAttribute(4, 1, sizeof(RenderFlare), offsetof(RenderFlare, alpha));
+
+        glVertexAttribDivisor(1, 1);
+        glVertexAttribDivisor(2, 1);
+        glVertexAttribDivisor(3, 1);
+        glVertexAttribDivisor(4, 1);
+    }
+#pragma endregion
+
 #pragma region post processing setup
     downsampleShader = ShaderProgram::Create(fullscreenvert, downsamplefrag);
     upsampleShader = ShaderProgram::Create(fullscreenvert, upsamplefrag);
@@ -767,51 +800,76 @@ void MIDIRendererEnhanced::EmitNoteExplosion(uint8_t keyID, uint32_t hexColor)
 
 void MIDIRendererEnhanced::UpdateParticles(double deltaTime)
 {
-    float dt = static_cast<float>(deltaTime);
     const auto& pSettings = rendererSettings.particleSettings;
-
-    // one shared time value for this frame's vortex field -- every particle samples
-    // the same field at the same moment, so currents look coherent across the scene
-    // instead of each particle carrying around its own private swirl.
     float swirlTime = static_cast<float>(app->GetTimer()->Elapsed()) * pSettings.swirlSpeed;
 
-    for (size_t i = 0; i < liveParticleCount; )
+    const auto& ProcessParticles = [this, deltaTime, pSettings, swirlTime](size_t start, size_t end) {
+        float dt = static_cast<float>(deltaTime);
+        
+        for (size_t i = start; i < end; i++)
+        {
+            Particle3D& p = particlePool[i];
+            p.life -= dt;
+            if (p.life <= 0.0f)
+            {
+                continue;
+            }
+
+            float t = p.maxLife - p.life;
+            float curve = std::sin(t * p.curveSpeed + p.curveSeed) * p.curveAmp;
+            p.velocity.x += curve * dt;
+
+            // gravity pulls particles down (+gravity sinks them), wind pushes sideways
+            p.velocity.y -= pSettings.gravityFactor * dt;
+
+            // swirl: samples a time-varying curl noise field at the particle's current
+            // position, so particles drift through shared, evolving vortices instead of
+            // orbiting a fixed anchor.
+            if (pSettings.swirlStrength != 0.0f)
+            {
+                glm::vec2 curl = SampleCurlNoise(p.position.x * pSettings.swirlScale, p.position.y * pSettings.swirlScale, swirlTime);
+                p.velocity.x += curl.x * pSettings.swirlStrength * dt;
+                p.velocity.y += curl.y * pSettings.swirlStrength * dt;
+            }
+
+            // drag exponentially bleeds off velocity over time
+            float dragFactor = std::max(0.0f, 1.0f - pSettings.drag * dt);
+            p.velocity *= dragFactor;
+
+            p.position += p.velocity * dt;
+            p.color.a = p.life / p.maxLife;
+            p.scale = p.life / p.maxLife * 0.002f;
+        }
+    };
+
+    if (liveParticleCount > 0)
     {
-        Particle3D& p = particlePool[i];
-        p.life -= dt;
-        if (p.life <= 0.0f)
+        constexpr size_t CHUNK_SIZE = 4096;
+
+        for (size_t i = 0; i < liveParticleCount; i += CHUNK_SIZE)
         {
-            particlePool[i] = particlePool[--liveParticleCount];
-            continue;
+            size_t end = std::min(i + CHUNK_SIZE, liveParticleCount);
+            particleThreadPool.SubmitJob([&, i, end] {
+                    ProcessParticles(i, end);
+                });
         }
 
-        float t = p.maxLife - p.life;
-        float curve = std::sin(t * p.curveSpeed + p.curveSeed) * p.curveAmp;
-        p.velocity.x += curve * dt;
+        particleThreadPool.WaitForAllJobs();
 
-        // gravity pulls particles down (+gravity sinks them), wind pushes sideways
-        p.velocity.y -= pSettings.gravityFactor * dt;
-
-        // swirl: samples a time-varying curl noise field at the particle's current
-        // position, so particles drift through shared, evolving vortices instead of
-        // orbiting a fixed anchor.
-        if (pSettings.swirlStrength != 0.0f)
+        size_t i = 0;
+        while (i < liveParticleCount)
         {
-            glm::vec2 curl = SampleCurlNoise(p.position.x * pSettings.swirlScale, p.position.y * pSettings.swirlScale, swirlTime);
-            p.velocity.x += curl.x * pSettings.swirlStrength * dt;
-            p.velocity.y += curl.y * pSettings.swirlStrength * dt;
+            if (particlePool[i].life <= 0.0f)
+            {
+                particlePool[i] = particlePool[--liveParticleCount];
+            }
+            else
+            {
+                ++i;
+            }
         }
-
-        // drag exponentially bleeds off velocity over time
-        float dragFactor = std::max(0.0f, 1.0f - pSettings.drag * dt);
-        p.velocity *= dragFactor;
-
-        p.position += p.velocity * dt;
-        p.color.a = p.life / p.maxLife;
-        p.scale = p.life / p.maxLife * 0.002f;
-        ++i;
     }
-
+    
     for (uint8_t id : kbIDs)
     {
         const auto& key = keyMetas[id];
@@ -858,6 +916,56 @@ void MIDIRendererEnhanced::RenderParticles()
     glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, liveParticleCount);
 }
 
+void MIDIRendererEnhanced::RenderFlares(double deltaTime)
+{
+    // for now just go through the keyboard and borrow states from there
+    // TODO: move uniform calls to rendersettings
+    float dt = static_cast<float>(std::min(deltaTime, 0.033));
+    float fadeRate = dt / std::max(rendererSettings.flareFadeDuration, 0.0001f);
+
+    size_t flaresToRender = 0;
+    for (uint8_t id : kbIDs)
+    {
+        const auto& key = keyMetas[id];
+        float target = key.pressed ? 1.0f : 0.0f;
+        float& fade = flareFade[id];
+
+        // linear ramp toward 0 or 1 over flareFadeDuration seconds, so a press fades
+        // the flare in and a release fades it back out instead of popping instantly
+        if (target > fade)
+            fade = std::min(target, fade + fadeRate);
+        else
+            fade = std::max(target, fade - fadeRate);
+
+        if (fade <= 0.0f) continue;
+
+        float left = keyPos[id];
+        float right = left + keyWidth[id];
+
+        renderFlares[flaresToRender++] = RenderFlare(
+            left,
+            right,
+            key.color,
+            fade
+        );
+    }
+
+    if (flaresToRender == 0) return;
+
+    flaresIBO->Bind();
+    glBufferSubData(GL_ARRAY_BUFFER, 0, flaresToRender * sizeof(RenderFlare), renderFlares.data());
+
+    ShaderBind flaresBind(*flaresProgram);
+    VertexArrayBind vaoBind(*flaresVAO);
+    BufferBind vboBind(*flaresVBO);
+    BufferBind eboBind(*flaresEBO);
+
+    flaresProgram->SetFloat("kbHeight", keyboardHeight);
+    flaresProgram->SetFloat("flareHeight", rendererSettings.flareHeight);
+    flaresProgram->SetFloat("flareBrightness", rendererSettings.flareBrightness);
+    glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, flaresToRender);
+}
+
 void MIDIRendererEnhanced::Render(double deltaTime)
 {
     if (!initialized) return;
@@ -885,6 +993,14 @@ void MIDIRendererEnhanced::Render(double deltaTime)
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         RenderMist();
+        glDisable(GL_BLEND);
+    }
+
+    if (rendererSettings.flaresEnabled)
+    {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        RenderFlares(deltaTime);
         glDisable(GL_BLEND);
     }
 
@@ -1451,6 +1567,42 @@ void MIDIRendererEnhanced::RenderSettings()
             ImGui::EndTabItem();
         }
 
+        if (ImGui::BeginTabItem("Flares"))
+        {
+            BEGIN_SECTION("##flares")
+            {
+                SETUP_SECTION;
+
+                SECTION_ENTRY(SECTION_LABEL("Enable flares"),
+                    {
+                        ImGui::Checkbox("##enableFlares", &rendererSettings.flaresEnabled);
+                    });
+
+                SECTION_ENTRY(SECTION_LABEL("Height"),
+                    {
+                        float val = rendererSettings.flareHeight;
+                        if (ImGui::SliderFloat("##flareHeight", &val, 0.1f, 0.9f))
+                            rendererSettings.flareHeight = std::clamp(val, 0.1f, 0.9f);
+                    });
+
+                SECTION_ENTRY(SECTION_LABEL("Brightness"),
+                    {
+                        float val = rendererSettings.flareBrightness;
+                        if (ImGui::SliderFloat("##flareBrightness", &val, 0.1f, 3.0f))
+                        rendererSettings.flareBrightness = std::clamp(val, 0.1f, 3.0f);
+                    });
+
+                SECTION_ENTRY(SECTION_LABEL("Fade duration"),
+                    {
+                        float val = rendererSettings.flareFadeDuration;
+                        if (ImGui::SliderFloat("##flareFadeDuration", &val, 0.0f, 1.0f))
+                        rendererSettings.flareFadeDuration = std::clamp(val, 0.0f, 1.0f);
+                    });
+
+                END_SECTION;
+            }
+            ImGui::EndTabItem();
+        }
         ImGui::EndTabBar();
     }
 
@@ -1567,6 +1719,7 @@ void MIDIRendererEnhanced::ResetRenderer()
     {
         keyboardData[i].pressFactor = 0.0f;
         keyMetas[i].velocity = 0.0f;
+        flareFade[i] = 0.0f;
     }
 }
 
@@ -1654,12 +1807,19 @@ YAML::Node MIDIRendererEnhanced::GetSettings()
     particles["swirlScale"] = rendererSettings.particleSettings.swirlScale;
     particles["swirlSpeed"] = rendererSettings.particleSettings.swirlSpeed;
 
+    YAML::Node flares;
+    flares["enabled"] = rendererSettings.flaresEnabled;
+    flares["height"] = rendererSettings.flareHeight;
+    flares["brightness"] = rendererSettings.flareBrightness;
+    flares["fadeDuration"] = rendererSettings.flareFadeDuration;
+
     node["visual"] = visual;
     node["notes"] = notes;
     node["keyboard"] = keyboard;
     node["saber"] = saber;
     node["mist"] = mist;
     node["particles"] = particles;
+    node["flares"] = flares;
 
     return node;
 }
@@ -1749,6 +1909,15 @@ void MIDIRendererEnhanced::LoadSettings(const YAML::Node& node)
         LOAD_VAL(particles, "swirlStrength", rendererSettings.particleSettings.swirlStrength);
         LOAD_VAL(particles, "swirlScale", rendererSettings.particleSettings.swirlScale);
         LOAD_VAL(particles, "swirlSpeed", rendererSettings.particleSettings.swirlSpeed);
+    }
+
+    if (node["flare"])
+    {
+        auto flare = node["flare"];
+        LOAD_VAL(flare, "enabled", rendererSettings.flaresEnabled);
+        LOAD_VAL(flare, "height", rendererSettings.flareHeight);
+        LOAD_VAL(flare, "fadeDuration", rendererSettings.flareFadeDuration);
+        LOAD_VAL(flare, "brightness", rendererSettings.flareBrightness);
     }
 
     SetupUniforms();

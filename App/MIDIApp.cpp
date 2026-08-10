@@ -120,7 +120,7 @@ void MIDIApp::LoadResources()
 		case RendererType::PFA:
 			SetRenderer<MIDIRendererPFA>();
 			break;
-		case RendererType::Default:
+		case RendererType::Textured:
 			SetRenderer<MIDIRenderer>();
 			break;
 		case RendererType::Enhanced:

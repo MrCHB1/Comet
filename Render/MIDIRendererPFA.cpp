@@ -288,12 +288,17 @@ void MIDIRendererPFA::LoadSequence(std::shared_ptr<MIDISequence> sequence)
 
 void MIDIRendererPFA::UpdateGlobals()
 {
+	MIDIPlayerConfig* config = app->GetConfig();
+	auto keyFirst = config->render.GetKeyFirst();
+	auto keyLast = config->render.GetKeyLast();
+
 	notesX = 0.0f;
 	notesCX = static_cast<float>(width);
 	notesY = 0.0f;
 
-	allWhiteKeys = NUM_WHITE_KEYS;
-	float fBuffer = 0.0f;
+	allWhiteKeys = GetNumWhiteKeys(keyFirst, keyLast + 1);
+	float fBuffer = (IsSharp(keyFirst) ? SharpRatio / 2.0f : 0.0f) +
+		(IsSharp(keyLast) ? SharpRatio / 2.0f : 0.0f);
 	whiteCX = notesCX / (allWhiteKeys + fBuffer);
 
 	float maxKeyCY = static_cast<float>(height) * KBPercent;
@@ -308,10 +313,14 @@ void MIDIRendererPFA::GenNoteXTable()
 {
 	if (!noteXTableDirty) return;
 
-	for (int i = 0; i < MIDI_KEYS; i++)
+	MIDIPlayerConfig* config = app->GetConfig();
+	auto keyFirst = config->render.GetKeyFirst();
+	auto keyLast = config->render.GetKeyLast();
+
+	for (int i = keyFirst; i < keyLast; i++)
 	{
-		int whiteKeys = GetNumWhiteKeys(0, i);
-		float startX = (IsSharp(0) - IsSharp(i)) * SharpRatio / 2.0f;
+		int whiteKeys = GetNumWhiteKeys(keyFirst, i);
+		float startX = (IsSharp(keyFirst) - IsSharp(i)) * SharpRatio / 2.0f;
 		if (IsSharp(i))
 		{
 			int key12 = i % 12;
@@ -344,6 +353,8 @@ void MIDIRendererPFA::RenderLines()
 {
 	MIDIPlayerConfig* config = app->GetConfig();
 	ImVec4 bgColor = config->render.GetBackground();
+	auto keyFirst = config->render.GetKeyFirst();
+	auto keyLast = config->render.GetKeyLast();
 
 	uint32_t bgColor32 = (((uint32_t)(bgColor.x * 255.0)) << 16u) |
 		(((uint32_t)(bgColor.y * 255.0)) << 8u) |
@@ -351,14 +362,13 @@ void MIDIRendererPFA::RenderLines()
 
 	backgroundColor.SetColor(bgColor32, 0.7, 1.3);
 
-	// PushRect(notesX, notesY, notesCX, notesCY, backgroundColor.primary);
 	// vertical lines
-	for (int i = 1; i < MIDI_KEYS; i++)
+	for (int i = keyFirst + 1; i <= keyLast; i++)
 	{
 		if (IsSharp(i - 1) || IsSharp(i)) continue;
 
-		int whiteKeys = GetNumWhiteKeys(0, i);
-		float startX = IsSharp(0) * SharpRatio / 2.0f;
+		int whiteKeys = GetNumWhiteKeys(keyFirst, i);
+		float startX = IsSharp(keyFirst) * SharpRatio / 2.0f;
 		float x = notesX + whiteCX * (whiteKeys + startX);
 		x = std::floor(x + 0.5f);
 		PushRect(x - 1.0f, notesY, 3.0f, notesCY,
@@ -457,6 +467,10 @@ void MIDIRendererPFA::RenderLines()
 
 void MIDIRendererPFA::RenderKeyboard()
 {
+	MIDIPlayerConfig* config = app->GetConfig();
+	auto keyFirst = config->render.GetKeyFirst();
+	auto keyLast = config->render.GetKeyLast();
+
 	float keysY = notesY + notesCY;
 	float keysCY = height - notesCY;
 
@@ -481,14 +495,17 @@ void MIDIRendererPFA::RenderKeyboard()
 	float keyGap = std::max(1.0f, std::floor(whiteCX * 0.05f + 0.5f));
 	float keyGap1 = keyGap - std::floor(keyGap / 2.0f + 0.5f);
 
-	float startX = 0.0f;
+	int startRender = (IsSharp(keyFirst) ? keyFirst - 1 : keyFirst);
+	int endRender = (IsSharp(keyLast) ? keyLast + 1 : keyLast);
+
+	float startX = (IsSharp(keyFirst) ? whiteCX * (SharpRatio / 2.0f - 1.0f) : 0.0f);
 	float sharpCY = topCY * 0.67f;
 
 	// draw the white keys
 	#pragma region White Keys
 	float curX = notesX + startX;
 	float curY = keysY + transitionCY + redCY + spacerCY;
-	for (int i = 0; i < MIDI_KEYS; i++)
+	for (int i = startRender; i <= endRender; i++)
 	{
 		if (IsSharp(i)) continue;
 
@@ -533,12 +550,15 @@ void MIDIRendererPFA::RenderKeyboard()
 	}
 	#pragma endregion
 
-	startX = 0.0f;
+	startRender = (keyFirst != 21 && !IsSharp(keyFirst) && keyFirst > 0 && IsSharp(keyFirst - 1) ? keyFirst - 1 : keyFirst);
+	endRender = (keyLast != 108 && keyLast != 127) && !IsSharp(keyLast) && keyLast < 255 && IsSharp(keyLast + 1) ? keyLast + 1 : keyLast;
+	startX = IsSharp(keyFirst) ? whiteCX * SharpRatio / 2.0f : 0.0f;
+
 	float sharpTop = SharpRatio * 0.7f;
 	curX = notesX + startX;
 	curY = keysY + transitionCY + redCY + spacerCY;
 	#pragma region Sharp Keys
-	for (int i = 0; i < MIDI_KEYS; i++)
+	for (int i = keyFirst; i <= keyLast; i++)
 	{
 		if (!IsSharp(i))
 		{
@@ -705,8 +725,17 @@ void MIDIRendererPFA::RenderNotes()
 
 	double targetTick = isTimeBased ? (accTime / invTimeMultiplier) : accTime;
 
+	MIDIPlayerConfig* config = app->GetConfig();
+	auto keyFirst = config->render.GetKeyFirst();
+	auto keyLast = config->render.GetKeyLast();
+
+	int startRender = (IsSharp(keyFirst) ? keyFirst - 1 : keyFirst);
+	int endRender = (IsSharp(keyLast) ? keyLast + 1 : keyLast);
+
 	for (uint8_t id : kbIDs)
 	{
+		if (id < startRender || id > endRender) continue;
+
 		uint16_t lastTrack = 0;
 		uint8_t lastChannel = 0;
 		uint32_t lastTick = 0;

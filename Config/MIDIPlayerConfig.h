@@ -1,16 +1,35 @@
 #pragma once
 
 #include "ConfigSection.h"
+#include "MIDI/MIDIDefs.h"
+#include <string>
 
 enum class RendererType
 {
 	PFA,
-	Default,
+	Synthesia,
+	Textured,
 	Enhanced,
 	MIDITrail,
 	Channels,
-	Velocities
+	Velocities,
 };
+
+inline const std::string ToString(RendererType type)
+{
+	switch (type)
+	{
+		case RendererType::PFA:        return "Piano From Above";
+		case RendererType::Synthesia:  return "Synthesia";
+		case RendererType::Textured:   return "Textured";
+		case RendererType::Enhanced:   return "Enhanced Graphics";
+		case RendererType::MIDITrail:  return "MIDITrail";
+		case RendererType::Channels:   return "Channels";
+		case RendererType::Velocities: return "Velocities";
+	}
+
+	return "Unknown";
+}
 
 struct MIDIPlayerConfig
 {
@@ -124,6 +143,39 @@ struct MIDIPlayerConfig
 			currentRenderer = renderer;
 		}
 
+		int GetKeyFirst() { return keyFirst; }
+		void SetKeyFirst(int key)
+		{
+			if (key < 0) key = 0;
+			if (key > keyLast) key = keyLast;
+			
+			if (keyFirst != key)
+			{
+				keyFirst = key;
+				keyRangeChanged = true;
+			}
+		}
+
+		int GetKeyLast() { return keyLast; }
+		void SetKeyLast(int key)
+		{
+			if (key > MIDI_KEYS - 1) key = MIDI_KEYS - 1;
+			if (key < keyFirst) key = keyFirst;
+			
+			if (keyLast != key)
+			{
+				keyLast = key;
+				keyRangeChanged = true;
+			}
+		}
+
+		bool ConsumeKeyRangeChanged()
+		{
+			bool tmp = keyRangeChanged;
+			keyRangeChanged = false;
+			return tmp;
+		}
+
 		bool showCounter = true;
 		bool loopColors = true;
 		int paletteID = 0;
@@ -140,6 +192,10 @@ struct MIDIPlayerConfig
 		bool usePFAColors = false;
 		bool useColorsFromImage = false;
 		
+		int keyFirst = 0;
+		int keyLast = 127;
+		bool keyRangeChanged = false;
+
 		std::string resourcePack = "";
 		std::string font = "Monospaced";
 		MIDIPlayerConfig::ConfigOverlay overlay{};
