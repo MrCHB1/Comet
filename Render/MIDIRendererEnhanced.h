@@ -5,10 +5,11 @@
 #include <cstdint>
 #include <mutex>
 #include <glm/glm.hpp>
+#include "Concurrency/ThreadPool.h"
 
 #define NOTE_BUFFER_SIZE 262144
 #define NOTES_MAX_BATCHES 512
-#define PARTICLE_BUFFER_SIZE 65536
+#define PARTICLE_BUFFER_SIZE 131072
 
 #pragma region Gradient noise field (scary shit)
 
@@ -134,6 +135,12 @@ struct EnhancedRendererSettings
     bool particlesEnabled = true;
     ParticleSettings particleSettings = ParticleSettings::Default();
 
+    // flare settings
+    bool flaresEnabled = true;
+    float flareHeight = 0.25f;
+    float flareBrightness = 1.0f;
+    float flareFadeDuration = 0.25f; 
+
     static EnhancedRendererSettings Default()
     {
         return EnhancedRendererSettings{};
@@ -241,6 +248,23 @@ struct Particle3D
 
 #pragma endregion
 
+#pragma region Flare Data
+
+#pragma pack(push, 1)
+struct RenderFlare
+{
+    float left;
+    float right;
+    uint32_t color;
+    float alpha; // per-key fade multiplier (0-1), ramped on press/release
+
+    RenderFlare() = default;
+    RenderFlare(float left, float right, uint32_t color, float alpha) : left(left), right(right), color(color), alpha(alpha) {}
+};
+#pragma pack(pop)
+
+#pragma endregion
+
 #define KEY_IS_BLACK(n) \
 ( ((n) % 12) == 1 || \
   ((n) % 12) == 3 || \
@@ -300,6 +324,9 @@ private:
     void UpdateParticles(double deltaTime);
     void RenderParticles();
     glm::mat4 GetViewMatrixFromEuler();
+
+    // flares
+    void RenderFlares(double deltaTime);
 
     EnhancedRendererSettings rendererSettings;
 
@@ -365,6 +392,18 @@ private:
     std::unique_ptr<Buffer> particleIBO;
 
     std::array<float, MIDI_KEYS> particleEmissionTimers;
+    ThreadPool particleThreadPool;
+#pragma endregion
+
+#pragma region Flare data
+    std::unique_ptr<ShaderProgram> flaresProgram;
+    std::unique_ptr<Buffer> flaresVBO;
+    std::unique_ptr<VertexArray> flaresVAO;
+    std::unique_ptr<Buffer> flaresIBO;
+    std::unique_ptr<Buffer> flaresEBO;
+
+    std::array<RenderFlare, MIDI_KEYS> renderFlares;
+    std::array<float, MIDI_KEYS> flareFade{}; // current per-key fade multiplier, ramped toward 0 or 1 each frame
 #pragma endregion
 
 #pragma region post processing effect shaders n stuff

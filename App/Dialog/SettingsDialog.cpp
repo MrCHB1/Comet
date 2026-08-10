@@ -223,6 +223,59 @@ void SettingsDialog::DrawVisualTab()
 	{
 		if (ImGui::BeginTabBar("VisualTabs"))
 		{
+			if (ImGui::BeginTabItem("Renderer"))
+			{
+				MIDIPlayerConfig* config = app->GetConfig();
+				RendererType currRenderer = config->render.GetCurrentRenderer();
+
+				BEGIN_SECTION("##renderer")
+				{
+					SETUP_SECTION;
+
+					#define RENDERER_COMBO_ENTRY(enumTarget, target) \
+						if (ImGui::Selectable(ToString(enumTarget).c_str(), currRenderer == enumTarget)) \
+						{ \
+							if (currRenderer != enumTarget) \
+							{ \
+								config->render.SetCurrentRenderer(enumTarget); \
+								app->SetRenderer<target>(); \
+							} \
+						}
+
+					SECTION_ENTRY(
+						SECTION_LABEL("Renderer"),
+						{
+							std::string currentRenderer = ToString(currRenderer);
+							if (ImGui::BeginCombo("##rendererCombo", currentRenderer.c_str()))
+							{
+								
+								RENDERER_COMBO_ENTRY(RendererType::PFA, MIDIRendererPFA);
+								RENDERER_COMBO_ENTRY(RendererType::Textured, MIDIRenderer);
+								RENDERER_COMBO_ENTRY(RendererType::Enhanced, MIDIRendererEnhanced);
+								RENDERER_COMBO_ENTRY(RendererType::MIDITrail, MIDIRendererMIDITrail);
+								RENDERER_COMBO_ENTRY(RendererType::Channels, MIDIRendererChannels);
+								RENDERER_COMBO_ENTRY(RendererType::Velocities, MIDIRendererVelocities);
+
+								ImGui::EndCombo();
+							}
+						}
+					);
+
+					#undef RENDERER_COMBO_ENTRY
+
+					END_SECTION;
+				}
+
+
+				ImGui::Spacing();
+
+				if (ImGui::CollapsingHeader("Renderer Settings", ImGuiTreeNodeFlags_DefaultOpen))
+				{
+					app->GetRenderer()->RenderSettings();
+				}
+
+				ImGui::EndTabItem();
+			}
 			if (ImGui::BeginTabItem("Note Colors"))
 			{
 				ColorPaletteList* colorList = app->GetColorList();
@@ -623,92 +676,6 @@ void SettingsDialog::DrawVisualTab()
 					ImGui::TableSetColumnIndex(1); ImGui::TextDisabled("");
 
 					END_SECTION;
-				}
-
-				ImGui::EndTabItem();
-			}
-			if (ImGui::BeginTabItem("Renderer"))
-			{
-				MIDIPlayerConfig* config = app->GetConfig();
-				RendererType currRenderer = config->render.GetCurrentRenderer();
-
-				BEGIN_SECTION("##renderer")
-				{
-					SETUP_SECTION;
-
-					SECTION_ENTRY(
-						SECTION_LABEL("Renderer"),
-						{
-							if (ImGui::RadioButton("Piano From Above", currRenderer == RendererType::PFA))
-							{
-								if (currRenderer != RendererType::PFA)
-								{
-									config->render.SetCurrentRenderer(RendererType::PFA);
-									app->SetRenderer<MIDIRendererPFA>();
-									std::cout << "Switched to the PFA renderer" << std::endl;
-								}
-							}
-
-							if (ImGui::RadioButton("Textured", currRenderer == RendererType::Default))
-							{
-								if (currRenderer != RendererType::Default)
-								{
-									config->render.SetCurrentRenderer(RendererType::Default);
-									app->SetRenderer<MIDIRenderer>();
-									std::cout << "Switched to the Textured renderer" << std::endl;
-								}
-							}
-							if (ImGui::RadioButton("Enhanced Graphics", currRenderer == RendererType::Enhanced))
-							{
-								if (currRenderer != RendererType::Enhanced)
-								{
-									config->render.SetCurrentRenderer(RendererType::Enhanced);
-									app->SetRenderer<MIDIRendererEnhanced>();
-									std::cout << "Switched to the enhanced graphics renderer" << std::endl;
-								}
-							}
-
-							if (ImGui::RadioButton("MIDITrail", currRenderer == RendererType::MIDITrail))
-							{
-								if (currRenderer != RendererType::MIDITrail)
-								{
-									config->render.SetCurrentRenderer(RendererType::MIDITrail);
-									app->SetRenderer<MIDIRendererMIDITrail>();
-									std::cout << "Switched to the MIDITrail renderer" << std::endl;
-								}
-							}
-
-							if (ImGui::RadioButton("Channels", currRenderer == RendererType::Channels))
-							{
-								if (currRenderer != RendererType::Channels)
-								{
-									config->render.SetCurrentRenderer(RendererType::Channels);
-									app->SetRenderer<MIDIRendererChannels>();
-									std::cout << "Switched to the Channels renderer" << std::endl;
-								}
-							}
-
-							if (ImGui::RadioButton("Velocities", currRenderer == RendererType::Velocities))
-							{
-								if (currRenderer != RendererType::Velocities)
-								{
-									config->render.SetCurrentRenderer(RendererType::Velocities);
-									app->SetRenderer<MIDIRendererVelocities>();
-									std::cout << "Switched to the Velocities renderer" << std::endl;
-								}
-							}
-						}
-					);
-
-					END_SECTION;
-				}
-				
-
-				ImGui::Spacing();
-
-				if (ImGui::CollapsingHeader("Renderer Settings", ImGuiTreeNodeFlags_DefaultOpen))
-				{
-					app->GetRenderer()->RenderSettings();
 				}
 
 				ImGui::EndTabItem();

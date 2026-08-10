@@ -521,6 +521,57 @@ void main() {
     FragColor = vec4(saberColor, 1.0);
 })";
 
+inline constexpr const char* flareVert = R"(#version 330 core
+layout (location = 0) in vec2 aPos;
+layout (location = 1) in float aLeft;
+layout (location = 2) in float aRight;
+layout (location = 3) in uint aColor;
+layout (location = 4) in float aAlpha;
+
+uniform float kbHeight;
+uniform float flareHeight;
+
+flat out uint flareColor;
+flat out float flareAlpha;
+out vec2 uv;
+
+void main()
+{
+    float x = mix(aLeft, aRight, aPos.x);
+	float y = flareHeight * aPos.y + kbHeight;
+
+    uv = aPos;
+    flareColor = aColor;
+    flareAlpha = aAlpha;
+
+    gl_Position = vec4(vec2(x, y) * 2.0 - 1.0, 0.0, 1.0);
+})";
+
+inline constexpr const char* flareFrag = R"(#version 330 core
+flat in uint flareColor;
+flat in float flareAlpha;
+in vec2 uv;
+
+out vec4 fragColor;
+
+uniform float flareBrightness;
+
+void main()
+{
+     vec3 fColor = vec3(
+        float((flareColor & 0xFF0000u) >> 16u),
+        float((flareColor & 0xFF00u) >> 8u),
+        float(flareColor & 0xFFu)
+    ) / 255.0;
+
+    float vertical = 1.0 - smoothstep(0.0, 1.0, uv.y);
+    
+    float horizontal = smoothstep(0.0, 0.3, uv.x) * smoothstep(0.0, 0.3, 1.0 - uv.x);
+    float alpha = vertical * horizontal * flareAlpha;
+
+    fragColor = vec4(fColor * flareBrightness, alpha);
+})";
+
 inline constexpr const char* fullscreenvert = R"(#version 330 core
 
 layout (location = 0) in vec2 aPos;       
