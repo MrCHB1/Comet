@@ -11,7 +11,7 @@ void LoadingDialog::DrawContent()
 	}
 	else
 	{
-		ImGui::Text(prog->GetName());
+		ImGui::Text(prog->GetName().c_str());
 
 		if (ImGui::Button("Cancel"))
 		{

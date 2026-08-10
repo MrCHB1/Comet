@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <vector>
+#include <string>
 
 class Progress
 {
@@ -11,7 +12,7 @@ public:
 		bars = { };
 	}
 
-	const char* GetName() const
+	std::string& GetName()
 	{
 		return name;
 	}
@@ -56,6 +57,6 @@ protected:
 		bars.clear();
 	}
 private:
-	const char* name;
+	std::string name;
 	std::vector<std::function<double()>> bars;
 };
