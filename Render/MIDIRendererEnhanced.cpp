@@ -6,8 +6,25 @@
 #include "App/MIDIApp.h"
 #include "App/Models.h"
 #include <algorithm>
+#include <random>
 #include "Utils.h"
 #include "App/Dialog/DialogMacros.h"
+
+const GradientNoise g_vortexNoise;
+
+// Derives a divergence-free 2D velocity from the noise's gradient (curl noise):
+// treating the noise as a scalar potential and taking its perpendicular gradient
+// guarantees the resulting field has no "sources" or "sinks" -- particles get
+// swept around in swirling eddies instead of drifting toward/away from points.
+glm::vec2 SampleCurlNoise(float x, float y, float t)
+{
+    const float eps = 0.05f;
+
+    float dNdy = (g_vortexNoise.Sample(x, y + eps, t) - g_vortexNoise.Sample(x, y - eps, t)) / (2.0f * eps);
+    float dNdx = (g_vortexNoise.Sample(x + eps, y, t) - g_vortexNoise.Sample(x - eps, y, t)) / (2.0f * eps);
+
+    return glm::vec2(dNdy, -dNdx);
+}
 
 const std::vector<float> CUBE_VERTICES = {
     // front face
@@ -45,12 +62,12 @@ const std::vector<unsigned int> QUAD_INDICES = {
 
 void MIDIRendererEnhanced::Initialize()
 {
-	AbstractMIDIRenderer::Initialize();
+    AbstractMIDIRenderer::Initialize();
 
     float aspect = (float)width / (float)height;
     keyboardHeight = keyboardMaxZ * aspect;
 
-    #pragma region Note buffers + data
+#pragma region Note buffers + data
 
     notesProgram = ShaderProgram::Create(notes3dvert, notes3dfrag);
     notesVAO = std::make_unique<VertexArray>();
@@ -89,9 +106,9 @@ void MIDIRendererEnhanced::Initialize()
         glVertexAttribDivisor(5, 1);
     }
 
-    #pragma endregion
+#pragma endregion
 
-    #pragma region Keyboard buffers + data
+#pragma region Keyboard buffers + data
     // 1. Sort keys to render white keys first, then black keys
     std::vector<uint8_t> blackIDs;
     std::vector<uint8_t> whiteIDs;
@@ -176,9 +193,9 @@ void MIDIRendererEnhanced::Initialize()
         glVertexAttribDivisor(4, 1);
     }
 
-    #pragma endregion
+#pragma endregion
 
-    #pragma region Saber buffers + data
+#pragma region Saber buffers + data
     saberProgram = ShaderProgram::Create(saber3dvert, saber3dfrag);
     saberVAO = std::make_unique<VertexArray>();
     saberVBO = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
@@ -195,15 +212,15 @@ void MIDIRendererEnhanced::Initialize()
         saberEBO->Bind();
         saberEBO->SetData(CUBE_INDICES, GL_STATIC_DRAW);
     }
-    #pragma endregion
+#pragma endregion
 
-    #pragma region Mist setup
+#pragma region Mist setup
     mistProgram = ShaderProgram::Create(mist3dvert, mist3dfrag);
     mistQuad = std::make_unique<Quad>();
     mistQuad->SetShader(mistProgram);
-    #pragma endregion
+#pragma endregion
 
-    #pragma region Particle buffers + data
+#pragma region Particle buffers + data
     particleProgram = ShaderProgram::Create(particle3dvert, particle3dfrag);
     particleVAO = std::make_unique<VertexArray>();
     particleVBO = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
@@ -233,9 +250,9 @@ void MIDIRendererEnhanced::Initialize()
         glVertexAttribDivisor(2, 1);
         glVertexAttribDivisor(3, 1);
     }
-    #pragma endregion
+#pragma endregion
 
-    #pragma region post processing setup
+#pragma region post processing setup
     downsampleShader = ShaderProgram::Create(fullscreenvert, downsamplefrag);
     upsampleShader = ShaderProgram::Create(fullscreenvert, upsamplefrag);
     compositeShader = ShaderProgram::Create(fullscreenvert, compositefrag);
@@ -260,11 +277,11 @@ void MIDIRendererEnhanced::Initialize()
         fbo->Setup(mipWidth, mipHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT);
         bloomChain.push_back(std::move(fbo));
     }
-    #pragma endregion
+#pragma endregion
 
-    #pragma region uniforms setup
+#pragma region uniforms setup
     SetupUniforms();
-    #pragma endregion
+#pragma endregion
 
     initialized = true;
     CalcKeyPosAndWidth();
@@ -492,8 +509,8 @@ void MIDIRendererEnhanced::RenderNotes()
         uint32_t lastNote = 0;
 
         NoteSequence& notesNote = notes[id];
-        
-        #pragma region Note culling
+
+#pragma region Note culling
 
         size_t noteBegin = startRenderIDs[id];
 
@@ -543,7 +560,7 @@ void MIDIRendererEnhanced::RenderNotes()
         endRenderIDs[id] = noteEnd;
         notesPassed += noteBegin;
 
-        #pragma endregion
+#pragma endregion
 
         for (size_t i = noteBegin; i < noteEnd; ++i)
         {
@@ -567,13 +584,13 @@ void MIDIRendererEnhanced::RenderNotes()
             }
 
             if (noteStart <= accTime)
-			{
-				keyMetas[nNote].MarkPressed(true);
-				keyMetas[nNote].color = colors.GetColor(nTrack, nChannel);
-				keyboardDirty = true;
-				notesPassed++;
-				polyphony++;
-			}
+            {
+                keyMetas[nNote].MarkPressed(true);
+                keyMetas[nNote].color = colors.GetColor(nTrack, nChannel);
+                keyboardDirty = true;
+                notesPassed++;
+                polyphony++;
+            }
 
             // skip rendering this note if it's basically the same one lol
             if (lastNote &&
@@ -706,10 +723,12 @@ void MIDIRendererEnhanced::EmitNoteExplosion(uint8_t keyID, uint32_t hexColor)
     float g = ((hexColor >> 8) & 0xFF) / 255.0f;
     float b = (hexColor & 0xFF) / 255.0f;
 
-    glm::vec3 hdrColor = glm::vec3(r, g, b) * 15.0f;
+    const auto& pSettings = rendererSettings.particleSettings;
+
+    glm::vec3 hdrColor = glm::vec3(r, g, b) * pSettings.brightness;
 
     float spawnX = keyPos[keyID];
-    const int count = 12;
+    int count = pSettings.emission;
 
     const float spreadDegrees = 30.0f;
     const float minAngle = 90.0f - spreadDegrees * 0.5f;
@@ -721,20 +740,26 @@ void MIDIRendererEnhanced::EmitNoteExplosion(uint8_t keyID, uint32_t hexColor)
         Particle3D& p = particlePool[liveParticleCount++];
         p.position = glm::vec3(spawnX + ((rand() / (float)RAND_MAX)) * keyWidth[keyID], keyboardHeight, 0.0f);
 
-       float angle = glm::radians(
-            minAngle +
-            ((rand() / (float)RAND_MAX) * (maxAngle - minAngle)));
-        float speed = ((rand() % 100) / 100.0f) * 0.1f + 0.05f;
+        float angle = glm::radians(minAngle + ((rand() / (float)RAND_MAX) * (maxAngle - minAngle)));
+        float speed = RandRange(0.05f, 0.15f) * pSettings.initialSpeed;
 
         p.velocity.x = cos(angle) * speed * 0.2f;
         p.velocity.y = sin(angle) * speed * 1.2f;
 
-        p.curveSeed = (rand() / (float)RAND_MAX) * 6.2831853f;
-        p.curveSpeed = 4.0f + ((rand() / (float)RAND_MAX) * 3.0f);
-        p.curveAmp = 0.03f + ((rand() / (float)RAND_MAX) * 0.05f);
-        
+        p.curveSeed = RandRange(0.0f, 6.2831853f);
+
+        // turbulenceVariance controls how much curveSpeed/curveAmp differ from one
+        // particle to the next: 0 makes every particle wobble identically, 1 gives
+        // the widest spread. turbulence is the overall master strength on top of that.
+        const float speedCenter = 5.5f, speedHalfRange = 1.5f;
+        const float ampCenter = 0.055f, ampHalfRange = 0.025f;
+        float variance = std::clamp(pSettings.turbulenceVariance, 0.0f, 1.0f);
+
+        p.curveSpeed = speedCenter + RandRange(-speedHalfRange, speedHalfRange) * variance;
+        p.curveAmp = (ampCenter + RandRange(-ampHalfRange, ampHalfRange) * variance) * pSettings.turbulence;
+
         p.color = glm::vec4(hdrColor, 1.0f);
-        p.maxLife = ((rand() % 100) / 100.0f) * 2.0f + 0.2f;
+        p.maxLife = RandRange(0.5f, 1.5f) * pSettings.lifetime;
         p.life = p.maxLife;
         p.scale = 0.002f;
     }
@@ -743,7 +768,13 @@ void MIDIRendererEnhanced::EmitNoteExplosion(uint8_t keyID, uint32_t hexColor)
 void MIDIRendererEnhanced::UpdateParticles(double deltaTime)
 {
     float dt = static_cast<float>(deltaTime);
-    
+    const auto& pSettings = rendererSettings.particleSettings;
+
+    // one shared time value for this frame's vortex field -- every particle samples
+    // the same field at the same moment, so currents look coherent across the scene
+    // instead of each particle carrying around its own private swirl.
+    float swirlTime = static_cast<float>(app->GetTimer()->Elapsed()) * pSettings.swirlSpeed;
+
     for (size_t i = 0; i < liveParticleCount; )
     {
         Particle3D& p = particlePool[i];
@@ -757,6 +788,23 @@ void MIDIRendererEnhanced::UpdateParticles(double deltaTime)
         float t = p.maxLife - p.life;
         float curve = std::sin(t * p.curveSpeed + p.curveSeed) * p.curveAmp;
         p.velocity.x += curve * dt;
+
+        // gravity pulls particles down (+gravity sinks them), wind pushes sideways
+        p.velocity.y -= pSettings.gravityFactor * dt;
+
+        // swirl: samples a time-varying curl noise field at the particle's current
+        // position, so particles drift through shared, evolving vortices instead of
+        // orbiting a fixed anchor.
+        if (pSettings.swirlStrength != 0.0f)
+        {
+            glm::vec2 curl = SampleCurlNoise(p.position.x * pSettings.swirlScale, p.position.y * pSettings.swirlScale, swirlTime);
+            p.velocity.x += curl.x * pSettings.swirlStrength * dt;
+            p.velocity.y += curl.y * pSettings.swirlStrength * dt;
+        }
+
+        // drag exponentially bleeds off velocity over time
+        float dragFactor = std::max(0.0f, 1.0f - pSettings.drag * dt);
+        p.velocity *= dragFactor;
 
         p.position += p.velocity * dt;
         p.color.a = p.life / p.maxLife;
@@ -781,9 +829,10 @@ void MIDIRendererEnhanced::UpdateParticles(double deltaTime)
         }
 
         timer += deltaTime;
-        if (timer >= EMISSION_COOLDOWN)
+        while (timer >= pSettings.spawnRate)
         {
-            timer = 0.0f;
+            EmitNoteExplosion(id, keyColor);
+            timer -= pSettings.spawnRate;
         }
     }
 }
@@ -811,8 +860,8 @@ void MIDIRendererEnhanced::RenderParticles()
 
 void MIDIRendererEnhanced::Render(double deltaTime)
 {
-	if (!initialized) return;
-    
+    if (!initialized) return;
+
     int samples = GetMSAASamples();
 
     if (samples > 1)
@@ -825,12 +874,12 @@ void MIDIRendererEnhanced::Render(double deltaTime)
         hdrSceneFBO->Bind();
         glDisable(GL_MULTISAMPLE);
     }
-    
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glDepthMask(GL_FALSE);
     RenderNotes();
-    
+
     if (rendererSettings.mistEnabled)
     {
         glEnable(GL_BLEND);
@@ -847,7 +896,7 @@ void MIDIRendererEnhanced::Render(double deltaTime)
         RenderParticles();
         glDisable(GL_BLEND);
     }
-    
+
     glDepthMask(GL_TRUE);
 
     glEnable(GL_DEPTH_TEST);
@@ -890,13 +939,13 @@ void MIDIRendererEnhanced::Render(double deltaTime)
             glBindTexture(GL_TEXTURE_2D, bloomChain[i]->GetSceneTexture()); // Set texture for NEXT pass
         }
     }
-    
+
     {
         ShaderBind upsampleBind(*upsampleShader);
 
         upsampleShader->SetInt("srcTexture", 0);
         upsampleShader->SetFloat("filterRadius", 1.5f); // could be adjustable but eh
-        
+
         // Enable additive blending so the bloom layers stack
         glEnable(GL_BLEND);
         glBlendFunc(GL_ONE, GL_ONE);
@@ -913,9 +962,9 @@ void MIDIRendererEnhanced::Render(double deltaTime)
         }
         glDisable(GL_BLEND);
     }
-    
 
-	sceneFramebuffer->Bind();
+
+    sceneFramebuffer->Bind();
     glViewport(0, 0, width, height);
 
     {
@@ -934,8 +983,8 @@ void MIDIRendererEnhanced::Render(double deltaTime)
         screenQuad->Draw();
     }
 
-	sceneFramebuffer->Unbind();
-   
+    sceneFramebuffer->Unbind();
+
 }
 
 void MIDIRendererEnhanced::RenderSettings()
@@ -1214,6 +1263,191 @@ void MIDIRendererEnhanced::RenderSettings()
                 END_SECTION;
             }
 
+            if (rendererSettings.particlesEnabled)
+            {
+                auto& pSettings = rendererSettings.particleSettings;
+
+                SECTION_HEADER("Appearance");
+                BEGIN_SECTION("##particleAppearance")
+                {
+                    SETUP_SECTION;
+
+                    SECTION_ENTRY(
+                        SECTION_LABEL("Particle brightness"),
+                        {
+                            float value = pSettings.brightness;
+                            if (ImGui::SliderFloat("##particleBrightness", &value, 1.0f, 20.0f))
+                            {
+                                pSettings.brightness = std::clamp(value, 1.0f, 20.0f);
+                            }
+                        });
+
+                    END_SECTION;
+                }
+
+                SECTION_HEADER("Behaviour");
+                BEGIN_SECTION("##particleBehaviour")
+                {
+                    SETUP_SECTION;
+
+                    SECTION_ENTRY(
+                        TABLE_LABEL_TOOLTIP(
+                            "Emission",
+                            "Controls how many particles are emitted (spawned) at once. Default is 12. Higher values are not recommended on Black MIDIs."
+                        ),
+                        {
+                            int value = pSettings.emission;
+                            if (ImGui::SliderInt("##particleEmission", &value, 1, 50))
+                            {
+                                pSettings.emission = std::clamp(value, 1, 50);
+                            }
+                        });
+
+                    SECTION_ENTRY(
+                        TABLE_LABEL_TOOLTIP(
+                            "Spawn rate",
+                            "Controls how frequently particle bursts are emitted. Default is 0.05. Higher values are not recommended on Black MIDIs."
+                        ),
+                        {
+                            float value = pSettings.spawnRate;
+                            if (ImGui::SliderFloat("##particleSpawnRate", &value, 0.01f, 1.0f))
+                            {
+                                pSettings.spawnRate = std::clamp(value, 0.01f, 1.0f);
+                            }
+                        });
+
+                    SECTION_ENTRY(
+                        TABLE_LABEL_TOOLTIP(
+                            "Initial speed",
+                            "Controls how fast particles fly out from the key on emission."
+                        ),
+                        {
+                            float value = pSettings.initialSpeed;
+                            if (ImGui::SliderFloat("##particleInitialSpeed", &value, 0.1f, 3.0f))
+                            {
+                                pSettings.initialSpeed = std::clamp(value, 0.1f, 3.0f);
+                            }
+                        });
+
+                    SECTION_ENTRY(
+                        TABLE_LABEL_TOOLTIP(
+                            "Lifetime",
+                            "Controls how long particles survive before fading out."
+                        ),
+                        {
+                            float value = pSettings.lifetime;
+                            if (ImGui::SliderFloat("##particleLifetime", &value, 0.2f, 5.0f))
+                            {
+                                pSettings.lifetime = std::clamp(value, 0.2f, 5.0f);
+                            }
+                        });
+
+                    END_SECTION;
+                }
+
+                SECTION_HEADER("Dynamics & Forces");
+                BEGIN_SECTION("##dynamicsForces")
+                {
+                    SETUP_SECTION;
+
+                    SECTION_ENTRY(
+                        TABLE_LABEL_TOOLTIP(
+                            "Gravity",
+                            "Pulls particles downward over their lifetime. Negative values make them float upward."
+                        ),
+                        {
+                            float value = pSettings.gravityFactor;
+                            if (ImGui::SliderFloat("##particleGravity", &value, -2.0f, 2.0f))
+                            {
+                                pSettings.gravityFactor = std::clamp(value, -2.0f, 2.0f);
+                            }
+                        });
+
+                    SECTION_ENTRY(
+                        TABLE_LABEL_TOOLTIP(
+                            "Drag",
+                            "Bleeds off particle velocity over time. Higher values make particles slow down and stop faster."
+                        ),
+                        {
+                            float value = pSettings.drag;
+                            if (ImGui::SliderFloat("##particleDrag", &value, 0.0f, 3.0f))
+                            {
+                                pSettings.drag = std::clamp(value, 0.0f, 3.0f);
+                            }
+                        });
+
+                    SECTION_ENTRY(
+                        TABLE_LABEL_TOOLTIP(
+                            "Turbulence",
+                            "Adds a wobbling sideways drift to each particle's path. 0 is a straight arc."
+                        ),
+                        {
+                            float value = pSettings.turbulence;
+                            if (ImGui::SliderFloat("##particleTurbulence", &value, 0.0f, 2.0f))
+                            {
+                                pSettings.turbulence = std::clamp(value, 0.0f, 2.0f);
+                            }
+                        });
+
+                    SECTION_ENTRY(
+                        TABLE_LABEL_TOOLTIP(
+                            "Turbulence variation",
+                            "Controls how much the wobble differs from one particle to the next. 0 makes every particle wobble identically; higher values spread them out."
+                        ),
+                        {
+                            float value = pSettings.turbulenceVariance;
+                            if (ImGui::SliderFloat("##particleTurbulenceVariance", &value, 0.0f, 1.0f))
+                            {
+                                pSettings.turbulenceVariance = std::clamp(value, 0.0f, 1.0f);
+                            }
+                        });
+
+                    SECTION_ENTRY(
+                        TABLE_LABEL_TOOLTIP(
+                            "Swirl strength",
+                            "Pulls particles through ambient swirling eddies as they fly, rather than a straight or purely turbulent path. 0 disables it."
+                        ),
+                        {
+                            float value = pSettings.swirlStrength;
+                            if (ImGui::SliderFloat("##particleSwirlStrength", &value, 0.0f, 3.0f))
+                            {
+                                pSettings.swirlStrength = std::clamp(value, 0.0f, 3.0f);
+                            }
+                        });
+
+                    if (pSettings.swirlStrength > 0.0f)
+                    {
+                        SECTION_ENTRY(
+                            TABLE_LABEL_TOOLTIP(
+                                "Swirl scale",
+                                "Spatial frequency of the swirl field. Lower values make broad, sweeping eddies; higher values make tight, small ones."
+                            ),
+                            {
+                                float value = pSettings.swirlScale;
+                                if (ImGui::SliderFloat("##particleSwirlScale", &value, 1.0f, 40.0f))
+                                {
+                                    pSettings.swirlScale = std::clamp(value, 1.0f, 40.0f);
+                                }
+                            });
+
+                        SECTION_ENTRY(
+                            TABLE_LABEL_TOOLTIP(
+                                "Swirl speed",
+                                "How fast the vortex field itself drifts and evolves over time. 0 freezes it into a static field."
+                            ),
+                            {
+                                float value = pSettings.swirlSpeed;
+                                if (ImGui::SliderFloat("##particleSwirlSpeed", &value, 0.0f, 2.0f))
+                                {
+                                    pSettings.swirlSpeed = std::clamp(value, 0.0f, 2.0f);
+                                }
+                            });
+                    }
+
+                    END_SECTION;
+                }
+            }
+
             ImGui::EndTabItem();
         }
 
@@ -1232,12 +1466,12 @@ void MIDIRendererEnhanced::ResetSettings()
         notesProgram->SetFloat("noteOutlineGlow", rendererSettings.noteOutlineGlowFactor);
         notesProgram->SetVec3("noteHsvShifts", rendererSettings.hsvShifts);
     }
-    
+
     {
         ShaderBind keyboardBind(*keyboardProgram);
         keyboardProgram->SetFloat("keyGlowFactor", rendererSettings.keyGlowFactor);
     }
-    
+
     {
         ShaderBind mistBind(*mistProgram);
         mistProgram->SetVec3("mistColor", rendererSettings.saberColor);
@@ -1375,7 +1609,7 @@ void MIDIRendererEnhanced::OnResize(int width, int height)
 YAML::Node MIDIRendererEnhanced::GetSettings()
 {
     YAML::Node node;
-    
+
     YAML::Node visual;
     visual["msaa"] = static_cast<int>(rendererSettings.msaa);
     visual["exposure"] = rendererSettings.exposure;
@@ -1406,6 +1640,19 @@ YAML::Node MIDIRendererEnhanced::GetSettings()
 
     YAML::Node particles;
     particles["enabled"] = rendererSettings.particlesEnabled;
+
+    particles["brightness"] = rendererSettings.particleSettings.brightness;
+    particles["emission"] = rendererSettings.particleSettings.emission;
+    particles["spawnRate"] = rendererSettings.particleSettings.spawnRate;
+    particles["gravityFactor"] = rendererSettings.particleSettings.gravityFactor;
+    particles["drag"] = rendererSettings.particleSettings.drag;
+    particles["initialSpeed"] = rendererSettings.particleSettings.initialSpeed;
+    particles["lifetime"] = rendererSettings.particleSettings.lifetime;
+    particles["turbulence"] = rendererSettings.particleSettings.turbulence;
+    particles["turbulenceVariance"] = rendererSettings.particleSettings.turbulenceVariance;
+    particles["swirlStrength"] = rendererSettings.particleSettings.swirlStrength;
+    particles["swirlScale"] = rendererSettings.particleSettings.swirlScale;
+    particles["swirlSpeed"] = rendererSettings.particleSettings.swirlSpeed;
 
     node["visual"] = visual;
     node["notes"] = notes;
@@ -1475,7 +1722,7 @@ void MIDIRendererEnhanced::LoadSettings(const YAML::Node& node)
             if (parsedColor)
             {
                 rendererSettings.saberColor = glm::vec3(parsedColor->x, parsedColor->y, parsedColor->z);
-                
+
             }
         }
     }
@@ -1490,6 +1737,18 @@ void MIDIRendererEnhanced::LoadSettings(const YAML::Node& node)
     {
         auto particles = node["particles"];
         LOAD_VAL(particles, "enabled", rendererSettings.particlesEnabled);
+        LOAD_VAL(particles, "brightness", rendererSettings.particleSettings.brightness);
+        LOAD_VAL(particles, "emission", rendererSettings.particleSettings.emission);
+        LOAD_VAL(particles, "spawnRate", rendererSettings.particleSettings.spawnRate);
+        LOAD_VAL(particles, "gravityFactor", rendererSettings.particleSettings.gravityFactor);
+        LOAD_VAL(particles, "drag", rendererSettings.particleSettings.drag);
+        LOAD_VAL(particles, "initialSpeed", rendererSettings.particleSettings.initialSpeed);
+        LOAD_VAL(particles, "lifetime", rendererSettings.particleSettings.lifetime);
+        LOAD_VAL(particles, "turbulence", rendererSettings.particleSettings.turbulence);
+        LOAD_VAL(particles, "turbulenceVariance", rendererSettings.particleSettings.turbulenceVariance);
+        LOAD_VAL(particles, "swirlStrength", rendererSettings.particleSettings.swirlStrength);
+        LOAD_VAL(particles, "swirlScale", rendererSettings.particleSettings.swirlScale);
+        LOAD_VAL(particles, "swirlSpeed", rendererSettings.particleSettings.swirlSpeed);
     }
 
     SetupUniforms();
