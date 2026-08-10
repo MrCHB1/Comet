@@ -6,13 +6,99 @@
 #include <mutex>
 #include <glm/glm.hpp>
 
+#define NOTE_BUFFER_SIZE 262144
+#define NOTES_MAX_BATCHES 512
+#define PARTICLE_BUFFER_SIZE 65536
+
+#pragma region Gradient noise field (scary shit)
+
+class GradientNoise
+{
+public:
+    GradientNoise()
+    {
+        std::array<int, 256> p;
+        for (int i = 0; i < 256; i++) p[i] = i;
+
+        std::mt19937 rng(69420); // lmfao nice seed bro
+        std::shuffle(p.begin(), p.end(), rng);
+
+        for (int i = 0; i < 512; i++)
+            perm[i] = p[i & 255];
+    }
+
+    // returns roughly in [-1, 1]
+    float Sample(float x, float y, float z) const
+    {
+        int X = (int)std::floor(x) & 255;
+        int Y = (int)std::floor(y) & 255;
+        int Z = (int)std::floor(z) & 255;
+
+        x -= std::floor(x);
+        y -= std::floor(y);
+        z -= std::floor(z);
+
+        float u = Fade(x), v = Fade(y), w = Fade(z);
+
+        int A = perm[X] + Y, AA = perm[A] + Z, AB = perm[A + 1] + Z;
+        int B = perm[X + 1] + Y, BA = perm[B] + Z, BB = perm[B + 1] + Z;
+
+        return Lerp(w,
+            Lerp(v,
+                Lerp(u, Grad(perm[AA], x, y, z), Grad(perm[BA], x - 1, y, z)),
+                Lerp(u, Grad(perm[AB], x, y - 1, z), Grad(perm[BB], x - 1, y - 1, z))),
+            Lerp(v,
+                Lerp(u, Grad(perm[AA + 1], x, y, z - 1), Grad(perm[BA + 1], x - 1, y, z - 1)),
+                Lerp(u, Grad(perm[AB + 1], x, y - 1, z - 1), Grad(perm[BB + 1], x - 1, y - 1, z - 1))
+            )
+        );
+    }
+
+private:
+    int perm[512];
+
+    static float Fade(float t) { return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f); }
+    static float Lerp(float t, float a, float b) { return a + t * (b - a); }
+    static float Grad(int hash, float x, float y, float z)
+    {
+        int h = hash & 15;
+        float u = h < 8 ? x : y;
+        float v = h < 4 ? y : (h == 12 || h == 14 ? x : z);
+        return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
+    }
+};
+
+#pragma endregion
+
 #pragma region Renderer settings
 enum MSAASetting
 {
     None,
     AA2x2,
     AA4x4,
-    AA6x6 
+    AA6x6
+};
+
+struct ParticleSettings
+{
+    int emission = 12;
+    float spawnRate = 0.05f;
+    float brightness = 15.0f;
+
+    float gravityFactor = 0.0f;
+    float drag = 0.05f;
+    float initialSpeed = 0.7f;
+    float lifetime = 2.0f;
+    float turbulence = 0.0f;
+    float turbulenceVariance = 0.5f; // how much the wobble amplitude/speed differs between particles; 0 = uniform, 1 = wide spread
+    float swirlStrength = 0.0f;      // strength of the ambient swirl force field
+    float swirlScale = 8.0f;         // spatial frequency of the swirl field (higher = tighter eddies)
+    float swirlSpeed = 0.3f;         // how fast the vortex field itself drifts/evolves over time (0 = frozen)
+
+    static ParticleSettings Default()
+    {
+        return ParticleSettings{};
+    }
 };
 
 struct EnhancedRendererSettings
@@ -46,6 +132,7 @@ struct EnhancedRendererSettings
 
     // particle settings
     bool particlesEnabled = true;
+    ParticleSettings particleSettings = ParticleSettings::Default();
 
     static EnhancedRendererSettings Default()
     {
@@ -63,42 +150,42 @@ struct RenderKeyboardKey3D
     float right;
     float pressFactor;
     uint32_t meta;
-	RenderKeyboardKey3D() = default;
+    RenderKeyboardKey3D() = default;
     RenderKeyboardKey3D(float left, float right, uint32_t meta) : left(left), right(right), meta(meta), pressFactor(0.0f) {}
 };
 #pragma pack(pop)
 
 struct KeyboardMeta3D
 {
-	static constexpr uint32_t META_PRESSED = 1u << 24;
-	static constexpr uint32_t META_BLACK = 1u << 25;
+    static constexpr uint32_t META_PRESSED = 1u << 24;
+    static constexpr uint32_t META_BLACK = 1u << 25;
 
-	bool pressed = false;
-	bool black = false;
-	uint32_t color = 0x000000;
+    bool pressed = false;
+    bool black = false;
+    uint32_t color = 0x000000;
     float velocity = 0.0f;
 
-	KeyboardMeta3D() = default;
-	KeyboardMeta3D(uint32_t color, bool pressed, bool black)
-		: color(color), pressed(pressed), black(black) {
-	}
+    KeyboardMeta3D() = default;
+    KeyboardMeta3D(uint32_t color, bool pressed, bool black)
+        : color(color), pressed(pressed), black(black) {
+    }
 
-	constexpr uint32_t GetMeta() const
-	{
-		return (color & 0x00FFFFFF)
-			| (pressed ? META_PRESSED : 0)
-			| (black ? META_BLACK : 0);
-	}
+    constexpr uint32_t GetMeta() const
+    {
+        return (color & 0x00FFFFFF)
+            | (pressed ? META_PRESSED : 0)
+            | (black ? META_BLACK : 0);
+    }
 
-	void MarkPressed(bool pressed)
-	{
-		this->pressed = pressed;
-	}
+    void MarkPressed(bool pressed)
+    {
+        this->pressed = pressed;
+    }
 
-	void MarkBlack(bool black)
-	{
-		this->black = black;
-	}
+    void MarkBlack(bool black)
+    {
+        this->black = black;
+    }
 };
 
 #pragma endregion
@@ -147,9 +234,9 @@ struct Particle3D
     float maxLife;
     float scale;
 
-    float curveSeed;   
-    float curveSpeed;  
-    float curveAmp;    
+    float curveSeed;
+    float curveSpeed;
+    float curveAmp;
 };
 
 #pragma endregion
@@ -160,10 +247,6 @@ struct Particle3D
   ((n) % 12) == 6 || \
   ((n) % 12) == 8 || \
   ((n) % 12) == 10 )
-
-#define NOTE_BUFFER_SIZE 262144
-#define NOTES_MAX_BATCHES 512
-#define PARTICLE_BUFFER_SIZE 32768
 
 class MIDIRendererEnhanced : public AbstractMIDIRenderer
 {
@@ -196,10 +279,10 @@ private:
     {
         switch (rendererSettings.msaa)
         {
-            case MSAASetting::AA2x2: return 4;
-            case MSAASetting::AA4x4: return 8;
-            case MSAASetting::AA6x6: return 16;
-            default: return 1;
+        case MSAASetting::AA2x2: return 4;
+        case MSAASetting::AA4x4: return 8;
+        case MSAASetting::AA6x6: return 16;
+        default: return 1;
         }
     }
     void UpdateMSAAFramebuffer();
@@ -220,7 +303,7 @@ private:
 
     EnhancedRendererSettings rendererSettings;
 
-    #pragma region Keyboard data
+#pragma region Keyboard data
     std::unique_ptr<ShaderProgram> keyboardProgram;
 
     std::unique_ptr<VertexArray> whiteKeyVAO;
@@ -242,9 +325,9 @@ private:
     std::array<RenderKeyboardKey3D, 128> keyboardData;
     std::array<KeyboardMeta3D, 128> keyMetas;
     std::array<uint8_t, 128> kbIDs;
-    #pragma endregion
+#pragma endregion
 
-    #pragma region Note data
+#pragma region Note data
     std::unique_ptr<ShaderProgram> notesProgram;
     std::unique_ptr<Buffer> notesVBO;
     std::unique_ptr<VertexArray> notesVAO;
@@ -256,21 +339,21 @@ private:
     std::array<size_t, MIDI_KEYS> endRenderIDs;
 
     long lastTime = -1;
-    #pragma endregion
+#pragma endregion
 
-    #pragma region Saber data
+#pragma region Saber data
     std::unique_ptr<ShaderProgram> saberProgram;
     std::unique_ptr<VertexArray> saberVAO;
     std::unique_ptr<Buffer> saberVBO;
     std::unique_ptr<Buffer> saberEBO;
-    #pragma endregion
+#pragma endregion
 
-    #pragma region Mist data
+#pragma region Mist data
     std::unique_ptr<Quad> mistQuad;
     std::shared_ptr<ShaderProgram> mistProgram;
-    #pragma endregion
+#pragma endregion
 
-    #pragma region Particle data
+#pragma region Particle data
     std::array<Particle3D, PARTICLE_BUFFER_SIZE> particlePool;
     std::array<RenderParticleInstance3D, PARTICLE_BUFFER_SIZE> particleGpuData;
     size_t liveParticleCount = 0;
@@ -281,18 +364,17 @@ private:
     std::unique_ptr<Buffer> particleEBO;
     std::unique_ptr<Buffer> particleIBO;
 
-    const float EMISSION_COOLDOWN = 0.05f;
     std::array<float, MIDI_KEYS> particleEmissionTimers;
-    #pragma endregion
+#pragma endregion
 
-    #pragma region post processing effect shaders n stuff
+#pragma region post processing effect shaders n stuff
     std::unique_ptr<Quad> screenQuad;
     std::unique_ptr<Framebuffer> hdrSceneFBO;
     std::vector<std::unique_ptr<Framebuffer>> bloomChain;
     std::shared_ptr<ShaderProgram> downsampleShader;
     std::shared_ptr<ShaderProgram> upsampleShader;
     std::shared_ptr<ShaderProgram> compositeShader;
-    #pragma endregion
+#pragma endregion
 
     std::mutex renderMutex;
 
