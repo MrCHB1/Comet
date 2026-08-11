@@ -38,7 +38,7 @@ void main()
 	float y = kbHeight - aPos.y * (black ? kbBlackHeight : kbWhiteHeight);
 
 	gl_Position = vec4(x * 2.0f - 1.0f, (y * 2.0f - 1.0f), 0.0f, 1.0f);
-	uv = aPos;
+	uv = vec2(aPos.x, 1.0 - aPos.y);
 	meta = kMeta;
 	kWidth = kRight - kLeft;
 })";
