@@ -124,7 +124,11 @@ private:
 	void UpdateRenderer();
 
 	void RenderBackground();
+
 	void RenderLines();
+	void RenderDividerLines();
+	void RenderMeasureLines();
+
 	void RenderKeyboard();
 
 	void RenderNotes();
