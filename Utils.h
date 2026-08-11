@@ -1,9 +1,9 @@
 #pragma once
 
+#include <array>
 #include <string>
 #include <sstream>
 #include <iomanip>
-#include "imgui.h"
 #include <variant>
 #include <cstdint>
 #include <optional>
@@ -14,12 +14,22 @@
 #include <glm/glm.hpp>
 #include <yaml-cpp/yaml.h>
 
+struct ImVec4;
+
 #if defined(_WIN32)
 #include <windows.h>
 #endif
 
 namespace Utils
 {
+	enum RGBAPackFormat
+	{
+		RGBA,
+		ARGB,
+		ABGR,
+		BGRA
+	};
+
 	bool IsMIDIExtension(std::string extension);
 	std::string FormatFilesize(long long bytes, int decimal);
 	std::string FormatDuration(double ms);
@@ -29,6 +39,10 @@ namespace Utils
 	bool EqualsIgnoreCase(const std::string& a, const std::string& b);
 	std::optional<ImVec4> ParseColor(std::variant<std::string, uint32_t> strOrInt, std::optional<ImVec4> def);
 	std::string EncodeColor(ImVec4 color);
+	uint32_t PackRGB(float r, float g, float b);
+	std::array<float, 3> UnpackRGB(uint32_t rgb);
+	uint32_t PackRGBA(float r, float g, float b, float a = 1.0f, RGBAPackFormat packFormat = RGBA);
+	std::array<float, 4> UnpackRGBA(uint32_t rgba, RGBAPackFormat packFormat = RGBA);
 	static const std::string BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 		"abcdefghijklmnopqrstuvwxyz"
 		"0123456789+/";
@@ -83,6 +97,8 @@ namespace Utils
 	glm::vec3 NodeToVec3(const YAML::Node& node);
 	YAML::Node Vec4ToNode(glm::vec4 vector);
 	glm::vec4 NodeToVec4(const YAML::Node& node);
+
+	std::shared_ptr<std::istream> TryGetStream(std::filesystem::path path);
 
 	namespace Dialogs
 	{

@@ -1,12 +1,14 @@
 #include "Utils.h"
 #include <nfd.h>
 #include <iostream>
+#include <fstream>
 #include <optional>
 #include <vector>
 #include <filesystem>
 #include <sstream>
 #include <iomanip>
 #include <cmath>
+#include "imgui.h"
 
 #if defined(_WIN32)
     #include <windows.h>
@@ -278,6 +280,74 @@ namespace Utils
         return enc.str();
     }
 
+    uint32_t PackRGB(float r, float g, float b)
+    {
+        return (uint32_t)(r * 255.0) |
+            ((uint32_t)(g * 255.0) << 8u) |
+            ((uint32_t)(b * 255.0) << 16u);
+    }
+
+    std::array<float, 3> UnpackRGB(uint32_t rgb)
+    {
+        float r = (float)(rgb & 0xFF) / 255.0f;
+        float g = (float)((rgb >> 8) & 0xFF) / 255.0f;
+        float b = (float)((rgb >> 16) && 0xFF) / 255.0f;
+        return { r, g, b };
+    }
+
+    uint32_t PackRGBA(float r, float g, float b, float a, RGBAPackFormat format)
+    {
+        float c1, c2, c3, c4;
+        switch (format)
+        {
+            case RGBA:
+                c1 = r, c2 = g, c3 = b, c4 = a;
+                break;
+            case ARGB:
+                c1 = a, c2 = r, c3 = g, c4 = b;
+                break;
+            case ABGR:
+                c1 = a, c2 = b, c3 = g, c4 = r;
+                break;
+            case BGRA:
+                c1 = b, c2 = g, c3 = r, c4 = a;
+                break;
+            default:
+                return 0x00;
+        }
+
+        return (uint32_t)(c4 * 255.0) |
+            ((uint32_t)(c3 * 255.0) << 8u) |
+            ((uint32_t)(c2 * 255.0) << 16u) |
+            ((uint32_t)(c1 * 255.0) << 24u);
+    }
+
+    std::array<float, 4> UnpackRGBA(uint32_t rgba, RGBAPackFormat format)
+    {
+        const float c4 = (rgba & 0xFF) / 255.0f;
+        const float c3 = ((rgba >> 8) & 0xFF) / 255.0f;
+        const float c2 = ((rgba >> 16) & 0xFF) / 255.0f;
+        const float c1 = ((rgba >> 24) & 0xFF) / 255.0f;
+
+        switch (format)
+        {
+        case RGBA:
+            return { c1, c2, c3, c4 };
+
+        case ARGB:
+            return { c2, c3, c4, c1 };
+
+        case ABGR:
+            return { c4, c3, c2, c1 };
+
+        case BGRA:
+            return { c3, c2, c1, c4 };
+
+        default:
+            return {};
+        }
+    }
+
     std::string DecodeBase64(const std::string& encoded)
     {
         std::vector<int> T(256, 1);
@@ -418,5 +488,19 @@ namespace Utils
         vector.z = node["z"].as<float>();
         vector.w = node["w"].as<float>();
         return vector;
+    }
+
+    std::shared_ptr<std::istream> TryGetStream(std::filesystem::path path)
+    {
+        if (!std::filesystem::exists(path) ||
+            !std::filesystem::is_regular_file(path))
+            return nullptr;
+
+        auto stream = std::make_shared<std::ifstream>(path, std::ios::binary);
+
+        if (!stream->is_open())
+            return nullptr;
+
+        return stream;
     }
 }

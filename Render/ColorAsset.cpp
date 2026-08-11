@@ -1,4 +1,6 @@
 #include "ColorAsset.h"
+#include "imgui.h"
+#include "stb_image.h"
 
 void ColorAsset::ResetColors()
 {
@@ -153,4 +155,10 @@ void ColorAsset::LoadColors(std::shared_ptr<std::istream> paletteFile, bool loop
 	}
 
 	LoadColors(colors, loopColors);
+}
+
+ImVec4 ColorAsset::CreateRandomColor()
+{
+	ImColor col = ImColor::HSV(random(mt), 1.0f, 0.7f + random(mt) * 0.3f);
+	return col.Value;
 }

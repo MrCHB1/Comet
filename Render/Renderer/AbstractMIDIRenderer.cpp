@@ -40,6 +40,21 @@ void AbstractMIDIRenderer::RenderSettings()
 				}
 			});
 
+		SECTION_ENTRY(SECTION_LABEL("Key range"),
+			{
+				int keyFirst = config->render.GetKeyFirst();
+				int keyLast = config->render.GetKeyLast();
+				if (ImGui::InputInt("##keyFirst", &keyFirst))
+				{
+					config->render.SetKeyFirst(keyFirst);
+				}
+				ImGui::SameLine();
+				if (ImGui::InputInt("##keyLast", &keyLast))
+				{
+					config->render.SetKeyLast(keyLast);
+				}
+			});
+
 		END_SECTION;
 	}
 	

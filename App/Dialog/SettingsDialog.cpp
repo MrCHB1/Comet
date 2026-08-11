@@ -1,11 +1,18 @@
 #include "SettingsDialog.h"
 #include "Utils.h"
+#include "Render/MIDIRendererPFA.h"
+#include "Render/MIDIRendererSynthesia.h"
 #include "Render/MIDIRendererEnhanced.h"
 #include "Render/MIDIRendererMIDITrail.h"
-#include "Render/MIDIRendererPFA.h"
 #include "Render/MIDIRendererChannels.h"
 #include "Render/MIDIRendererVelocities.h"
+#include "Render/NoteCounter/NoteCounterRenderer.h"
 #include "DialogMacros.h"
+#include "App/UI/Themes/Themes.h"
+#include "ColorPalette/ColorPaletteList.h"
+#include "ResourcePack/ResourcePackList.h"
+#include "App/FontList.h"
+#include "MIDI/Audio/MIDIAudio.h"
 
 void SettingsDialog::DrawContent()
 {
@@ -153,7 +160,7 @@ void SettingsDialog::DrawAppTab()
 					drawList->AddRect(swatchPos, ImVec2(swatchPos.x + swatchSize, swatchPos.y + swatchSize), outlineColor, 4.0f);
 					swatchPos.x += swatchSize + 4;
 
-					// draw them's name and author
+					// draw theme's name and author
 					ImVec2 textPos = ImVec2(swatchPos.x + 15.0f, pos.y + 8.0f);
 					drawList->AddText(textPos, ImGui::GetColorU32(ImGuiCol_Text), theme->info.name.c_str());
 
@@ -250,6 +257,7 @@ void SettingsDialog::DrawVisualTab()
 							{
 								
 								RENDERER_COMBO_ENTRY(RendererType::PFA, MIDIRendererPFA);
+								RENDERER_COMBO_ENTRY(RendererType::Synthesia, MIDIRendererSynthesia);
 								RENDERER_COMBO_ENTRY(RendererType::Textured, MIDIRenderer);
 								RENDERER_COMBO_ENTRY(RendererType::Enhanced, MIDIRendererEnhanced);
 								RENDERER_COMBO_ENTRY(RendererType::MIDITrail, MIDIRendererMIDITrail);

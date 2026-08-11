@@ -6,6 +6,15 @@
 #include "RenderEngine/Buffers.h"
 #include "RenderEngine/Shaders.h"
 
+#define NOTES_MAX_BATCHES 131072
+
+#define KEY_IS_BLACK(n) \
+( ((n) % 12) == 1 || \
+  ((n) % 12) == 3 || \
+  ((n) % 12) == 6 || \
+  ((n) % 12) == 8 || \
+  ((n) % 12) == 10 )
+
 struct PFARenderSettings
 {
 	bool showMiddleCSquare = true;

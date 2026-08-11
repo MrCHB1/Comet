@@ -2,6 +2,7 @@
 #include "UI/Dialog.h"
 #include "UI/NavigationBar.h"
 #include "MIDIApp.h"
+#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <string>
 

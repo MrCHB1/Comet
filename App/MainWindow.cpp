@@ -13,6 +13,8 @@
 #include "Comet.h"
 #include "UI/Themes/Themes.h"
 
+#include "stb_image.h"
+
 #include "icon32.hpp"
 
 MainWindow::MainWindow(const char* title)
@@ -341,3 +343,5 @@ void MainWindow::InitializeTheme()
 	Fonts::LoadFonts();
 	// CometDefaultThemes::DefaultLightMode->ApplyTheme();
 }
+
+#undef STB_IMAGE_IMPLEMENTATION

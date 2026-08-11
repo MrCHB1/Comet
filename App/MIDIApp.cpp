@@ -1,5 +1,6 @@
 #include "MIDIApp.h"
 #include "MainWindow.h"
+#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <algorithm>
@@ -11,10 +12,29 @@
 #include "FFmpeg/FFmpegCommandBuilder.h"
 #include "Utils.h"
 #include "../Render/MIDIRendererPFA.h"
+#include "../Render/MIDIRendererSynthesia.h"
 #include "../Render/MIDIRendererEnhanced.h"
 #include "../Render/MIDIRendererChannels.h"
 #include "../Render/MIDIRendererMIDITrail.h"
 #include "../Render/MIDIRendererVelocities.h"
+#include "../Render/MIDIRenderer.h" // Textured renderer + AbstractMIDIRenderer full definition
+
+#include "../ResourcePack/DefaultResourcePack.h"
+#include "../ResourcePack/ResourcePackList.h"
+#include "ColorPalette/ColorPaletteList.h"
+#include "MIDI/MIDILoader.h"
+#include "MIDI/MultithreadedMIDILoader.h"
+#include "../MIDI/Timer/MIDITimer.h"
+#include "App/UI/NavigationBar.h"
+#include "../Render/RenderView.h"
+#include "Render/NoteCounter/NoteCounterRenderer.h"
+#include "Render/NoteCounter/NoteCounterInfo.h"
+#include "Render/BlurredQuadRenderer.h"
+#include "FFmpeg/FFmpegPipe.h"
+#include "MIDI/Audio/MIDIAudio.h"
+#include "Models.h"
+#include "UI/Themes/Themes.h"
+#include "FontList.h"
 
 MIDIApp::MIDIApp(MainWindow* mainWindow)
 {
@@ -30,6 +50,32 @@ MIDIApp::MIDIApp(MainWindow* mainWindow)
 	Models::LoadModels();
 
 	this->mainWindow = mainWindow;
+}
+
+MIDIApp::~MIDIApp()
+{
+	if (midiAudio)
+	{
+		config.audioSettings = midiAudio->GetSettings();
+	}
+	if (renderer)
+	{
+		config.renderersSettings[renderer->GetSerializationKey()] = renderer->GetSettings();
+	}
+	config.SaveConfig();
+	Models::UnloadModels();
+}
+
+std::shared_ptr<AbstractMIDILoader> MIDIApp::CreateLoader(const char* path)
+{
+	std::shared_ptr<AbstractMIDILoader> loader;
+	if (config.midi.multithreadedLoading)
+		loader = std::make_shared<MultithreadedMIDILoader>(path);
+	else
+		loader = std::make_shared<MIDILoader>(path);
+
+	loader->SetLoadOnlyNotes(config.midi.loadNotesOnly);
+	return loader;
 }
 
 void MIDIApp::LoadMIDI(const char* path)
@@ -60,7 +106,7 @@ void MIDIApp::LoadMIDI(const char* path)
 			return;
 		}
 		this->loading.store(false);
-		
+
 		if (this->prog == loader)
 			this->prog = nullptr;
 
@@ -78,7 +124,7 @@ void MIDIApp::LoadMIDI(const char* path)
 			std::filesystem::path filePath = pathStr;
 			this->mainWindow->SetTitleInfo(filePath.filename().string());
 		}
-	}).detach();
+		}).detach();
 	return;
 }
 
@@ -90,6 +136,61 @@ void MIDIApp::UnloadMIDI()
 	midiAudio->Reset();
 	mainWindow->SetTitleInfo();
 }
+
+template <typename T>
+void MIDIApp::SetRenderer()
+{
+	static_assert(std::is_base_of_v<AbstractMIDIRenderer, T>, "T must derive from AbstractMIDIRenderer");
+
+	int width = config.render.GetWidth();
+	int height = config.render.GetHeight();
+	noteCounterRenderer->OnResize(width, height); // hacky but oh well
+
+	// save current renderer settings before destroying it
+	if (this->renderer)
+	{
+		std::string oldKey = this->renderer->GetSerializationKey();
+		config.renderersSettings[oldKey] = this->renderer->GetSettings();
+	}
+
+	// get renderer's sequence so the new one can automatically load it
+	std::shared_ptr<MIDISequence> seq;
+	if (this->renderer) seq = GetRenderer()->GetSequence();
+
+	this->renderer = std::make_unique<T>(this);
+	this->renderer->OnResize(width, height);
+	this->renderer->SetNoteCounter(noteCounterInfo);
+	this->renderer->Initialize();
+
+	// load new renderer settings IF they exist in config storage
+	std::string newKey = this->renderer->GetSerializationKey();
+	if (config.renderersSettings[newKey])
+	{
+		this->renderer->LoadSettings(config.renderersSettings[newKey]);
+	}
+
+	if (seq != nullptr) this->renderer->LoadSequence(seq);
+
+	if (blurredQuadRenderer)
+		blurredQuadRenderer->SetSceneTexture(this->renderer->GetSceneTexture());
+
+	// ensure the colors are properly loaded if using images for colors
+	auto* colorList = GetColorList();
+	if (config.render.GetUseColorsFromImage())
+	{
+		colorList->SetPalette(config.render.paletteID);
+		auto& palette = colorList->GetCurrentPalette();
+		this->renderer->GetColorAsset().LoadColors(palette.palette, config.render.loopColors);
+	}
+}
+
+template void MIDIApp::SetRenderer<MIDIRendererPFA>();
+template void MIDIApp::SetRenderer<MIDIRendererSynthesia>();
+template void MIDIApp::SetRenderer<MIDIRenderer>();
+template void MIDIApp::SetRenderer<MIDIRendererEnhanced>();
+template void MIDIApp::SetRenderer<MIDIRendererMIDITrail>();
+template void MIDIApp::SetRenderer<MIDIRendererChannels>();
+template void MIDIApp::SetRenderer<MIDIRendererVelocities>();
 
 // called after glfw/glad initialization has finished, and is safe to load stuff, such as images, for rendering
 void MIDIApp::LoadResources()
@@ -114,35 +215,38 @@ void MIDIApp::LoadResources()
 	std::cout << std::endl << "[MIDIApp] Initializing render engine...\n" << std::endl;
 #endif
 	RendererType currRenderer = config.render.GetCurrentRenderer();
-	
+
 	switch (currRenderer)
 	{
-		case RendererType::PFA:
-			SetRenderer<MIDIRendererPFA>();
-			break;
-		case RendererType::Textured:
-			SetRenderer<MIDIRenderer>();
-			break;
-		case RendererType::Enhanced:
-			SetRenderer<MIDIRendererEnhanced>();
-			break;
-		case RendererType::MIDITrail:
-			SetRenderer<MIDIRendererMIDITrail>();
-			break;
-		case RendererType::Channels:
-			SetRenderer<MIDIRendererChannels>();
-			break;
-		case RendererType::Velocities:
-			SetRenderer<MIDIRendererVelocities>();
-			break;
-		default:
-			SetRenderer<MIDIRendererPFA>();
-			break;
+	case RendererType::PFA:
+		SetRenderer<MIDIRendererPFA>();
+		break;
+	case RendererType::Synthesia:
+		SetRenderer<MIDIRendererSynthesia>();
+		break;
+	case RendererType::Textured:
+		SetRenderer<MIDIRenderer>();
+		break;
+	case RendererType::Enhanced:
+		SetRenderer<MIDIRendererEnhanced>();
+		break;
+	case RendererType::MIDITrail:
+		SetRenderer<MIDIRendererMIDITrail>();
+		break;
+	case RendererType::Channels:
+		SetRenderer<MIDIRendererChannels>();
+		break;
+	case RendererType::Velocities:
+		SetRenderer<MIDIRendererVelocities>();
+		break;
+	default:
+		SetRenderer<MIDIRendererPFA>();
+		break;
 	}
 
 	blurredQuadRenderer = std::make_unique<BlurredQuadRenderer>();
 	blurredQuadRenderer->SetSceneTexture(renderer->GetSceneTexture());
-	
+
 	renderFramebuffer = std::make_unique<Framebuffer>();
 	renderFramebuffer->Setup(width, height);
 	fullscreenQuad = std::make_unique<Quad>();
@@ -199,7 +303,7 @@ void MIDIApp::Update()
 		noteCounterInfo->fps = 1.0 / (time - lastFrameTime);
 		lastFrameTime = time;
 	}
-	
+
 
 	// make sure the render framebuffer is bound
 	renderFramebuffer->Bind();
@@ -225,11 +329,11 @@ void MIDIApp::Update()
 		glm::vec2 counterResolution = noteCounterRenderer->GetCounterResolution();
 		float heightOffset = rendering || !mainWindow->CanShowNavigationBar() ? 0.0 : 56.0;
 		glm::vec2 counterPos = noteCounterRenderer->GetCounterPosition();
-		
+
 		// the (now optional) frosted glass effect, yay!
 		if (config.overlayInfo.blurBehind)
 			blurredQuadRenderer->Render({ glm::vec3(counterPos.x, counterPos.y, 0.0f), glm::vec2(counterResolution.x, counterResolution.y) });
-		
+
 		noteCounterRenderer->Render(heightOffset);
 	}
 
@@ -250,7 +354,7 @@ void MIDIApp::Update()
 		TextureBind sceneTextureBind(renderFramebuffer->GetSceneTexture(), 0);
 		fullscreenQuad->Draw();
 	}
-	
+
 	if (!rendering)
 	{
 		if (mainWindow->CanShowNavigationBar()) navigationBar->Draw();
@@ -268,37 +372,37 @@ void MIDIApp::RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt)
 
 	switch (key)
 	{
-		case ImGuiKey_Space:
-		{
-			if (IsRendering()) return;
-			// TODO: ignore when no sequence is loaded
-			timer->TogglePause();
-			break;
-		}
-		case ImGuiKey_LeftArrow:
-		{
-			if (IsRendering()) return;
-			double currTime = timer->Elapsed();
-			double seekTime = std::max(-3.0, currTime - config->navigation.seekBackwardSeconds);
-			timer->NavigateTo(seekTime);
-			break;
-		}
-		case ImGuiKey_RightArrow:
-		{
-			if (IsRendering()) return;
-			double currTime = timer->Elapsed();
-			double seekTime = std::min(seqLength + 5.0, currTime + config->navigation.seekForwardSeconds);
-			timer->NavigateTo(seekTime);
-			break;
-		}
-		case ImGuiKey_Enter:
-		{
-			if (!alt) return;
-			mainWindow->ToggleFullscreen();
-			break;
-		}
-		default:
-			break;
+	case ImGuiKey_Space:
+	{
+		if (IsRendering()) return;
+		// TODO: ignore when no sequence is loaded
+		timer->TogglePause();
+		break;
+	}
+	case ImGuiKey_LeftArrow:
+	{
+		if (IsRendering()) return;
+		double currTime = timer->Elapsed();
+		double seekTime = std::max(-3.0, currTime - config->navigation.seekBackwardSeconds);
+		timer->NavigateTo(seekTime);
+		break;
+	}
+	case ImGuiKey_RightArrow:
+	{
+		if (IsRendering()) return;
+		double currTime = timer->Elapsed();
+		double seekTime = std::min(seqLength + 5.0, currTime + config->navigation.seekForwardSeconds);
+		timer->NavigateTo(seekTime);
+		break;
+	}
+	case ImGuiKey_Enter:
+	{
+		if (!alt) return;
+		mainWindow->ToggleFullscreen();
+		break;
+	}
+	default:
+		break;
 	}
 }
 

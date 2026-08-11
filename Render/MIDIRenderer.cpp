@@ -2,7 +2,11 @@
 #include "Comet.h"
 #include "Render/Renderer/PrimitiveShaders.h"
 #include "../App/MIDIApp.h"
-#include "../MIDI/TempoMap.h"
+#include "ResourcePack/ResourcePack.h"
+#include "ResourcePack/DefaultResourcePack.h"
+#include "ResourcePack/ResourcePackList.h"
+#include "MIDI/TempoMap.h"
+#include "MIDI/Timer/MIDITimer.h"
 #include "Utils.h"
 #include <algorithm>
 #include "App/Dialog/DialogMacros.h"
