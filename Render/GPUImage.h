@@ -1,11 +1,11 @@
 #pragma once
-#include "stb_image.h"
-#include "stb_image_write.h"
+
 #include <iostream>
 #include <fstream>
 #include <memory>
-#include <glad/glad.h>
+#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+#include <glad/glad.h>
 #include <vector>
 
 inline std::vector<unsigned char> MISSING_TEXTURE_DATA = {
@@ -53,6 +53,8 @@ public:
 	bool LoadFromStream(std::shared_ptr<std::istream> file);
 	GLuint GetRawTexture() const { return texture; }
 	bool IsValidTexture() const { return validTexture; }
+
+	GLuint GetTextureID() { return texture; }
 private:
 	GLuint texture = 0;
 	GLuint slot = 0;

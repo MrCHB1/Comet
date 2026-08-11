@@ -8,8 +8,6 @@
 #include <unordered_map>
 #include <stack>
 
-#include "imgui.h"
-
 class MIDILoader : public AbstractMIDILoader
 {
 public:

@@ -9,6 +9,8 @@
 #include "TempoMap.h"
 #include <numeric>
 
+#include "imgui.h"
+
 MIDILoader::MIDILoader(const char* file) : AbstractMIDILoader(file)
 {
 	this->file = std::string(file);

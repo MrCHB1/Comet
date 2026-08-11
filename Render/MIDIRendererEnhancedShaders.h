@@ -217,7 +217,7 @@ void main()
             diffuse = max(dot(-normal, lightDir), 0.0);
         }
 
-        float ambient = 0.25;
+        float ambient = 0.75;
 
         // specular lol
         vec3 viewDir = normalize(cameraPos - FragPos);

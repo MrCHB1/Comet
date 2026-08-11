@@ -1,6 +1,9 @@
 #include "GPUImage.h"
 #include <vector>
 
+#include "stb_image.h"
+#include "stb_image_write.h"
+
 bool GPUImage::LoadFromStream(std::shared_ptr<std::istream> file)
 {
 	if (!file)

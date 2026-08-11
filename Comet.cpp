@@ -1,7 +1,4 @@
-﻿#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-
-#include "Comet.h"
+﻿#include "Comet.h"
 #include "App/MainWindow.h"
 
 int main()

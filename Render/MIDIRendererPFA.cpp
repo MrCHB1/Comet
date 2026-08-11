@@ -1,6 +1,9 @@
 #include "MIDIRendererPFA.h"
 #include "Utils.h"
 #include "App/MIDIApp.h"
+#include "MIDI/Timer/MIDITimer.h"
+#include "MIDI/TempoMap.h"
+#include "Render/RenderView.h"
 
 #define NUM_WHITE_KEYS 75
 
@@ -291,6 +294,9 @@ void MIDIRendererPFA::UpdateGlobals()
 	MIDIPlayerConfig* config = app->GetConfig();
 	auto keyFirst = config->render.GetKeyFirst();
 	auto keyLast = config->render.GetKeyLast();
+	
+	if (config->render.ConsumeKeyRangeChanged())
+		noteXTableDirty = true;
 
 	notesX = 0.0f;
 	notesCX = static_cast<float>(width);
@@ -317,7 +323,7 @@ void MIDIRendererPFA::GenNoteXTable()
 	auto keyFirst = config->render.GetKeyFirst();
 	auto keyLast = config->render.GetKeyLast();
 
-	for (int i = keyFirst; i < keyLast; i++)
+	for (int i = keyFirst; i <= keyLast; i++)
 	{
 		int whiteKeys = GetNumWhiteKeys(keyFirst, i);
 		float startX = (IsSharp(keyFirst) - IsSharp(i)) * SharpRatio / 2.0f;
@@ -734,8 +740,6 @@ void MIDIRendererPFA::RenderNotes()
 
 	for (uint8_t id : kbIDs)
 	{
-		if (id < startRender || id > endRender) continue;
-
 		uint16_t lastTrack = 0;
 		uint8_t lastChannel = 0;
 		uint32_t lastTick = 0;
@@ -835,6 +839,8 @@ void MIDIRendererPFA::RenderNotes()
 				notesPassed++;
 				polyphony++;
 			}
+
+			if (id < startRender || id > endRender) break;
 
 			// skip rendering this note if it's basically the same one lol
 			if (lastNote &&

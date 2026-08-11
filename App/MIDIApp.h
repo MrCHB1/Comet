@@ -1,99 +1,53 @@
 #pragma once
+
 #include "../Config/MIDIPlayerConfig.h"
-#include "../ResourcePack/DefaultResourcePack.h"
-#include "../Render/MIDIRenderer.h"
-#include "../ResourcePack/ResourcePackList.h"
-#include "ColorPalette/ColorPaletteList.h"
-#include "MIDI/MIDILoader.h"
-#include "MIDI/MultithreadedMIDILoader.h"
-#include "../MIDI/Timer/MIDITimer.h"
-#include "App/UI/NavigationBar.h"
-#include "../Render/RenderView.h"
-#include "Render/NoteCounter/NoteCounterRenderer.h"
-#include "Render/NoteCounter/NoteCounterInfo.h"
-#include "Render/BlurredQuadRenderer.h"
 #include "VideoRender/RenderSettings.h"
-#include "FFmpeg/FFmpegPipe.h"
-#include "MIDI/Audio/MIDIAudio.h"
+
 #include <memory>
 #include <mutex>
 #include <atomic>
-#include <chrono>
-#include "Models.h"
-#include "UI/Themes/Themes.h"
-#include "FontList.h"
+#include <vector>
+#include <cstdint>
+#include <type_traits>
 
 class MainWindow;
+class ThemesList;
+class FontList;
+class AbstractMIDIRenderer;
+class NavigationBar;
+class NoteCounterInfo;
+class NoteCounterRenderer;
+class BlurredQuadRenderer;
+class ResourcePackList;
+class ColorPaletteList;
+class RenderView;
+class Progress;
+class MIDITimer;
+class MIDIAudio;
+class Framebuffer;
+class Quad;
+class FFmpegPipe;
+class AbstractMIDILoader;
+class MIDISequence;
+
+// Matches Dear ImGui's `enum ImGuiKey : int { ... };` declaration exactly
+// (name, underlying type, non-class enum) so we can use it here without
+// pulling in the rest of imgui.h.
+enum ImGuiKey : int;
 
 class MIDIApp
 {
 public:
 	MIDIApp(MainWindow* mainWindow);
-	~MIDIApp()
-	{
-		if (midiAudio)
-		{
-			config.audioSettings = midiAudio->GetSettings();
-		}
-		if (renderer)
-		{
-			config.renderersSettings[renderer->GetSerializationKey()] = renderer->GetSettings();
-		}
-		config.SaveConfig();
-		Models::UnloadModels();
-	}
+	~MIDIApp();
 
 	AbstractMIDIRenderer* GetRenderer()
 	{
-		return renderer.get();
+		return renderer.get(); // unique_ptr<T>::get() is fine with incomplete T
 	}
 
 	template <typename T>
-	void SetRenderer()
-	{
-		static_assert(std::is_base_of_v<AbstractMIDIRenderer, T>, "T must derive from AbstractMIDIRenderer");
-
-		int width = config.render.GetWidth();
-		int height = config.render.GetHeight();
-		noteCounterRenderer->OnResize(width, height); // hacky but oh well
-
-		// save current renderer settings before destroying it
-		if (this->renderer)
-		{
-			std::string oldKey = this->renderer->GetSerializationKey();
-			config.renderersSettings[oldKey] = this->renderer->GetSettings();
-		}
-
-		// get renderer's sequence so the new one can automatically load it
-		std::shared_ptr<MIDISequence> seq;
-		if (this->renderer) seq = GetRenderer()->GetSequence();
-
-		this->renderer = std::make_unique<T>(this);
-		this->renderer->OnResize(width, height);
-		this->renderer->SetNoteCounter(noteCounterInfo);
-		this->renderer->Initialize();
-
-		// load new renderer settings IF they exist in config storage
-		std::string newKey = this->renderer->GetSerializationKey();
-		if (config.renderersSettings[newKey])
-		{
-			this->renderer->LoadSettings(config.renderersSettings[newKey]);
-		}
-
-		if (seq != nullptr) this->renderer->LoadSequence(seq);
-
-		if (blurredQuadRenderer)
-			blurredQuadRenderer->SetSceneTexture(this->renderer->GetSceneTexture());
-
-		// ensure the colors are properly loaded if using images for colors
-		auto* colorList = GetColorList();
-		if (config.render.GetUseColorsFromImage())
-		{
-			colorList->SetPalette(config.render.paletteID);
-			auto& palette = colorList->GetCurrentPalette();
-			this->renderer->GetColorAsset().LoadColors(palette.palette, config.render.loopColors);
-		}
-	}
+	void SetRenderer();
 
 	void LoadResources();
 
@@ -103,72 +57,22 @@ public:
 	void RenderMIDIVideo(const RenderSettings& renderSettings);
 	void RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt);
 
-	MIDIAudio* GetMIDIAudio()
-	{
-		return midiAudio.get();
-	}
-
-	ThemesList* GetThemeList()
-	{
-		return themesList.get();
-	}
-
-	FontList* GetFontList()
-	{
-		return fontList.get();
-	}
-
-	NoteCounterInfo* GetNoteCounterInfo()
-	{
-		return noteCounterInfo.get();
-	}
-
-	NoteCounterRenderer* GetNoteCounterRenderer()
-	{
-		return noteCounterRenderer.get();
-	}
-
-	MIDIPlayerConfig* GetConfig()
-	{
-		return &config;
-	}
-
-	RenderView* GetRenderView()
-	{
-		return renderView.get();
-	}
-
-	std::shared_ptr<MIDITimer> GetTimer()
-	{
-		return timer;
-	}
-
-	std::shared_ptr<Progress> GetProgress()
-	{
-		return prog;
-	}
-
-	ResourcePackList* GetPackList()
-	{
-		return packList.get();
-	}
-
-	ColorPaletteList* GetColorList()
-	{
-		return colorList.get();
-	}
+	MIDIAudio* GetMIDIAudio() { return midiAudio.get(); }
+	ThemesList* GetThemeList() { return themesList.get(); }
+	FontList* GetFontList() { return fontList.get(); }
+	NoteCounterInfo* GetNoteCounterInfo() { return noteCounterInfo.get(); }
+	NoteCounterRenderer* GetNoteCounterRenderer() { return noteCounterRenderer.get(); }
+	MIDIPlayerConfig* GetConfig() { return &config; }
+	RenderView* GetRenderView() { return renderView.get(); }
+	std::shared_ptr<MIDITimer> GetTimer() { return timer; }
+	std::shared_ptr<Progress> GetProgress() { return prog; }
+	ResourcePackList* GetPackList() { return packList.get(); }
+	ColorPaletteList* GetColorList() { return colorList.get(); }
 
 	const RenderSettings& GetCurrentRenderSettings() const { return currentRenderSettings; }
 
-	bool IsLoading() const
-	{
-		return loading.load();
-	}
-
-	bool IsRendering() const
-	{
-		return rendering.load();
-	}
+	bool IsLoading() const { return loading.load(); }
+	bool IsRendering() const { return rendering.load(); }
 
 	void BuildFontAtlas();
 
@@ -177,17 +81,9 @@ public:
 	void CaptureFrame();
 	void OnResize(int width, int height);
 
-	std::shared_ptr<AbstractMIDILoader> CreateLoader(const char* path)
-	{
-		std::shared_ptr<AbstractMIDILoader> loader;
-		if (config.midi.multithreadedLoading)
-			loader = std::make_shared<MultithreadedMIDILoader>(path);
-		else
-			loader = std::make_shared<MIDILoader>(path);
-
-		loader->SetLoadOnlyNotes(config.midi.loadNotesOnly);
-		return loader;
-	}
+	// Body lives in MIDIApp.cpp: constructs MIDILoader/MultithreadedMIDILoader
+	// via make_shared, which needs their complete types.
+	std::shared_ptr<AbstractMIDILoader> CreateLoader(const char* path);
 
 	bool hasSequence = false;
 	std::atomic_bool rendering = false;
@@ -211,10 +107,10 @@ private:
 	std::unique_ptr<MIDIAudio> midiAudio;
 	std::atomic_bool loading = false;
 
-	#pragma region Framebuffer for rendering
+#pragma region Framebuffer for rendering
 	std::unique_ptr<Framebuffer> renderFramebuffer;
 	std::unique_ptr<Quad> fullscreenQuad;
-	#pragma endregion
+#pragma endregion
 
 	std::mutex appMutex;
 	std::mutex thisMtx;
