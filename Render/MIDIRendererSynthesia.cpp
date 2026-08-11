@@ -330,12 +330,89 @@ void MIDIRendererSynthesia::RenderBackground()
 
 void MIDIRendererSynthesia::RenderLines()
 {
+	RenderMeasureLines();
+	RenderDividerLines();
+}
+
+void MIDIRendererSynthesia::RenderMeasureLines()
+{
+	const float lineWidth = 0.02f;
+	const float lineHeight = lineWidth * ((float)this->width / (float)this->height);
+
+	if (!seq) return;
+	std::vector<TimeSignatureEvent>& timeSigEvents = seq->timeSignatures;
+	if (timeSigEvents.empty()) return;
+
+	auto* renderView = app->GetRenderView();
+	if (!renderView) return;
+
+	TempoMap* tempoMap = seq->GetTempoMap();
+	if (!tempoMap) return;
+
+	const double playbackSeconds = app->GetTimer()->Elapsed();
+	const long currentTicks = tempoMap->SecsToTicksFromMap(seq->resolution, playbackSeconds);
+
+	const double currentTime = isTimeBased ? playbackSeconds : (double)currentTicks;
+	const double viewRegion = isTimeBased
+		? (double)renderView->viewTicks / 1000.0
+		: (double)renderView->viewTicks;
+
+	const double invViewRegion = 1.0 / viewRegion;
+	const double renderEnd = currentTime + viewRegion;
+
+	long measureTime = 0;
+
+	auto measurePos = [&](long ticks) -> double
+		{
+			return isTimeBased
+				? tempoMap->TicksToSecsFromMap(seq->resolution, ticks)
+				: (double)ticks;
+		};
+
+	for (size_t i = 0; i < timeSigEvents.size(); i++)
+	{
+		TimeSignatureEvent* timeSignature = &timeSigEvents[i];
+		TimeSignatureEvent* futureTimeSignature =
+			(i + 1 < timeSigEvents.size()) ? &timeSigEvents[i + 1] : nullptr;
+
+		const long measureInc = static_cast<long>(seq->resolution * 4) / timeSignature->denominator;
+		int beat = 0;
+
+		long futureTimeSigTick = 0l;
+		if (futureTimeSignature)
+			futureTimeSigTick = isTimeBased
+			? tempoMap->SecsToTicksFromMap(seq->resolution, (double)futureTimeSignature->tick / TIME_BASED_MULTIPLIER)
+			: futureTimeSignature->tick;
+
+		while (futureTimeSignature ? (measureTime < futureTimeSigTick) : (measurePos(measureTime) < renderEnd))
+		{
+			const double pos = measurePos(measureTime);
+
+			const float linePos = (float)((pos - currentTime) * invViewRegion) * (1.0 - keyboardHeight) + keyboardHeight;
+			const float top = linePos + whiteKeyWidth * lineHeight;
+			const float bottom = linePos - whiteKeyWidth * lineHeight;
+
+			if (beat == 0 && pos > currentTime && pos < renderEnd)
+			{
+				PushQuad(0, bottom, 1, top - bottom, 0xFF323232);
+			}
+
+			measureTime += measureInc;
+			beat++;
+			if (beat >= timeSignature->numerator) beat = 0;
+		}
+	}
+}
+
+void MIDIRendererSynthesia::RenderDividerLines()
+{
 	MIDIPlayerConfig* config = app->GetConfig();
 	const int keyFirst = config->render.GetKeyFirst();
 	const int keyLast = config->render.GetKeyLast() + 1;
 
 	const float lineWidth = 0.02f;
 
+	// divider lines
 	for (int i = keyFirst; i <= keyLast; i++)
 	{
 		float line = keyPos[i];
