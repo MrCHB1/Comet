@@ -33,6 +33,12 @@ struct TexturedRectInstance
 };
 #pragma pack(pop)
 
+struct KeyboardState
+{
+	uint32_t color = 0x000000;
+	bool pressed = false;
+};
+
 // Index of each source image within the shared texture array. Order must
 // match the LoadLayer() calls in Initialize().
 enum TextureLayer : int
@@ -102,6 +108,12 @@ private:
 	std::array<float, MIDI_KEYS> keyPos{};
 	std::array<float, MIDI_KEYS> keyWidth{};
 	std::array<size_t, MIDI_KEYS> keyNum{};
+	std::array<KeyboardState, MIDI_KEYS> keyStates{};
+	std::array<size_t, MIDI_KEYS> kbIDs{};
+
+	std::array<size_t, MIDI_KEYS> startRenderIDs;
+	std::array<size_t, MIDI_KEYS> endRenderIDs;
+	long lastTime = -1;
 
 	bool keyArrayDirty = true;
 #pragma endregion
@@ -114,6 +126,8 @@ private:
 	void RenderBackground();
 	void RenderLines();
 	void RenderKeyboard();
+
+	void RenderNotes();
 
 	void PushQuad(float x, float y, float width, float height, uint32_t color)
 	{
