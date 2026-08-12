@@ -52,6 +52,7 @@ uniform float left;
 uniform float right;
 uniform float kbHeight;
 uniform float pressFactor;
+uniform float kbOffset;
 
 out float colorFac;
 
@@ -62,6 +63,7 @@ void main()
 	vec3 vPos = vec3(aPos.x * width + left, aPos.y * 0.012f, aPos.z * kbHeight);
 	// translation for now
 	vPos.y -= pressFactor * 0.006f;
+	vPos.z += kbOffset;
 	gl_Position = projection * view * model * vec4(vPos, 1.0);
 	colorFac = kColorFac;
 })";
@@ -777,28 +779,69 @@ void MIDIRendererMIDITrail::Initialize()
 
 void MIDIRendererMIDITrail::CalcKeyPosAndWidth()
 {
-	float noteWidth = (float)width / 75.0f;
-	float noteWidthBlack = (float)width / 115.0f;
-	float pos = 0.0f;
+	MIDIPlayerConfig* config = app->GetConfig();
+	int keyFirst = config->render.GetKeyFirst();
+	int keyLast = config->render.GetKeyLast();
 
-	for (int i = 0; i < MIDI_KEYS; i++)
+	float rawPos[128];
+	float rawWidth[128];
+	float pos = 0.0f;
+	for (int i = 0; i < 128; i++)
 	{
-		keyPos[i] = pos / (float)width;
-		pos += keyPosDiff[i % 12] * noteWidth;
+		rawPos[i] = pos;
+		pos += keyPosDiff[i % 12];
 	}
 
+	int lastIdxWhiteUnit = -1;
+	for (int j = 0; j < 128; j++)
+	{
+		if (KEY_IS_BLACK(j))
+		{
+			rawWidth[j] = 75.0f / 115.0f; // black key width relative to a white key step
+		}
+		else
+		{
+			if (lastIdxWhiteUnit != -1)
+				rawWidth[lastIdxWhiteUnit] = rawPos[j] - rawPos[lastIdxWhiteUnit];
+			lastIdxWhiteUnit = j;
+		}
+	}
+	if (lastIdxWhiteUnit != -1)
+		rawWidth[lastIdxWhiteUnit] = 1.0f;
+
+	float spanUnits = (rawPos[keyLast] + rawWidth[keyLast]) - rawPos[keyFirst];
+	if (spanUnits < 0.001f)
+		spanUnits = 0.001f;
+
+	// full 0-127 span, used as the baseline that keyboardMaxZ was tuned against
+	float fullSpanUnits = (rawPos[127] + rawWidth[127]) - rawPos[0];
+	if (fullSpanUnits < 0.001f)
+		fullSpanUnits = 0.001f;
+
+	float noteWidth = (float)width / spanUnits; // pixels per white-key unit
+	float noteWidthBlack = noteWidth * (75.0f / 115.0f);
+
+	float firstKeyPos = rawPos[keyFirst] * noteWidth;
+	for (int i = 0; i < 128; i++)
+		keyPos[i] = (rawPos[i] * noteWidth - firstKeyPos) / (float)width;
+
 	int lastIdxWhite = -1;
-	for (int j = 0; j < MIDI_KEYS; j++)
+	for (int j = 0; j < 128; j++)
 	{
 		if (KEY_IS_BLACK(j))
 			keyWidth[j] = noteWidthBlack / (float)width;
 		else
 		{
-			if (lastIdxWhite != -1) keyWidth[lastIdxWhite] = keyPos[j] - keyPos[lastIdxWhite];
+			if (lastIdxWhite != -1)
+				keyWidth[lastIdxWhite] = keyPos[j] - keyPos[lastIdxWhite];
 			lastIdxWhite = j;
 		}
 	}
-	if (lastIdxWhite != -1) keyWidth[lastIdxWhite] = 1.0f - keyPos[lastIdxWhite];
+
+	keyWidth[keyLast] = 1.0f - keyPos[keyLast];
+	float aspect = (float)width / (float)height;
+	float heightScale = fullSpanUnits / spanUnits;
+	keyboardHeight = 0.007f * aspect * heightScale;
 
 	separatorVerts.clear();
 
@@ -831,6 +874,12 @@ void MIDIRendererMIDITrail::LoadSequence(std::shared_ptr<MIDISequence> sequence)
 
 void MIDIRendererMIDITrail::Render(double deltaTime)
 {
+	MIDIPlayerConfig* config = app->GetConfig();
+	if (config->render.ConsumeKeyRangeChanged())
+	{
+		CalcKeyPosAndWidth();
+	}
+
 	// Render the scene to the framebuffer
 	UpdateMatrices();
 	UpdateAuras(deltaTime);
@@ -882,6 +931,7 @@ void MIDIRendererMIDITrail::Render(double deltaTime)
 
 void MIDIRendererMIDITrail::RenderSettings()
 {
+	ImGui::SliderFloat("Keyboard offest", &keyboardOffset, -0.1f, 0.1f);
 	ImGui::Text("Preset");
 	ImGui::SameLine();
 	if (ImGui::BeginCombo("##settingsPreset", ""))
@@ -1154,84 +1204,144 @@ void MIDIRendererMIDITrail::UpdateKeyboard(double deltaTime)
 
 void MIDIRendererMIDITrail::RenderKeyboard()
 {
-	// render the keyboard using the white and black key shaders
-	if (!whiteKeyProgram || !blackKeyProgram) return;
-	
-	size_t whiteIdx = 0;
-	size_t blackIdx = 0;
+	if (!whiteKeyProgram || !blackKeyProgram)
+		return;
 
-	for (int i = 0; i < MIDI_KEYS; i++)
+	MIDIPlayerConfig* config = app->GetConfig();
+
+	const int keyFirst = config->render.GetKeyFirst();
+	const int keyLast = config->render.GetKeyLast();
+
+	// find the actual first/last WHITE key in the selected range.
+	int firstWhiteKey = -1;
+	int lastWhiteKey = -1;
+
+	for (int key = keyFirst; key <= keyLast; ++key)
+	{
+		if (!KEY_IS_BLACK(key))
+		{
+			if (firstWhiteKey == -1)
+				firstWhiteKey = key;
+
+			lastWhiteKey = key;
+		}
+	}
+
+	{
+		ShaderBind blackKeyBind(*blackKeyProgram);
+
+		blackKeyProgram->SetFloat("kbHeight", keyboardHeight);
+		blackKeyProgram->SetFloat("kbOffset", keyboardOffset);
+		blackKeyProgram->SetMat4("model", model);
+		blackKeyProgram->SetMat4("view", view);
+		blackKeyProgram->SetMat4("projection", projection);
+	}
+
+	{
+		ShaderBind whiteKeyBind(*whiteKeyProgram);
+
+		whiteKeyProgram->SetFloat("kbHeight", keyboardHeight);
+		blackKeyProgram->SetFloat("kbOffset", keyboardOffset);
+		whiteKeyProgram->SetMat4("model", model);
+		whiteKeyProgram->SetMat4("view", view);
+		whiteKeyProgram->SetMat4("projection", projection);
+	}
+
+	for (int i = keyFirst; i <= keyLast && i < MIDI_KEYS; ++i)
 	{
 		auto& kbData = keyboardData[i];
 
 		if (KEY_IS_BLACK(i))
 		{
 			ShaderBind blackKeyBind(*blackKeyProgram);
-			blackKeyProgram->SetFloat("kbHeight", keyboardHeight);
-
-			blackKeyProgram->SetMat4("model", model);
-			blackKeyProgram->SetMat4("view", view);
-			blackKeyProgram->SetMat4("projection", projection);
 
 			blackKeyProgram->SetFloat("left", kbData.left);
 			blackKeyProgram->SetFloat("right", kbData.right);
 			blackKeyProgram->SetFloat("pressFactor", kbData.pressFactor);
-			blackKeyProgram->SetUInt("meta", kbData.meta); // black key color
-			
+			blackKeyProgram->SetUInt("meta", kbData.meta);
+
 			blackKeyVAO->Bind();
 			blackKeyEBO->Bind();
 
 			blackKeyVBO->Bind();
 			glEnableVertexAttribArray(0);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-			
+			glVertexAttribPointer(
+				0, 3, GL_FLOAT, GL_FALSE,
+				3 * sizeof(float), (void*)0
+			);
+
 			blackKeyColVBO->Bind();
 			glEnableVertexAttribArray(1);
-			glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
+			glVertexAttribPointer(
+				1, 1, GL_FLOAT, GL_FALSE,
+				sizeof(float), (void*)0
+			);
 
-			glDrawElements(GL_TRIANGLES, 6 * 8, GL_UNSIGNED_INT, 0);
-
-			blackIdx++;
+			glDrawElements(GL_TRIANGLES, 6 * 8, GL_UNSIGNED_INT, nullptr);
 		}
 		else
 		{
 			ShaderBind whiteKeyBind(*whiteKeyProgram);
-			whiteKeyProgram->SetFloat("kbHeight", keyboardHeight);
 
-			size_t wIdx = whiteIdx % 7;
-			if (i == 127) wIdx = 13; // last white key has no right neighbor, so use the last VBO
+			static constexpr int whitePattern[12] = {
+				0, -1, 1, -1, 2, 3,
+				-1, 4, -1, 5, -1, 6
+			};
 
-			whiteKeyProgram->SetMat4("model", model);
-			whiteKeyProgram->SetMat4("view", view);
-			whiteKeyProgram->SetMat4("projection", projection);
+			const int pattern = whitePattern[i % 12];
+
+			if (pattern < 0)
+				continue;
+
+			const bool isFirstWhite = (i == firstWhiteKey);
+			const bool isLastWhite = (i == lastWhiteKey);
+
+			size_t vboIndex;
+
+			if (isFirstWhite)
+			{
+				// left edge of the visible keyboard
+				vboIndex = 14 + pattern;
+			}
+			else if (isLastWhite)
+			{
+				// right edge of the visible keyboard
+				vboIndex = 7 + pattern;
+			}
+			else
+			{
+				// normal interior key
+				vboIndex = pattern;
+			}
 
 			whiteKeyProgram->SetFloat("left", kbData.left);
 			whiteKeyProgram->SetFloat("right", kbData.right);
 			whiteKeyProgram->SetFloat("pressFactor", kbData.pressFactor);
-			whiteKeyProgram->SetUInt("meta", kbData.meta); // black key color
-			
+			whiteKeyProgram->SetUInt("meta", kbData.meta);
+
 			whiteKeyVAO->Bind();
 			whiteKeyEBO->Bind();
-			whiteKeyVBOs[wIdx]->Bind();
+			whiteKeyVBOs[vboIndex]->Bind();
 
 			glEnableVertexAttribArray(0);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-			
+			glVertexAttribPointer(
+				0, 3, GL_FLOAT, GL_FALSE,
+				3 * sizeof(float), (void*)0
+			);
+
 			whiteKeyColVBO->Bind();
 			glEnableVertexAttribArray(1);
-			glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, sizeof(float), (void*)0);
-			
-			glDrawElements(GL_TRIANGLES, 6 * 13, GL_UNSIGNED_INT, 0);
+			glVertexAttribPointer(
+				1, 1, GL_FLOAT, GL_FALSE,
+				sizeof(float), (void*)0
+			);
 
-			whiteIdx++;
+			glDrawElements(GL_TRIANGLES, 6 * 13, GL_UNSIGNED_INT, nullptr);
 		}
 	}
 
-	// reset metas
 	for (int i = 0; i < MIDI_KEYS; i++)
-	{
 		keyMetas[i].MarkPressed(false);
-	}
 }
 
 void MIDIRendererMIDITrail::RenderNotes()
@@ -1277,6 +1387,10 @@ void MIDIRendererMIDITrail::RenderNotes()
 	double backCutoffTime = settings.eatNotes ? accTime : (isTimeBased
 		? accTime - (viewRegion * settings.backRenderCutoff)
 		: accTime - (renderView->viewTicks * settings.backRenderCutoff));
+
+	MIDIPlayerConfig* config = app->GetConfig();
+	int keyFirst = config->render.GetKeyFirst();
+	int keyLast = config->render.GetKeyLast();
 
 	for (uint8_t id : kbIDs)
 	{
@@ -1392,7 +1506,7 @@ void MIDIRendererMIDITrail::RenderNotes()
 
 				float size = static_cast<float>(factor + factor2);
 
-				if (auraData[id].size < size)
+				if (auraData[id].size < size && (id >= keyFirst && id <= keyLast))
 				{
 					auraData[id].size = size;
 					auraData[id].meta = keyMetas[id].GetMeta();
@@ -1410,6 +1524,8 @@ void MIDIRendererMIDITrail::RenderNotes()
 			{
 				continue;
 			}
+
+			if (id < keyFirst || id > keyLast) break;
 
 			lastTick = nTick;
 			lastNote = nNote;

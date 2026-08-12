@@ -8,8 +8,9 @@ layout (location = 0) in vec2 aPos;
 layout (location = 1) in int aKeyChannel;
 layout (location = 2) in uint aMeta;
 
-uniform int totalKeys;
 uniform int totalChannels;
+uniform int keyFirst;
+uniform int keyLast;
 
 flat out uint meta;
 
@@ -17,11 +18,11 @@ void main()
 {
 	int key = aKeyChannel & 0x7F;
 	int channel = (aKeyChannel >> 7) & 0xF;
-	float invKeys = 1.0f / float(totalKeys);
+	float invKeys = 1.0f / float(keyLast - keyFirst);
 	float invChannels = 1.0f / float(totalChannels);
 
-	float left = float(key) * invKeys;
-	float right = float(key + 1) * invKeys;
+	float left = float(key - keyFirst) * invKeys;
+	float right = float(key - keyFirst + 1) * invKeys;
 
 	int topDownChannel = totalChannels - channel;
 	float bottom = float(topDownChannel - 1) * invChannels;
@@ -95,8 +96,6 @@ void MIDIRendererChannels::Initialize()
 
 	{
 		ShaderBind shader(*channelProgram);
-
-		channelProgram->SetInt("totalKeys", MIDI_KEYS);
 		channelProgram->SetInt("totalChannels", 16);
 	}
 }
@@ -152,7 +151,17 @@ void MIDIRendererChannels::RenderChannelKeys()
 	size_t notesPassed = 0;
 	size_t polyphony = 0;
 
-	for (uint8_t key = 0; key < MIDI_KEYS; key++)
+	MIDIPlayerConfig* config = app->GetConfig();
+	int keyFirst = config->render.GetKeyFirst();
+	int keyLast = config->render.GetKeyLast();
+
+	{
+		ShaderBind bind(*channelProgram);
+		channelProgram->SetInt("keyFirst", keyFirst);
+		channelProgram->SetInt("keyLast", keyLast);
+	}
+
+	for (uint8_t key = keyFirst; key <= keyLast; key++)
 	{
 		NoteSequence& notesNote = notes[key];
 
