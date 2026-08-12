@@ -43,6 +43,8 @@ namespace Utils
 	std::array<float, 3> UnpackRGB(uint32_t rgb);
 	uint32_t PackRGBA(float r, float g, float b, float a = 1.0f, RGBAPackFormat packFormat = RGBA);
 	std::array<float, 4> UnpackRGBA(uint32_t rgba, RGBAPackFormat packFormat = RGBA);
+	uint32_t BlendRGBA(uint32_t c1, uint32_t c2, float fac);
+	uint32_t BlendRGBFast(uint32_t c1, uint32_t c2, uint32_t fac);
 	static const std::string BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 		"abcdefghijklmnopqrstuvwxyz"
 		"0123456789+/";

@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include "MIDIApp.h"
 #include "Diagnosis/DiagnosisDialog.h"
 #include "Dialog/LoadingDialog.h"
 #include "Dialog/RenderVideoDialog.h"
@@ -12,6 +13,10 @@
 #include "nfd.h"
 #include "Comet.h"
 #include "UI/Themes/Themes.h"
+#include "Config/MIDIPlayerConfig.h"
+
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
 
 #include "stb_image.h"
 

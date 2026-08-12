@@ -348,6 +348,34 @@ namespace Utils
         }
     }
 
+    uint32_t BlendRGBA(uint32_t c1, uint32_t c2, float fac)
+    {
+        std::array<float, 4> c1d = UnpackRGBA(c1);
+        std::array<float, 4> c2d = UnpackRGBA(c2);
+        std::array<float, 4> result{};
+        for (int i = 0; i < 4; i++)
+        {
+            result[i] = (1.0 - fac) * c1d[i] + fac * c2d[i];
+        }
+        return PackRGBA(result[0], result[1], result[2], result[3]);
+    }
+
+    uint32_t BlendRGBFast(uint32_t c1, uint32_t c2, uint32_t fac)
+    {
+        uint32_t inv_t = 255 - fac;
+
+        uint32_t rb1 = c1 & 0x00FF00FF;
+        uint32_t rb2 = c2 & 0x00FF00FF;
+
+        uint32_t ag1 = (c1 >> 8) & 0x00FF00FF;
+        uint32_t ag2 = (c2 >> 8) & 0x00FF00FF;
+
+        uint32_t rb = ((rb1 * inv_t + rb2 * fac) >> 8) & 0x00FF00FF;
+        uint32_t ag = ((ag1 * inv_t + ag2 * fac)); 
+
+        return rb | ((ag << 8) & 0xFF00FF00);
+    }
+
     std::string DecodeBase64(const std::string& encoded)
     {
         std::vector<int> T(256, 1);

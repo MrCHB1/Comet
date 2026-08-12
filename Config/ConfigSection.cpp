@@ -1,5 +1,6 @@
 #include "ConfigSection.h"
 #include "../Utils.h"
+#include "imgui.h"
 
 ConfigSection::ConfigSection(const YAML::Node& node)
 {
