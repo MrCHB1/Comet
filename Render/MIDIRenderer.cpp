@@ -38,7 +38,7 @@ void main()
 	float y = kbHeight - aPos.y * (black ? kbBlackHeight : kbWhiteHeight);
 
 	gl_Position = vec4(x * 2.0f - 1.0f, (y * 2.0f - 1.0f), 0.0f, 1.0f);
-	uv = vec2(aPos.x, 1.0 - aPos.y);
+	uv = aPos;
 	meta = kMeta;
 	kWidth = kRight - kLeft;
 })";
@@ -585,6 +585,10 @@ void MIDIRenderer::InitializeFromConfig()
 void MIDIRenderer::Render(double deltaTime)
 {
 	if (!initialized) return;
+	MIDIPlayerConfig* config = app->GetConfig();
+	
+	if (config->render.ConsumeKeyRangeChanged())
+		CalcKeyPosAndWidth();
 
 	sceneFramebuffer->Bind();
 	// lowkey forgot to clear the framebuffer at the start of each render, oops
@@ -695,18 +699,51 @@ void MIDIRenderer::ResetSettings()
 
 void MIDIRenderer::CalcKeyPosAndWidth()
 {
-	float keyboardHeightScale = width / 75.0f / (float)textureKeyWhite->width;
-	keyboardHeightBlack = (textureKeyBlack->height * keyboardHeightScale) / (float)height;
-	keyboardHeightWhite = (textureKeyWhite->height * keyboardHeightScale) / (float)height;
-	keyboardHeight = std::max(keyboardHeightBlack, keyboardHeightWhite) + 1.0f / float(height);
-	float noteWidth = (float)width / 75.0f;
-	float noteWidthBlack = (float)width / 115.0f;
+	MIDIPlayerConfig* config = app->GetConfig();
+	int keyFirst = config->render.GetKeyFirst();
+	int keyLast = config->render.GetKeyLast();
+
+	float rawPos[MIDI_KEYS];
+	float rawWidth[MIDI_KEYS];
 	float pos = 0.0f;
 	for (int i = 0; i < MIDI_KEYS; i++)
 	{
-		keyPos[i] = pos / (float)width;
-		pos += keyPosDiff[i % 12] * noteWidth;
+		rawPos[i] = pos;
+		pos += keyPosDiff[i % 12];
 	}
+	int lastIdxWhiteUnit = -1;
+	for (int j = 0; j < MIDI_KEYS; j++)
+	{
+		if (KEY_IS_BLACK(j))
+		{
+			rawWidth[j] = 75.0f / 115.0f; // black key width relative to a white key step
+		}
+		else
+		{
+			if (lastIdxWhiteUnit != -1)
+				rawWidth[lastIdxWhiteUnit] = rawPos[j] - rawPos[lastIdxWhiteUnit];
+			lastIdxWhiteUnit = j;
+		}
+	}
+	if (lastIdxWhiteUnit != -1)
+		rawWidth[lastIdxWhiteUnit] = 1.0f;
+
+	float spanUnits = (rawPos[keyLast] + rawWidth[keyLast]) - rawPos[keyFirst];
+	if (spanUnits < 0.001f)
+		spanUnits = 0.001f;
+
+	float noteWidth = (float)width / spanUnits; // pixels per white-key unit
+	float noteWidthBlack = noteWidth * (75.0f / 115.0f);
+
+	float keyboardHeightScale = noteWidth / (float)textureKeyWhite->width;
+	keyboardHeightBlack = (textureKeyBlack->height * keyboardHeightScale) / (float)height;
+	keyboardHeightWhite = (textureKeyWhite->height * keyboardHeightScale) / (float)height;
+	keyboardHeight = std::max(keyboardHeightBlack, keyboardHeightWhite) + 1.0f / float(height);
+
+	float firstKeyPos = rawPos[keyFirst] * noteWidth;
+	for (int i = 0; i < MIDI_KEYS; i++)
+		keyPos[i] = (rawPos[i] * noteWidth - firstKeyPos) / (float)width;
+
 	int lastIdxWhite = -1;
 	for (int j = 0; j < MIDI_KEYS; j++)
 	{
@@ -719,21 +756,15 @@ void MIDIRenderer::CalcKeyPosAndWidth()
 			lastIdxWhite = j;
 		}
 	}
-	// keyWidth[lastIdxWhite] = ((float)(width) - keyPos[lastIdxWhite]) / (float)width;
-	if (lastIdxWhite != -1)
-	{
-		keyWidth[lastIdxWhite] = 1.0f - keyPos[lastIdxWhite];
-	}
+
+	keyWidth[keyLast] = 1.0f - keyPos[keyLast];
+
 	float widthScale = (float)(width) / 1280.0f;
 	float unscaledWhiteKeyGap = pack->GetKeyboardInfo()->whiteKeyGap;
 	if (unscaledWhiteKeyGap > 0.0f)
-	{
 		whiteKeyGap = (float)std::max(1, (int)std::floor(unscaledWhiteKeyGap * widthScale));
-	}
 	else
-	{
 		whiteKeyGap = 0.0f;
-	}
 
 	float unscaledNoteBorderWidth = pack->GetNoteInfo()->borderWidth;
 	if (unscaledNoteBorderWidth > 0.0f)

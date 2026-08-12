@@ -455,6 +455,8 @@ void PrerenderedEngine::KillLastGenerator()
 
 void PrerenderedEngine::StartPrerender(bool force, double time)
 {
+    if (!eventsReady) return;
+
     if (!force)
     {
         const double playerTime = GetPlayerTime();
