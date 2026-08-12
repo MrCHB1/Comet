@@ -115,30 +115,43 @@ uniform float capAspectRatio;
 uniform float aspectRatio;
 uniform float capHeight;
 
-uniform sampler2D noteBody;
-uniform sampler2D noteTop;
-uniform sampler2D noteBottom;
+uniform sampler2D noteWhiteBody;
+uniform sampler2D noteWhiteTop;
+uniform sampler2D noteWhiteBottom;
+uniform sampler2D noteBlackBody;
+uniform sampler2D noteBlackTop;
+uniform sampler2D noteBlackBottom;
 uniform sampler2D noteOOB;
 
 uniform bool nativeColors;
+
+uniform float brightnessBoost;
 
 void main()
 {
 	vec3 noteColor = vec3(float((meta & 0xFF0000u) >> 16u),
 		float((meta & 0xFF00u) >> 8u),
 		float(meta & 0xFFu)) / 255.0;
+	vec3 noteColor2 = noteColor * brightnessBoost;
 
 	bool isBlack = (meta & (1u << 24u)) != 0u;
 	bool isOOB   = (meta & (1u << 25u)) != 0u;
 	bool isRight = (meta & (1u << 26u)) != 0u;
 
-	if (isBlack && !nativeColors) noteColor *= 0.7;
+	if (isBlack && !nativeColors)
+	{
+		noteColor *= 0.7;
+		noteColor2 *= 0.7;
+	}
 
 	vec4 noteTexColor;
 
 	if (!isOOB)
 	{
-		noteTexColor = texture(noteBody, uv);
+		if (isBlack)
+			noteTexColor = texture(noteBlackBody, uv);
+		else
+			noteTexColor = texture(noteWhiteBody, uv);
 
 		float bottomDistance = uv.y * noteSize.y;
 
@@ -148,7 +161,10 @@ void main()
 			capUV.x = uv.x;
 			capUV.y = bottomDistance / capHeight;
 
-			noteTexColor = texture(noteBottom, capUV);
+			if (isBlack)
+				noteTexColor = texture(noteBlackBottom, capUV);
+			else
+				noteTexColor = texture(noteWhiteBottom, capUV);
 		}
 
 		float topDistance = (1.0 - uv.y) * noteSize.y;
@@ -159,16 +175,23 @@ void main()
 			capUV.x = uv.x;
 			capUV.y = 1.0 - topDistance / capHeight;
 
-			noteTexColor = texture(noteTop, capUV);
+			if (isBlack)
+				noteTexColor = texture(noteBlackTop, capUV);
+			else
+				noteTexColor = texture(noteWhiteTop, capUV);
 		}
+
+		gl_FragColor = vec4(noteTexColor.rgb * noteColor2, noteTexColor.a);
 	}
 	else
 	{
 		vec2 arrowUV = isRight ? vec2(1.0 - uv.x, uv.y) : uv;
 		noteTexColor = texture(noteOOB, arrowUV);
+
+		gl_FragColor = vec4(noteTexColor.rgb * noteColor, noteTexColor.a);
 	}
 
-	gl_FragColor = vec4(noteTexColor.rgb * noteColor, noteTexColor.a);
+	
 })";
 #pragma endregion
 
@@ -460,32 +483,44 @@ void MIDIRendererSynthesia::InitializeTextures()
 		layerUV[layer] = textures->LoadLayer(layer, Utils::TryGetStream(layerPaths[layer]));
 	}
 
-	noteBody   = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "note.png"));
-	noteTop    = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteTop.png"));
-	noteBottom = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteBottom.png"));
-	noteOOB    = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteOOB.png"));
+	UpdateStyle();
 
 	{
 		ShaderBind bind(*notesProgram);
 
 		{
-			TextureBind tex(*noteBody, 0);
-			notesProgram->SetInt("noteBody", 0);
+			TextureBind tex(*noteWhiteBody, 0);
+			notesProgram->SetInt("noteWhiteBody", 0);
 		}
 
 		{
-			TextureBind tex(*noteTop, 1);
-			notesProgram->SetInt("noteTop", 1);
+			TextureBind tex(*noteWhiteTop, 1);
+			notesProgram->SetInt("noteWhiteTop", 1);
 		}
 
 		{
-			TextureBind tex(*noteBottom, 2);
-			notesProgram->SetInt("noteBottom", 2);
+			TextureBind tex(*noteWhiteBottom, 2);
+			notesProgram->SetInt("noteWhiteBottom", 2);
 		}
 
 		{
-			TextureBind tex(*noteOOB, 3);
-			notesProgram->SetInt("noteOOB", 3);
+			TextureBind tex(*noteBlackBody, 3);
+			notesProgram->SetInt("noteBlackBody", 3);
+		}
+
+		{
+			TextureBind tex(*noteBlackTop, 4);
+			notesProgram->SetInt("noteBlackTop", 4);
+		}
+
+		{
+			TextureBind tex(*noteBlackBottom, 5);
+			notesProgram->SetInt("noteBlackBottom", 5);
+		}
+
+		{
+			TextureBind tex(*noteOOB, 6);
+			notesProgram->SetInt("noteOOB", 6);
 		}
 	}
 }
@@ -591,6 +626,48 @@ void MIDIRendererSynthesia::UpdateRenderer()
 	GenerateKeyLayoutArrays();
 }
 
+void MIDIRendererSynthesia::UpdateStyle()
+{
+	std::filesystem::path notesPath;
+
+	switch (renderSettings.style)
+	{
+		case SYNTHESIA_10:
+		{
+			notesPath = "./assets/textures/synthesia/notes/s10";
+			noteWhiteBody = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "note.png"));
+			noteWhiteTop = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteTop.png"));
+			noteWhiteBottom = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteBottom.png"));
+			noteBlackBody = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "note.png"));
+			noteBlackTop = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteTop.png"));
+			noteBlackBottom = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteBottom.png"));
+			{
+				ShaderBind bind(*notesProgram);
+				notesProgram->SetFloat("brightnessBoost", 1.0f);
+			}
+			break;
+		}
+		case SYNTHESIA_9:
+		{
+			notesPath = "./assets/textures/synthesia/notes/s9";
+			noteWhiteBody = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteWhite.png"));
+			noteWhiteTop = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteTopWhite.png"));
+			noteWhiteBottom = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteBottomWhite.png"));
+			noteBlackBody = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteBlack.png"));
+			noteBlackTop = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteTopBlack.png"));
+			noteBlackBottom = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteBottomBlack.png"));
+			{
+				ShaderBind bind(*notesProgram);
+				notesProgram->SetFloat("brightnessBoost", 2.0f);
+			}
+			break;
+		}
+	}
+
+	
+	noteOOB = std::make_unique<GPUImage>(Utils::TryGetStream("./assets/textures/synthesia/notes/noteOOB.png"));
+}
+
 void MIDIRendererSynthesia::Render(double deltaTime)
 {
 	if (!initialized) return;
@@ -628,7 +705,7 @@ void MIDIRendererSynthesia::Render(double deltaTime)
 
 	RenderKeyboard();
 	RenderQuads(rectDrawCount);
-	if (renderSettings.showKeyOctaves) RenderOctaveTextOverlays();
+	if (renderSettings.showKeyOctaves && renderSettings.style == SYNTHESIA_9) RenderOctaveTextOverlays();
 
 	glDisable(GL_BLEND);
 
@@ -933,9 +1010,12 @@ void MIDIRendererSynthesia::RenderNotes()
 
 	ShaderBind shaderBind(*notesProgram);
 
-	TextureBind noteBodyBind(*noteBody, 0);
-	TextureBind noteTopBind(*noteTop, 1);
-	TextureBind noteBottomBind(*noteBottom, 2);
+	TextureBind noteWhiteBodyBind(*noteWhiteBody, 0);
+	TextureBind noteWhiteTopBind(*noteWhiteTop, 1);
+	TextureBind noteWhiteBottomBind(*noteWhiteBottom, 2);
+	TextureBind noteBlackBodyBind(*noteBlackBody, 3);
+	TextureBind noteBlackTopBind(*noteBlackTop, 4);
+	TextureBind noteBlackBottomBind(*noteBlackBottom, 5);
 
 	VertexArrayBind notesVAOBind(*notesVAO);
 	BufferBind notesVBOBind(*notesVBO);
@@ -943,7 +1023,7 @@ void MIDIRendererSynthesia::RenderNotes()
 	if (notesIBO) notesIBO->Bind();
 
 	float renderAspectRatio = (float)width / (float)height;
-	float capAspectRatio = (float)noteTop->width / (float)noteTop->height;
+	float capAspectRatio = (float)noteWhiteTop->width / (float)noteWhiteTop->height;
 	
 	notesProgram->SetFloat("kbHeight", keyboardHeight);
 	notesProgram->SetFloat("aspectRatio", renderAspectRatio);
@@ -1083,9 +1163,9 @@ void MIDIRendererSynthesia::RenderNotes()
 			renderNotes[noteID++] = RenderNoteSynthesia(
 				x, y,
 				width, y2 - y,
-				(renderSettings.useNativeNoteColors ?
+				((renderSettings.useNativeNoteColors ?
 				SampleNativeColor(nTrack, nChannel, isBlack) :
-				colors.GetColor(nTrack, nChannel)) | (isBlack << 24)
+				colors.GetColor(nTrack, nChannel)) & 0xFFFFFF) | (isBlack << 24)
 			);
 
 			if (noteID >= NOTE_BUFFER_SIZE)
@@ -1175,7 +1255,7 @@ void MIDIRendererSynthesia::RenderOutOfBoundNotes()
 	size_t batchCount = 0;
 
 	ShaderBind shaderBind(*notesProgram);
-	TextureBind tex(*noteOOB, 3);
+	TextureBind tex(*noteOOB, 6);
 
 	VertexArrayBind notesVAOBind(*notesVAO);
 	BufferBind notesVBOBind(*notesVBO);
@@ -1243,9 +1323,9 @@ void MIDIRendererSynthesia::RenderOutOfBoundNotes()
 			renderNotes[nID++] = {
 				arrowX, arrowY,
 				arrowWidth, arrowHeight,
-				(renderSettings.useNativeNoteColors ?
+				((renderSettings.useNativeNoteColors ?
 				SampleNativeColor(nTrack, nChannel, false) :
-					colors.GetColor(nTrack, nChannel)) | (1 << 25) | ((!isLeft) << 26)
+					colors.GetColor(nTrack, nChannel)) & 0xFFFFFF) | (1 << 25) | ((!isLeft) << 26)
 			};
 
 			if (nID >= NOTE_BUFFER_SIZE)
@@ -1496,48 +1576,119 @@ void MIDIRendererSynthesia::RenderOctaveTextOverlays()
 
 void MIDIRendererSynthesia::RenderSettings()
 {
-	SECTION_HEADER("General");
-	BEGIN_SECTION("##sGeneral")
+	if (ImGui::BeginTabBar("##renderSettings"))
 	{
-		SETUP_SECTION;
-		SECTION_ENTRY(TABLE_LABEL_TOOLTIP("Native note colors", "Uses built-in synthesia colors instead of the color palette shared between renderers."),
+		if (ImGui::BeginTabItem("General"))
+		{
+			BEGIN_SECTION("##sGeneral")
 			{
-				if (ImGui::Checkbox("##nativeCols", &renderSettings.useNativeNoteColors))
-				{
-					ShaderBind shaderBind(*notesProgram);
-					notesProgram->SetInt("nativeColors", renderSettings.useNativeNoteColors ? 1 : 0);
-				}
-			});
-		
-		SECTION_ENTRY(SECTION_LABEL("Out-of-bound notes"),
-			{
-				ImGui::Checkbox("##oobNotes", &renderSettings.showOutOfBoundNotes);
-			});
+				SETUP_SECTION;
 
-		SECTION_ENTRY(SECTION_LABEL("Background"),
-			{
-				ImGui::Checkbox("##background", &renderSettings.renderBackground);
-			});
-		
-		END_SECTION;
-	}
+				SECTION_ENTRY(SECTION_LABEL("Synthesia style"),
+					{
+						auto style = renderSettings.style;
+						std::string previewText = "";
 
-	SECTION_HEADER("Keyboard");
-	BEGIN_SECTION("##sKeyboard")
-	{
-		SETUP_SECTION;
-		SECTION_ENTRY(SECTION_LABEL("Key sparkles"),
+						switch (style)
+						{
+							case SYNTHESIA_9:
+								previewText = "Synthesia 9";
+								break;
+							case SYNTHESIA_10:
+								previewText = "Synthesia 10";
+								break;
+						}
+
+						if (ImGui::BeginCombo("##synthesiaStyle", previewText.c_str()))
+						{
+							if (ImGui::Selectable("Synthesia 9", style == SYNTHESIA_9))
+							{
+								renderSettings.style = SYNTHESIA_9;
+								UpdateStyle();
+							}
+
+							if (ImGui::Selectable("Synthesia 10", style == SYNTHESIA_10))
+							{
+								renderSettings.style = SYNTHESIA_10;
+								UpdateStyle();
+							}
+
+							ImGui::EndCombo();
+						}
+					});
+
+				SECTION_ENTRY(TABLE_LABEL_TOOLTIP("Native note colors", "Uses built-in synthesia colors instead of the color palette shared between renderers."),
+					{
+						if (ImGui::Checkbox("##nativeCols", &renderSettings.useNativeNoteColors))
+						{
+							ShaderBind shaderBind(*notesProgram);
+							notesProgram->SetInt("nativeColors", renderSettings.useNativeNoteColors ? 1 : 0);
+						}
+					});
+
+				SECTION_ENTRY(SECTION_LABEL("Out-of-bound notes"),
+					{
+						ImGui::Checkbox("##oobNotes", &renderSettings.showOutOfBoundNotes);
+					});
+
+				SECTION_ENTRY(SECTION_LABEL("Background"),
+					{
+						ImGui::Checkbox("##background", &renderSettings.renderBackground);
+					});
+
+				END_SECTION;
+			}
+
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem("Keyboard"))
+		{
+			BEGIN_SECTION("##sKeyboard")
 			{
-				ImGui::Checkbox("##keySpark", &renderSettings.renderKeySparkle);
-			});
-		SECTION_ENTRY(SECTION_LABEL("Key octaves"),
-			{
-				ImGui::Checkbox("##keyOctaves", &renderSettings.showKeyOctaves);
-			});
-		END_SECTION;
+				SETUP_SECTION;
+				SECTION_ENTRY(SECTION_LABEL("Key sparkles"),
+					{
+						ImGui::Checkbox("##keySpark", &renderSettings.renderKeySparkle);
+					});
+				END_SECTION;
+			}
+
+			ImGui::EndTabItem();
+		}
+		RenderStyleSettings();
+
+		ImGui::EndTabBar();
 	}
 
 	AbstractMIDIRenderer::RenderSettings();
+}
+
+void MIDIRendererSynthesia::RenderStyleSettings()
+{
+	switch (renderSettings.style)
+	{
+	case SYNTHESIA_9:
+	{
+		if (ImGui::BeginTabItem("Synthesia 9"))
+		{
+			BEGIN_SECTION("##sStyle")
+			{
+				SETUP_SECTION;
+				SECTION_ENTRY(SECTION_LABEL("Key octaves"),
+					{
+						ImGui::Checkbox("##keyOctaves", &renderSettings.showKeyOctaves);
+					});
+				END_SECTION;
+			}
+		}
+		break;
+	}
+	case SYNTHESIA_10:
+		break;
+	default:
+		break;
+	}
+
 }
 
 void MIDIRendererSynthesia::ResetSettings()
@@ -1556,6 +1707,7 @@ void MIDIRendererSynthesia::OnResize(int width, int height)
 YAML::Node MIDIRendererSynthesia::GetSettings()
 {
 	YAML::Node node;
+	node["style"] = static_cast<int>(renderSettings.style);
 	node["nativeColors"] = renderSettings.useNativeNoteColors;
 	node["oobNotes"] = renderSettings.showOutOfBoundNotes;
 	node["keySparkle"] = renderSettings.renderKeySparkle;
@@ -1569,11 +1721,17 @@ void MIDIRendererSynthesia::LoadSettings(const YAML::Node& node)
 {
 	if (!node) return;
 
+	int styleInt;
+	LOAD_VAL(node, "style", styleInt);
+	renderSettings.style = static_cast<SynthesiaStyle>(styleInt);
+
 	LOAD_VAL(node, "nativeColors", renderSettings.useNativeNoteColors);
 	LOAD_VAL(node, "oobNotes", renderSettings.showOutOfBoundNotes);
 	LOAD_VAL(node, "keySparkle", renderSettings.renderKeySparkle);
 	LOAD_VAL(node, "background", renderSettings.renderBackground);
 	LOAD_VAL(node, "keyOctaves", renderSettings.showKeyOctaves);
+
+	UpdateStyle();
 }
 
 void MIDIRendererSynthesia::ResetKeyboardState()
