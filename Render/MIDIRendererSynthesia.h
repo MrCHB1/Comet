@@ -19,6 +19,12 @@
 #define NUM_TEXTURES 13
 #define TEXTURE_ARRAY_SLOT 0
 
+enum SynthesiaStyle
+{
+	SYNTHESIA_10,
+	SYNTHESIA_9
+};
+
 struct SynthesiaRenderSettings
 {
 	bool useNativeNoteColors = true;
@@ -26,6 +32,8 @@ struct SynthesiaRenderSettings
 	bool renderKeySparkle = true;
 	bool renderBackground = true;
 	bool showKeyOctaves = true;
+
+	SynthesiaStyle style = SYNTHESIA_10;
 
 	static SynthesiaRenderSettings Default()
 	{
@@ -199,9 +207,12 @@ private:
 #pragma endregion
 
 #pragma region Note textures
-	std::unique_ptr<GPUImage> noteBody;
-	std::unique_ptr<GPUImage> noteTop;
-	std::unique_ptr<GPUImage> noteBottom;
+	std::unique_ptr<GPUImage> noteWhiteBody;
+	std::unique_ptr<GPUImage> noteWhiteTop;
+	std::unique_ptr<GPUImage> noteWhiteBottom;
+	std::unique_ptr<GPUImage> noteBlackBody;
+	std::unique_ptr<GPUImage> noteBlackTop;
+	std::unique_ptr<GPUImage> noteBlackBottom;
 	std::unique_ptr<GPUImage> noteOOB;
 #pragma endregion
 
@@ -243,6 +254,9 @@ private:
 	void CalculateKeyboardData();
 	void GenerateKeyLayoutArrays();
 	void UpdateRenderer();
+
+	void UpdateStyle();
+	void RenderStyleSettings();
 
 	void RenderBackground();
 	void RenderLines();
