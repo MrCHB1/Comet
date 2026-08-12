@@ -8,7 +8,8 @@
 #include <optional>
 #include <yaml-cpp/yaml.h>
 #include <functional>
-#include "imgui.h"
+
+struct ImVec4;
 
 class ConfigSection
 {

@@ -1253,7 +1253,6 @@ void MIDIRendererMIDITrail::RenderNotes()
 	noteCounterInfo->bpm = bpm;
 
 	ShaderBind shaderBind(*notesProgram);
-
 	VertexArrayBind notesVAOBind(*notesVAO);
 	BufferBind notesIBOBind(*notesIBO);
 	BufferBind notesVBOBind(*notesVBO);

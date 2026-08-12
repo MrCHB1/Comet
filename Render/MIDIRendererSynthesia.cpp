@@ -4,31 +4,54 @@
 #include "MIDI/Timer/MIDITimer.h"
 #include "MIDI/TempoMap.h"
 #include "RenderView.h"
+#include "App/Dialog/DialogMacros.h"
 #include <memory>
 #include <algorithm>
 
+#define LOAD_VAL(n, key, target) \
+        if (n && n[key]) { target = n[key].as<std::decay_t<decltype(target)>>(); }
+
+#pragma region Shaders
 inline constexpr const char* rectVert = R"(#version 330 core
 layout (location = 0) in vec2 aPos;
 layout (location = 1) in vec2 rectPos;
 layout (location = 2) in vec2 rectSize;
-layout (location = 3) in vec2 uv0;
-layout (location = 4) in vec2 uv1;
-layout (location = 5) in int textureIndex;
-layout (location = 6) in uint aMeta; 
+layout (location = 3) in float rotation;
+layout (location = 4) in vec2 uv0;
+layout (location = 5) in vec2 uv1;
+layout (location = 6) in int textureIndex;
+layout (location = 7) in uint aMeta; 
 
 flat out uint meta;
 flat out int texID;
 
 out vec2 uv;
 
+uniform float aspect;
+
 void main()
 {
-	meta = aMeta;
-	texID = textureIndex;
+    meta = aMeta;
+    texID = textureIndex;
+    uv = mix(uv0, uv1, aPos);
 
-	uv = mix(uv0, uv1, aPos);
+    vec2 localPos = (aPos - vec2(0.5)) * rectSize;
 
-    vec2 pos = rectPos + aPos * rectSize;
+    // Convert to aspect-correct space
+    localPos.x *= aspect;
+
+    float c = cos(rotation);
+    float s = sin(rotation);
+    mat2 rot = mat2(c, -s,
+                    s,  c);
+
+    localPos = rot * localPos;
+
+    // Undo aspect correction
+    localPos.x /= aspect;
+
+    vec2 pos = rectPos + rectSize * 0.5 + localPos;
+
     gl_Position = vec4(pos * 2.0 - 1.0, 0.0, 1.0);
 })";
 
@@ -56,11 +79,207 @@ void main()
 		fragColor = rectColor;
 })";
 
+inline constexpr const char* notesVert = R"(#version 330 core
+layout (location = 0) in vec2 vPos;
+layout (location = 1) in vec2 aPos;
+layout (location = 2) in vec2 aSize;
+layout (location = 3) in uint aMeta;
+
+out vec2 noteSize;
+out vec2 uv;
+flat out uint meta;
+
+uniform float kbHeight;
+uniform float capHeight;
+
+void main()
+{
+	bool isOOB   = (aMeta & (1u << 25u)) != 0u;
+
+	uv = vPos;
+	noteSize = aSize;
+	if (noteSize.y < capHeight * 2.0 && !isOOB) noteSize.y = capHeight * 2.0;
+	meta = aMeta;
+
+	vec2 pos = aPos + vPos * noteSize;
+	pos.y = pos.y * (1.0 - kbHeight) + kbHeight;
+	gl_Position = vec4(pos * 2.0 - 1.0, 0.0, 1.0);
+})";
+
+inline constexpr const char* notesFrag = R"(#version 330 core
+in vec2 noteSize;
+in vec2 uv;
+flat in uint meta;
+
+uniform float capAspectRatio;
+uniform float aspectRatio;
+uniform float capHeight;
+
+uniform sampler2D noteBody;
+uniform sampler2D noteTop;
+uniform sampler2D noteBottom;
+uniform sampler2D noteOOB;
+
+uniform bool nativeColors;
+
+void main()
+{
+	vec3 noteColor = vec3(float((meta & 0xFF0000u) >> 16u),
+		float((meta & 0xFF00u) >> 8u),
+		float(meta & 0xFFu)) / 255.0;
+
+	bool isBlack = (meta & (1u << 24u)) != 0u;
+	bool isOOB   = (meta & (1u << 25u)) != 0u;
+	bool isRight = (meta & (1u << 26u)) != 0u;
+
+	if (isBlack && !nativeColors) noteColor *= 0.7;
+
+	vec4 noteTexColor;
+
+	if (!isOOB)
+	{
+		noteTexColor = texture(noteBody, uv);
+
+		float bottomDistance = uv.y * noteSize.y;
+
+		if (bottomDistance < capHeight)
+		{
+			vec2 capUV;
+			capUV.x = uv.x;
+			capUV.y = bottomDistance / capHeight;
+
+			noteTexColor = texture(noteBottom, capUV);
+		}
+
+		float topDistance = (1.0 - uv.y) * noteSize.y;
+
+		if (topDistance < capHeight)
+		{
+			vec2 capUV;
+			capUV.x = uv.x;
+			capUV.y = 1.0 - topDistance / capHeight;
+
+			noteTexColor = texture(noteTop, capUV);
+		}
+	}
+	else
+	{
+		vec2 arrowUV = isRight ? vec2(1.0 - uv.x, uv.y) : uv;
+		noteTexColor = texture(noteOOB, arrowUV);
+	}
+
+	gl_FragColor = vec4(noteTexColor.rgb * noteColor, noteTexColor.a);
+})";
+#pragma endregion
+
+#pragma region Particles
+
+float KeyHazeParticle::maxLife = 0.2;
+
+KeyHazeParticle::KeyHazeParticle(uint8_t key, std::mt19937& random)
+{
+	std::uniform_real_distribution<double> dist(0.0, 1.0);
+
+	this->key = key;
+	life = maxLife;
+	pos = { dist(random), dist(random) };
+}
+
+void KeyHazeParticle::Step(double delta)
+{
+	life -= delta;
+	brightness = 1.0 - std::abs((life * 2 - maxLife) / maxLife);
+}
+
+float KeySparkParticle::maxLife = 0.2;
+float KeySparkParticle::minSize = 0.7;
+
+KeySparkParticle::KeySparkParticle(uint8_t key, std::mt19937& random)
+{
+	std::uniform_real_distribution<double> dist(0.0, 1.0);
+
+	this->key = key;
+	life = maxLife;
+	pos = { dist(random), dist(random) };
+	rotation = dist(random) * 2.0 - 1.0;
+	flipped = dist(random) < 0.5;
+}
+
+void KeySparkParticle::Step(double delta)
+{
+	life -= delta;
+
+	brightness = 1.0 - std::abs((life * 2 - maxLife) / maxLife);
+	size = brightness * (1.0 - minSize) + minSize;
+}
+
+KeyDebrisParticle::KeyDebrisParticle(uint8_t key, std::mt19937& random)
+{
+	std::uniform_real_distribution<double> dist(0.0, 1.0);
+
+	this->key = key;
+
+	pos = { 0, 0 };
+	vel = { (dist(random) - 0.5) * 0.01, dist(random) * 0.003 };
+	life = 0.3;
+	rotation = dist(random) * 2.0 - 1.0;
+	size = dist(random) * 0.5 + 0.2;
+}
+
+void KeyDebrisParticle::Step(double delta)
+{
+	life -= delta;
+
+	pos += glm::vec2(vel.x * delta * 60.0, vel.y * delta * 60.0);
+	if (pos.y < 0) life = 0;
+	vel.y -= 0.001 * delta * 60;
+}
+
+#pragma endregion
+
+inline std::vector<uint32_t> nativeSynthesiaColors = {
+	// blue
+	0x80A3CB,
+	0x2A5EA7,
+	// green
+	0x9DE04D,
+	0x4C9301,
+	// orange
+	0xF8A829,
+	0xEF7100,
+	// yellow
+	0xFAE944,
+	0xDFCA24,
+	// purple
+	0xC48ACB,
+	0x7E6583,
+	// red
+	0xE76F6D,
+	0xE13C34,
+};
+
+inline uint32_t SampleNativeColor(uint16_t track, uint8_t channel, bool isBlack)
+{
+	size_t index = (((size_t)track << 4u) | (size_t)channel) << 1;
+	index = index % nativeSynthesiaColors.size();
+	return nativeSynthesiaColors[index | isBlack];
+}
+
 void MIDIRendererSynthesia::Initialize()
 {
 	AbstractMIDIRenderer::Initialize();
 
-	InitializeTextures();
+	std::array<float, 8> quadVertices{
+			0.0f, 1.0f,
+			1.0f, 1.0f,
+			1.0f, 0.0f,
+			0.0f, 0.0f
+	};
+
+	std::array<int, 6> quadIndices{
+		0, 1, 3,
+		1, 2, 3
+	};
 
 #pragma region Rect shader initialization
 	rectProgram = ShaderProgram::Create(rectVert, rectFrag);
@@ -71,18 +290,6 @@ void MIDIRendererSynthesia::Initialize()
 
 	{
 		VertexArrayBind vaoBind(*rectVAO);
-
-		std::array<float, 8> quadVertices{
-			0.0f, 1.0f,
-			1.0f, 1.0f,
-			1.0f, 0.0f,
-			0.0f, 0.0f
-		};
-
-		std::array<int, 6> quadIndices{
-			0, 1, 3,
-			1, 2, 3
-		};
 
 		rectVBO->Bind();
 		rectVBO->SetData(quadVertices, GL_STATIC_DRAW);
@@ -98,10 +305,11 @@ void MIDIRendererSynthesia::Initialize()
 
 		rectVAO->SetFloatAttribute(1, 2, sizeof(TexturedRectInstance), offsetof(TexturedRectInstance, position));
 		rectVAO->SetFloatAttribute(2, 2, sizeof(TexturedRectInstance), offsetof(TexturedRectInstance, size));
-		rectVAO->SetFloatAttribute(3, 2, sizeof(TexturedRectInstance), offsetof(TexturedRectInstance, uv0));
-		rectVAO->SetFloatAttribute(4, 2, sizeof(TexturedRectInstance), offsetof(TexturedRectInstance, uv1));
-		rectVAO->SetIntAttribute(5, 1, sizeof(TexturedRectInstance), offsetof(TexturedRectInstance, textureIndex));
-		rectVAO->SetIntAttribute(6, 1, sizeof(TexturedRectInstance), offsetof(TexturedRectInstance, meta));
+		rectVAO->SetFloatAttribute(3, 2, sizeof(TexturedRectInstance), offsetof(TexturedRectInstance, rotation));
+		rectVAO->SetFloatAttribute(4, 2, sizeof(TexturedRectInstance), offsetof(TexturedRectInstance, uv0));
+		rectVAO->SetFloatAttribute(5, 2, sizeof(TexturedRectInstance), offsetof(TexturedRectInstance, uv1));
+		rectVAO->SetIntAttribute(6, 1, sizeof(TexturedRectInstance), offsetof(TexturedRectInstance, textureIndex));
+		rectVAO->SetIntAttribute(7, 1, sizeof(TexturedRectInstance), offsetof(TexturedRectInstance, meta));
 
 		glVertexAttribDivisor(1, 1);
 		glVertexAttribDivisor(2, 1);
@@ -109,6 +317,7 @@ void MIDIRendererSynthesia::Initialize()
 		glVertexAttribDivisor(4, 1);
 		glVertexAttribDivisor(5, 1);
 		glVertexAttribDivisor(6, 1);
+		glVertexAttribDivisor(7, 1);
 	}
 
 	// The sampler uniform only needs to be set once - it just points at a
@@ -116,6 +325,43 @@ void MIDIRendererSynthesia::Initialize()
 	{
 		ShaderBind shaderBind(*rectProgram);
 		rectProgram->SetInt("textures", TEXTURE_ARRAY_SLOT);
+	}
+#pragma endregion
+
+#pragma region Note shader initialization
+	notesProgram = ShaderProgram::Create(notesVert, notesFrag);
+	notesVAO = std::make_unique<VertexArray>();
+	notesVBO = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
+	notesIBO = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
+	notesEBO = std::make_unique<Buffer>(GL_ELEMENT_ARRAY_BUFFER);
+
+	{
+		VertexArrayBind vaoBind(*notesVAO);
+
+		notesVBO->Bind();
+		notesVBO->SetData(quadVertices, GL_STATIC_DRAW);
+
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 2, GL_FLOAT, false, 2 * sizeof(float), (void*)0);
+
+		notesEBO->Bind();
+		notesEBO->SetData(quadIndices, GL_STATIC_DRAW);
+
+		notesIBO->Bind();
+		notesIBO->SetData(renderNotes, GL_DYNAMIC_DRAW);
+
+		notesVAO->SetFloatAttribute(1, 2, sizeof(RenderNoteSynthesia), offsetof(RenderNoteSynthesia, x));
+		notesVAO->SetFloatAttribute(2, 2, sizeof(RenderNoteSynthesia), offsetof(RenderNoteSynthesia, width));
+		notesVAO->SetIntAttribute(3, 1, sizeof(RenderNoteSynthesia), offsetof(RenderNoteSynthesia, meta));
+
+		glVertexAttribDivisor(1, 1);
+		glVertexAttribDivisor(2, 1);
+		glVertexAttribDivisor(3, 1);
+	}
+
+	{
+		ShaderBind shaderBind(*notesProgram);
+		notesProgram->SetInt("nativeColors", renderSettings.useNativeNoteColors ? 1 : 0);
 	}
 #pragma endregion
 
@@ -153,6 +399,10 @@ void MIDIRendererSynthesia::Initialize()
 
 	GenerateKeyLayoutArrays();
 	CalculateKeyboardData();
+	InitializeTextures();
+	InitializeParticleSystems();
+
+	initialized = true;
 #pragma endregion
 }
 
@@ -170,6 +420,7 @@ void MIDIRendererSynthesia::InitializeTextures()
 {
 	const std::filesystem::path keyboardPath = "./assets/textures/synthesia/keyboards";
 	const std::filesystem::path notesPath = "./assets/textures/synthesia/notes";
+	const std::filesystem::path particlePath = "./assets/textures/synthesia/particles";
 
 	// layer -> file path, in the same order as the TextureLayer enum.
 	const std::array<std::filesystem::path, NUM_TEXTURES> layerPaths = { {
@@ -180,12 +431,12 @@ void MIDIRendererSynthesia::InitializeTextures()
 		keyboardPath / "whiteKeysPressed.png",
 		keyboardPath / "whiteKeyWhole.png",
 		keyboardPath / "whiteKeyWholePressed.png",
-		// notesPath / "noteTop.png",
-		// notesPath / "noteBottom.png",
-		// notesPath / "note.png",
 		keyboardPath / "shadowLarge.png",
 		keyboardPath / "shadowUnpressed.png",
 		keyboardPath / "shadowPressed.png",
+		particlePath / "keyDebris.png",
+		particlePath / "keySpark.png",
+		particlePath / "keyHaze.png"
 	} };
 
 	// GL_TEXTURE_2D_ARRAY requires every layer to share one width/height, so
@@ -208,6 +459,50 @@ void MIDIRendererSynthesia::InitializeTextures()
 	{
 		layerUV[layer] = textures->LoadLayer(layer, Utils::TryGetStream(layerPaths[layer]));
 	}
+
+	noteBody   = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "note.png"));
+	noteTop    = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteTop.png"));
+	noteBottom = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteBottom.png"));
+	noteOOB    = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteOOB.png"));
+
+	{
+		ShaderBind bind(*notesProgram);
+
+		{
+			TextureBind tex(*noteBody, 0);
+			notesProgram->SetInt("noteBody", 0);
+		}
+
+		{
+			TextureBind tex(*noteTop, 1);
+			notesProgram->SetInt("noteTop", 1);
+		}
+
+		{
+			TextureBind tex(*noteBottom, 2);
+			notesProgram->SetInt("noteBottom", 2);
+		}
+
+		{
+			TextureBind tex(*noteOOB, 3);
+			notesProgram->SetInt("noteOOB", 3);
+		}
+	}
+}
+
+void MIDIRendererSynthesia::InitializeParticleSystems()
+{
+	fullParticlesArray.clear();
+
+	for (size_t i = 0; i < MIDI_KEYS; i++)
+	{
+		keyHazeParticles[i].clear();
+		fullParticlesArray.push_back(&keyHazeParticles[i]);
+		keySparkParticles[i].clear();
+		fullParticlesArray.push_back(&keySparkParticles[i]);
+	}
+
+	fullParticlesArray.push_back(&keyDebrisParticles);
 }
 
 void MIDIRendererSynthesia::GenerateKeyLayoutArrays()
@@ -298,6 +593,7 @@ void MIDIRendererSynthesia::UpdateRenderer()
 
 void MIDIRendererSynthesia::Render(double deltaTime)
 {
+	if (!initialized) return;
 	rectDrawCount = 0;
 
 	UpdateRenderer();
@@ -308,19 +604,37 @@ void MIDIRendererSynthesia::Render(double deltaTime)
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	// if background drawing
-	RenderBackground();
-	RenderLines();
-	RenderQuads(rectDrawCount);
-	rectDrawCount = 0;
+	if (renderSettings.renderBackground)
+	{
+		RenderBackground();
+		RenderLines();
+
+		RenderQuads(rectDrawCount);
+		rectDrawCount = 0;
+	}
 
 	RenderNotes();
+	if (renderSettings.showOutOfBoundNotes) RenderOutOfBoundNotes();
+
+	if (renderSettings.renderKeySparkle)
+	{
+		GenerateParticles(deltaTime);
+		RenderParticles();
+		UpdateParticles(deltaTime);
+
+		RenderQuads(rectDrawCount);
+		rectDrawCount = 0;
+	}
+
 	RenderKeyboard();
 	RenderQuads(rectDrawCount);
-	
+	if (renderSettings.showKeyOctaves) RenderOctaveTextOverlays();
 
 	glDisable(GL_BLEND);
 
 	sceneFramebuffer->Unbind();
+
+	ResetKeyboardState();
 }
 
 void MIDIRendererSynthesia::RenderBackground()
@@ -415,6 +729,8 @@ void MIDIRendererSynthesia::RenderDividerLines()
 	// divider lines
 	for (int i = keyFirst; i <= keyLast; i++)
 	{
+		if (i >= MIDI_KEYS) continue;
+
 		float line = keyPos[i];
 		float left = line - whiteKeyWidth * lineWidth;
 		float right = line + whiteKeyWidth * lineWidth;
@@ -445,6 +761,8 @@ void MIDIRendererSynthesia::RenderKeyboard()
 	// render white keys first
 	for (int i = keyFirst; i <= keyLast; i++)
 	{
+		if (i >= MIDI_KEYS) continue;
+
 		if (IS_BLACK(i)) continue;
 		float creamR = 1.0f;
 		float creamG = 0.98f;
@@ -578,12 +896,6 @@ void MIDIRendererSynthesia::RenderKeyboard()
 		else
 			PushQuad(left, bKeyBottom, right - left, bKeyTopUnpressed - bKeyBottom, uvLeft, 0, uvRight, 1, TextureLayer::LAYER_KEY_BLACK);
 	}
-
-	// reset keyboard state here
-	for (int i = keyFirst; i <= keyLast; i++)
-	{
-		keyStates[i].pressed = false;
-	}
 }
 
 void MIDIRendererSynthesia::RenderQuads(size_t count)
@@ -594,6 +906,8 @@ void MIDIRendererSynthesia::RenderQuads(size_t count)
 	VertexArrayBind vaoBind(*rectVAO);
 	BufferBind iboBind(*rectIBO);
 	TextureArrayBind texBind(*textures, TEXTURE_ARRAY_SLOT);
+
+	rectProgram->SetFloat("aspect", (float)width / (float)height);
 
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(TexturedRectInstance) * count, renderRects.data());
 	glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, count);
@@ -616,6 +930,25 @@ void MIDIRendererSynthesia::RenderNotes()
 	noteCounterInfo->tick.value = time >= 0 ? time : 0;
 	noteCounterInfo->timeSeconds.value = playbackSeconds;
 	noteCounterInfo->bpm.value = bpm;
+
+	ShaderBind shaderBind(*notesProgram);
+
+	TextureBind noteBodyBind(*noteBody, 0);
+	TextureBind noteTopBind(*noteTop, 1);
+	TextureBind noteBottomBind(*noteBottom, 2);
+
+	VertexArrayBind notesVAOBind(*notesVAO);
+	BufferBind notesVBOBind(*notesVBO);
+	BufferBind notesEBOBind(*notesEBO);
+	if (notesIBO) notesIBO->Bind();
+
+	float renderAspectRatio = (float)width / (float)height;
+	float capAspectRatio = (float)noteTop->width / (float)noteTop->height;
+	
+	notesProgram->SetFloat("kbHeight", keyboardHeight);
+	notesProgram->SetFloat("aspectRatio", renderAspectRatio);
+	notesProgram->SetFloat("capHeight", whiteKeyWidth / capAspectRatio * renderAspectRatio);
+	notesProgram->SetFloat("capAspectRatio", capAspectRatio);
 
 	size_t noteID = 0;
 	size_t notesPassed = 0;
@@ -644,56 +977,51 @@ void MIDIRendererSynthesia::RenderNotes()
 #pragma region Note culling
 
 		size_t noteBegin = startRenderIDs[id];
-		size_t noteEnd = endRenderIDs[id];
 
-		if (lastTime != time)
+		if (lastTime < time)
 		{
-			if (lastTime < time)
+			while (noteBegin < notesNote.Size())
 			{
-				while (noteBegin < notesNote.Size())
-				{
-					double noteEnd = isTimeBased
-						? (double)(notesNote.tick[noteBegin] + notesNote.gate[noteBegin]) * invTimeMultiplier
-						: (double)(notesNote.tick[noteBegin] + notesNote.gate[noteBegin]);
+				double noteEnd = isTimeBased
+					? (double)(notesNote.tick[noteBegin] + notesNote.gate[noteBegin]) * invTimeMultiplier
+					: (double)(notesNote.tick[noteBegin] + notesNote.gate[noteBegin]);
 
-					if (noteEnd > accTime) break;
-					++noteBegin;
-				}
+				if (noteEnd > accTime) break;
+				++noteBegin;
 			}
-			else if (lastTime > time)
+		}
+		else if (lastTime > time)
+		{
+			while (noteBegin > 0)
 			{
-				while (noteBegin > 0)
-				{
-					size_t prev = noteBegin - 1;
-					double noteEnd = isTimeBased
-						? (double)(notesNote.tick[prev] + notesNote.gate[prev]) * invTimeMultiplier
-						: (double)(notesNote.tick[prev] + notesNote.gate[prev]);
+				size_t prev = noteBegin - 1;
+				double noteEnd = isTimeBased
+					? (double)(notesNote.tick[prev] + notesNote.gate[prev]) * invTimeMultiplier
+					: (double)(notesNote.tick[prev] + notesNote.gate[prev]);
 
-					if (noteEnd <= accTime) break;
-					--noteBegin;
-				}
+				if (noteEnd <= accTime) break;
+				--noteBegin;
 			}
-
-			auto searchStart = notesNote.tick.begin() + noteBegin;
-			auto endIt = notesNote.tick.end();
-
-			if (isTimeBased)
-			{
-				double targetSecs = playbackSeconds + viewRegion;
-				long target10Us = static_cast<long>(targetSecs * TIME_BASED_MULTIPLIER);
-				endIt = std::upper_bound(searchStart, notesNote.tick.end(), target10Us);
-			}
-			else
-			{
-				long targetTick = time + renderView->viewTicks;
-				endIt = std::upper_bound(searchStart, notesNote.tick.end(), targetTick);
-			}
-
-			noteEnd = std::distance(notesNote.tick.begin(), endIt);
-			startRenderIDs[id] = noteBegin;
-			endRenderIDs[id] = noteEnd;
 		}
 
+		auto searchStart = notesNote.tick.begin() + noteBegin;
+		auto endIt = notesNote.tick.end();
+
+		if (isTimeBased)
+		{
+			double targetSecs = playbackSeconds + viewRegion;
+			long target10Us = static_cast<long>(targetSecs * TIME_BASED_MULTIPLIER);
+			endIt = std::upper_bound(searchStart, notesNote.tick.end(), target10Us);
+		}
+		else
+		{
+			long targetTick = time + renderView->viewTicks;
+			endIt = std::upper_bound(searchStart, notesNote.tick.end(), targetTick);
+		}
+
+		size_t noteEnd = std::distance(notesNote.tick.begin(), endIt);
+		startRenderIDs[id] = noteBegin;
+		endRenderIDs[id] = noteEnd;
 		notesPassed += noteBegin;
 
 #pragma endregion
@@ -722,12 +1050,14 @@ void MIDIRendererSynthesia::RenderNotes()
 			if (noteStart <= accTime)
 			{
 				keyStates[nNote].pressed = true;
-				keyStates[nNote].color = colors.GetColor(nTrack, nChannel);
+				keyStates[nNote].color = renderSettings.useNativeNoteColors ?
+					SampleNativeColor(nTrack, nChannel, isBlack) :
+					colors.GetColor(nTrack, nChannel);
 				notesPassed++;
 				polyphony++;
 			}
 
-			if (id < keyFirst || id >= keyLast) break;
+			if (id < keyFirst || id > keyLast) break;
 
 			if (lastNote &&
 				nTick == lastTick &&
@@ -745,21 +1075,474 @@ void MIDIRendererSynthesia::RenderNotes()
 			lastTrack = nTrack;
 			lastGate = nGate;
 
-			// TODO: actual note rendering
+			float x = keyPos[id];
+			float width = keyWidth[id];
+			float y = (float)((noteStart - accTime) * invViewRegion);
+			float y2 = (float)((noteEnd - accTime) * invViewRegion);
+
+			renderNotes[noteID++] = RenderNoteSynthesia(
+				x, y,
+				width, y2 - y,
+				(renderSettings.useNativeNoteColors ?
+				SampleNativeColor(nTrack, nChannel, isBlack) :
+				colors.GetColor(nTrack, nChannel)) | (isBlack << 24)
+			);
+
+			if (noteID >= NOTE_BUFFER_SIZE)
+			{
+				FlushNotes(NOTE_BUFFER_SIZE);
+				batchCount++;
+				if (batchCount >= NOTES_MAX_BATCHES)
+				{
+					glFlush();
+					batchCount = 0;
+				}
+				noteID = 0;
+			}
+		}
+	}
+
+	if (noteID != 0)
+	{
+		FlushNotes(noteID);
+		batchCount++;
+		if (batchCount >= NOTES_MAX_BATCHES)
+		{
+			glFlush();
+			batchCount = 0;
 		}
 	}
 	
+	noteCounterInfo->notesPassed = static_cast<uint64_t>(notesPassed);
+	noteCounterInfo->polyphony = static_cast<uint64_t>(polyphony);
+
+	if (!noteCounterInfo->npsHistory.empty() && playbackSeconds < noteCounterInfo->npsHistory.back().timeSeconds)
+	{
+		noteCounterInfo->npsHistory.clear();
+	}
+
+	noteCounterInfo->npsHistory.push_back({ playbackSeconds, static_cast<uint64_t>(notesPassed) });
+	while (!noteCounterInfo->npsHistory.empty() &&
+		(playbackSeconds - noteCounterInfo->npsHistory.front().timeSeconds) > 1.0)
+	{
+		noteCounterInfo->npsHistory.pop_front();
+	}
+
+	if (!noteCounterInfo->npsHistory.empty())
+	{
+		uint64_t notesOneSecondAgo = noteCounterInfo->npsHistory.front().totalNotes;
+		uint64_t currentNotes = static_cast<uint64_t>(notesPassed);
+
+		if (currentNotes >= notesOneSecondAgo)
+		{
+			noteCounterInfo->notesPerSecond.value = currentNotes - notesOneSecondAgo;
+		}
+		else
+		{
+			noteCounterInfo->notesPerSecond.value = 0;
+		}
+	}
+	else
+	{
+		noteCounterInfo->notesPerSecond = 0;
+	}
+
 	lastTime = time;
+}
+
+void MIDIRendererSynthesia::RenderOutOfBoundNotes()
+{
+	if (!seq) return;
+	std::vector<NoteSequence>& notes = seq->mergedNotes;
+	if (notes.empty()) return;
+	auto* renderView = app->GetRenderView();
+	if (!renderView) return;
+
+	double playbackSeconds = app->GetTimer()->Elapsed();
+	TempoMap* tempoMap = seq->GetTempoMap();
+	long time = tempoMap->SecsToTicksFromMap(seq->resolution, playbackSeconds);
+
+	const double accTime = isTimeBased ? playbackSeconds : time;
+	const double viewRegion = isTimeBased ? (double)renderView->viewTicks / 1000 : (double)renderView->viewTicks;
+	const double invViewRegion = 1.0 / viewRegion;
+	const double invTimeMultiplier = 1.0 / (double)TIME_BASED_MULTIPLIER;
+
+	MIDIPlayerConfig* config = app->GetConfig();
+	int keyFirst = config->render.GetKeyFirst();
+	int keyLast = config->render.GetKeyLast();
+
+	size_t nID = 0;
+	size_t batchCount = 0;
+
+	ShaderBind shaderBind(*notesProgram);
+	TextureBind tex(*noteOOB, 3);
+
+	VertexArrayBind notesVAOBind(*notesVAO);
+	BufferBind notesVBOBind(*notesVBO);
+	BufferBind notesEBOBind(*notesEBO);
+	if (notesIBO) notesIBO->Bind();
+
+	for (uint8_t id : kbIDs)
+	{
+		if (id >= keyFirst && id <= keyLast) continue;
+
+		uint16_t lastTrack = 0;
+		uint8_t lastChannel = 0;
+		uint32_t lastTick = 0;
+		uint32_t lastGate = 0;
+		uint32_t lastNote = 0;
+
+		NoteSequence& notesNote = notes[id];
+
+		size_t noteBegin = startRenderIDs[id];
+		size_t noteEnd = endRenderIDs[id];
+
+		for (size_t i = noteBegin; i < noteEnd; ++i)
+		{
+			uint32_t nTick = notesNote.tick[i];
+			uint32_t nGate = notesNote.gate[i];
+			uint8_t nNote = notesNote.note[i];
+			uint16_t nTrack = notesNote.track[i];
+			uint8_t nChannel = notesNote.channel[i];
+
+			double noteStart = isTimeBased ? (double)nTick * invTimeMultiplier : (double)nTick;
+			
+			if (noteStart < accTime) continue;
+			if (noteStart > accTime + viewRegion) break;
+
+			if (lastNote &&
+				nTick == lastTick &&
+				nNote == lastNote &&
+				nChannel == lastChannel &&
+				nTrack == lastTrack &&
+				nGate == lastGate)
+			{
+				continue;
+			}
+
+			lastTick = nTick;
+			lastNote = nNote;
+			lastChannel = nChannel;
+			lastTrack = nTrack;
+			lastGate = nGate;
+
+			float arrowX = 0.0f;
+
+			bool isLeft = nNote < keyFirst;
+			if (isLeft) arrowX = 0.015;
+			else arrowX = 0.985;
+
+			float arrowY = (float)((noteStart - accTime) * invViewRegion);
+
+			float arrowWidth = 0.023;
+			float arrowHeight = arrowWidth * ((float)width / (float)height);
+
+			arrowX -= arrowWidth * 0.5f;
+			arrowY -= arrowHeight * 0.5f;
+
+			renderNotes[nID++] = {
+				arrowX, arrowY,
+				arrowWidth, arrowHeight,
+				(renderSettings.useNativeNoteColors ?
+				SampleNativeColor(nTrack, nChannel, false) :
+					colors.GetColor(nTrack, nChannel)) | (1 << 25) | ((!isLeft) << 26)
+			};
+
+			if (nID >= NOTE_BUFFER_SIZE)
+			{
+				FlushNotes(NOTE_BUFFER_SIZE);
+				batchCount++;
+				if (batchCount >= NOTES_MAX_BATCHES)
+				{
+					glFlush();
+					batchCount = 0;
+				}
+				nID = 0;
+			}
+		}
+	}
+
+	if (nID != 0)
+	{
+		FlushNotes(nID);
+		batchCount++;
+		if (batchCount >= NOTES_MAX_BATCHES)
+		{
+			glFlush();
+		}
+	}
+}
+
+void MIDIRendererSynthesia::FlushNotes(size_t count)
+{
+	if (count == 0) return;
+	
+	if (!notesIBO) return;
+
+	GLbitfield mapFlags = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT;
+	void* ptr = glMapBufferRange(GL_ARRAY_BUFFER, 0, count * sizeof(RenderNoteSynthesia), mapFlags);
+	if (ptr)
+	{
+		memcpy(ptr, renderNotes.data(), count * sizeof(RenderNoteSynthesia));
+		glUnmapBuffer(GL_ARRAY_BUFFER);
+	}
+
+	glDrawElementsInstanced(
+		GL_TRIANGLES,
+		6,
+		GL_UNSIGNED_INT,
+		nullptr,
+		count
+	);
+}
+
+void MIDIRendererSynthesia::GenerateParticles(double deltaTime)
+{
+	std::uniform_real_distribution<double> gen(0.0, 1.0);
+
+	double framesElapsed = deltaTime * 60.0;
+	double hazeChance = 1.0 - std::pow(1.0 - 0.5, framesElapsed);
+	double sparkChance = 1.0 - std::pow(1.0 - 0.5, framesElapsed);
+	double debrisChance = 1.0 - std::pow(1.0 - 0.02, framesElapsed);
+
+	for (size_t i = 0; i < MIDI_KEYS; i++)
+	{
+		if (!keyStates[i].pressed)
+		{
+			if (keyHazeParticles[i].size() > 0) keyHazeParticles[i].clear();
+			if (keySparkParticles[i].size() > 0) keySparkParticles[i].clear();
+			continue;
+		}
+
+		if (gen(random) < hazeChance && keyHazeParticles[i].size() < 20) keyHazeParticles[i].push_back(std::make_unique<KeyHazeParticle>(i, random));
+		if (gen(random) < sparkChance && keySparkParticles[i].size() < 20) keySparkParticles[i].push_back(std::make_unique<KeySparkParticle>(i, random));
+		if (gen(random) < debrisChance && keyDebrisParticles.size() < 200) keyDebrisParticles.push_back(std::make_unique<KeyDebrisParticle>(i, random));
+	}
+}
+
+void MIDIRendererSynthesia::RenderParticles()
+{
+	float aspect = (float)width / (float)height;
+	for (auto& particle : keyDebrisParticles)
+	{
+		KeyDebrisParticle* p = dynamic_cast<KeyDebrisParticle*>(particle.get());
+		float left = keyPos[p->key];
+		float right = keyPos[p->key] + keyWidth[p->key];
+		glm::vec2 pos = { (left + right) / 2.0, keyboardHeight };
+
+		glm::vec2 offset = p->pos;
+		offset.y *= aspect;
+		offset *= keyboardHeight / 0.15;
+		pos += offset;
+		float sizeX = whiteKeyWidth * p->size;
+		float sizeY = sizeX * aspect;
+
+		PushRotatedQuad(pos.x - sizeX * 0.5f, pos.y - sizeY * 0.5f, sizeX, sizeY, p->rotation, 0, 0, 1, 1, LAYER_PARTICLE_DEBRIS);
+	}
+
+	for (auto& particleArr : keySparkParticles)
+	{
+		for (auto& particle : particleArr)
+		{
+			KeySparkParticle* p = dynamic_cast<KeySparkParticle*>(particle.get());
+
+			float left = keyPos[p->key];
+			float right = keyPos[p->key] + keyWidth[p->key];
+			float width = right - left;
+			left += width * 0.4f;
+			right -= width * 0.4f;
+			glm::vec2 pos = { left + (right - left) * p->pos.x, keyboardHeight + (right - left) * p->pos.y * aspect };
+
+			uint32_t blendCol = keyStates[p->key].color;
+			blendCol = Utils::BlendRGBA(blendCol, Utils::PackRGBA(1.0, 1.0, 1.0, 1.0), 0.8);
+
+			float ang = p->rotation / 5.0f;
+			float sizeX = width * p->size * 2.8f;
+			float sizeY = sizeX * aspect;
+
+			if (p->flipped)
+			{
+				PushRotatedQuad(pos.x - sizeX * 0.5, pos.y - sizeY * 0.5, sizeX, sizeY, ang, 0, 0, 1, 1, LAYER_PARTICLE_SPARKLE, blendCol);
+			}
+			else
+			{
+				PushRotatedQuad(pos.x - sizeX * 0.5, pos.y - sizeY * 0.5, sizeX, sizeY, ang, 1, 0, 0, 1, LAYER_PARTICLE_SPARKLE, blendCol);
+			}
+		}
+	}
+
+	for (auto& particleArr : keyHazeParticles)
+	{
+		for (auto& particle : particleArr)
+		{
+			KeyHazeParticle* p = dynamic_cast<KeyHazeParticle*>(particle.get());
+
+			float left = keyPos[p->key];
+			float right = keyPos[p->key] + keyWidth[p->key];
+			float width = right - left;
+			left += width * 0.4f;
+			right -= width * 0.4f;
+			glm::vec2 pos = { left + (right - left) * p->pos.x, keyboardHeight + (right - left) * p->pos.y * aspect };
+			pos.y += keyboardHeight * 0.02f;
+
+			float sizeX = width * 1.8f;
+			float sizeY = sizeX * aspect;
+
+			uint32_t alpha = (uint32_t)(std::clamp(p->brightness, 0.0f, 1.0f) * 0.2f * 127.0f) << 24;
+			PushQuad(pos.x - sizeX, pos.y - sizeY, sizeX * 2.0f, sizeY * 2.0f, 0, 0, 1, 1, LAYER_PARTICLE_HAZE, alpha | 0xFFFFFF);
+		}
+	}
+}
+
+void MIDIRendererSynthesia::UpdateParticles(double deltaTime)
+{
+	for (auto& particleArray : fullParticlesArray)
+	{
+		for (size_t i = 0; i < particleArray->size();)
+        {
+            Particle& p = *(*particleArray)[i];
+
+            p.Step(deltaTime);
+
+            if (p.life <= 0.0f)
+            {
+				if (i != particleArray->size() - 1)
+				{
+					std::swap((*particleArray)[i], particleArray->back());
+				}
+                particleArray->pop_back();
+                continue;
+            }
+
+            ++i;
+        }
+	}
+}
+
+void MIDIRendererSynthesia::RenderOctaveTextOverlays()
+{
+	ImDrawList* drawList = ImGui::GetBackgroundDrawList();
+
+	MIDIPlayerConfig* config = app->GetConfig();
+	int keyFirst = config->render.GetKeyFirst();
+	int keyLast = config->render.GetKeyLast() + 1;
+
+	float aspect = (float)width / (float)height;
+
+	for (size_t k = keyFirst; k < keyLast; k++)
+	{
+		if (k % 12 != 0) continue;
+
+		int i = (k / 12) - 1;
+
+		float left = keyPos[k];
+		float right = keyPos[k] + keyWidth[k];
+
+		float size = 1.2f;
+		float spacing = 0.6;
+		float offset = 0.0f;
+		float textHeight = size;
+
+		if (i >= 10)
+		{
+			textHeight = 0.75f * size;
+			spacing = 0.55f;
+			offset = -0.02f;
+		}
+
+		if (i == -1)
+		{
+			textHeight = 0.8f * size;
+			spacing = 0.55f;
+			offset = -0.02f;
+		}
+
+		textHeight *= right - left;
+
+		std::string txt = "C" + std::to_string(i);
+
+		float middle =
+			(right + left) * 0.5f +
+			(right - left) * offset;
+
+		float x = middle * width;
+
+		float fontSize = textHeight * height;
+		float offsetY = (right - left) * aspect * 0.25f * height;
+		float y = height - offsetY - fontSize;
+
+		ImVec2 textSize = ImGui::CalcTextSize(txt.c_str());
+		float scale = fontSize / ImGui::GetFontSize();
+
+		ImVec2 pos(
+			x - textSize.x * scale * 0.5f,
+			y
+		);
+
+		ImU32 col = IM_COL32(0, 0, 0, 92);
+
+		if (k == 5 * 12)
+			col = IM_COL32(0, 0, 0, 163);
+
+		drawList->AddText(
+			ImGui::GetFont(),
+			fontSize,
+			pos,
+			col,
+			txt.c_str()
+		);
+	}
 }
 
 void MIDIRendererSynthesia::RenderSettings()
 {
+	SECTION_HEADER("General");
+	BEGIN_SECTION("##sGeneral")
+	{
+		SETUP_SECTION;
+		SECTION_ENTRY(TABLE_LABEL_TOOLTIP("Native note colors", "Uses built-in synthesia colors instead of the color palette shared between renderers."),
+			{
+				if (ImGui::Checkbox("##nativeCols", &renderSettings.useNativeNoteColors))
+				{
+					ShaderBind shaderBind(*notesProgram);
+					notesProgram->SetInt("nativeColors", renderSettings.useNativeNoteColors ? 1 : 0);
+				}
+			});
+		
+		SECTION_ENTRY(SECTION_LABEL("Out-of-bound notes"),
+			{
+				ImGui::Checkbox("##oobNotes", &renderSettings.showOutOfBoundNotes);
+			});
+
+		SECTION_ENTRY(SECTION_LABEL("Background"),
+			{
+				ImGui::Checkbox("##background", &renderSettings.renderBackground);
+			});
+		
+		END_SECTION;
+	}
+
+	SECTION_HEADER("Keyboard");
+	BEGIN_SECTION("##sKeyboard")
+	{
+		SETUP_SECTION;
+		SECTION_ENTRY(SECTION_LABEL("Key sparkles"),
+			{
+				ImGui::Checkbox("##keySpark", &renderSettings.renderKeySparkle);
+			});
+		SECTION_ENTRY(SECTION_LABEL("Key octaves"),
+			{
+				ImGui::Checkbox("##keyOctaves", &renderSettings.showKeyOctaves);
+			});
+		END_SECTION;
+	}
+
 	AbstractMIDIRenderer::RenderSettings();
 }
 
 void MIDIRendererSynthesia::ResetSettings()
 {
-
+	renderSettings = SynthesiaRenderSettings::Default();
 }
 
 void MIDIRendererSynthesia::OnResize(int width, int height)
@@ -773,11 +1556,42 @@ void MIDIRendererSynthesia::OnResize(int width, int height)
 YAML::Node MIDIRendererSynthesia::GetSettings()
 {
 	YAML::Node node;
+	node["nativeColors"] = renderSettings.useNativeNoteColors;
+	node["oobNotes"] = renderSettings.showOutOfBoundNotes;
+	node["keySparkle"] = renderSettings.renderKeySparkle;
+	node["background"] = renderSettings.renderBackground;
+	node["keyOctaves"] = renderSettings.showKeyOctaves;
 
 	return node;
 }
 
 void MIDIRendererSynthesia::LoadSettings(const YAML::Node& node)
 {
+	if (!node) return;
 
+	LOAD_VAL(node, "nativeColors", renderSettings.useNativeNoteColors);
+	LOAD_VAL(node, "oobNotes", renderSettings.showOutOfBoundNotes);
+	LOAD_VAL(node, "keySparkle", renderSettings.renderKeySparkle);
+	LOAD_VAL(node, "background", renderSettings.renderBackground);
+	LOAD_VAL(node, "keyOctaves", renderSettings.showKeyOctaves);
+}
+
+void MIDIRendererSynthesia::ResetKeyboardState()
+{
+	for (auto& k : keyStates)
+	{
+		k.pressed = false;
+		k.color = 0;
+	}
+}
+
+void MIDIRendererSynthesia::KillAllParticles()
+{
+	InitializeParticleSystems();
+}
+
+void MIDIRendererSynthesia::ResetRenderer()
+{
+	KillAllParticles();
+	ResetKeyboardState();
 }
