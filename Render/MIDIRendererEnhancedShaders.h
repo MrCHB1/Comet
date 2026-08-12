@@ -12,6 +12,7 @@ layout (location = 4) in uint aMeta;
 uniform mat4 projection;
 uniform mat4 view;
 uniform float keyboardZOffset;
+uniform float keyboardHeight;
 
 out vec3 FragPos;
 out vec2 TexCoord;
@@ -22,7 +23,6 @@ out vec3 LocalUnitPos;
 out float KeyPos;
 
 const float keyboardThickness = 0.20f;
-const float keyboardHeight = 0.3f;
 
 void main()
 {
@@ -42,11 +42,13 @@ void main()
     // 2. Scale the unit cube
     vec3 localPos = aPos;
     localPos.x *= keyWidth;
-    localPos.z *= keyboardHeight;
+    localPos.z *= keyboardHeight * 2.2;
 
     // 3. Fix Dimensions: Drastically reduce height to look like standard keys
     localPos.y *= isBlack ? 0.035 : 0.0175; // Much shorter Y height
     localPos.z *= isBlack ? 0.15 : 0.25; // Depth towards the camera
+
+    localPos.z = localPos.z * (1.0 + 0.01) - 0.01;
 
     // 4. Pivot at the back (Z=0)
     const float maxRotation = 0.06; 
@@ -171,9 +173,9 @@ void main()
 
     if (noteHsvShiftEnabled)
     {
-        float bottomHeight = 0.35;
-        float bottomMask = LocalUnitPos.z;
-        
+        float bottomHeight = 1.0;
+        float bottomMask = clamp(LocalUnitPos.z / bottomHeight, 0.0, 1.0);
+
         vec3 shiftedColor = applyHsvShift(noteColor, noteHsvShifts);
         noteColor = mix(noteColor, shiftedColor, bottomMask * noteHsvShiftStrength);
     }

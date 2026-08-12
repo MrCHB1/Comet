@@ -139,7 +139,7 @@ struct EnhancedRendererSettings
     bool flaresEnabled = true;
     float flareHeight = 0.25f;
     float flareBrightness = 1.0f;
-    float flareFadeDuration = 0.25f; 
+    float flareFadeDuration = 0.25f;
 
     static EnhancedRendererSettings Default()
     {
@@ -312,6 +312,7 @@ private:
     void UpdateMSAAFramebuffer();
 
     void CalcKeyPosAndWidth();
+    void RebindKeyboardDrawRange();
     void UpdateKeyboardInstance(double deltaTime);
     void UploadNoteBuffer(size_t count);
     void RenderKeyboard();
@@ -346,6 +347,11 @@ private:
 
     size_t numWhiteKeys = 0;
     size_t numBlackKeys = 0;
+
+    size_t whiteKeyStart = 0;
+    size_t blackKeyStart = 0;
+    size_t numDrawWhiteKeys = 0;
+    size_t numDrawBlackKeys = 0;
 
     std::array<float, 128> keyPos;
     std::array<float, 128> keyWidth;
@@ -439,6 +445,7 @@ private:
 
     float keyboardHeight = 0.13f;
     float keyboardZOffset = 0.0f; // calculated automatically
+    float keyboardBottomFill = 0.008f;
 
 
     static float Rand01()

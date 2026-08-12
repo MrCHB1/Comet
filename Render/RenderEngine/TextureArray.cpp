@@ -124,6 +124,8 @@ glm::vec4 TextureArray::LoadLayer(int layer, std::shared_ptr<std::istream> file)
 	stbi_image_free(pixels);
 	pixels = nullptr;
 
+	stbi_set_flip_vertically_on_load(false);
+
 	return glm::vec4(
 		0.0f,
 		0.0f,

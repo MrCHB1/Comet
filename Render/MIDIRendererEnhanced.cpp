@@ -72,9 +72,6 @@ void MIDIRendererEnhanced::Initialize()
 {
     AbstractMIDIRenderer::Initialize();
 
-    float aspect = (float)width / (float)height;
-    keyboardHeight = keyboardMaxZ * aspect;
-
 #pragma region Note buffers + data
 
     notesProgram = ShaderProgram::Create(notes3dvert, notes3dfrag);
@@ -378,15 +375,51 @@ void MIDIRendererEnhanced::LoadSequence(std::shared_ptr<MIDISequence> sequence)
 
 void MIDIRendererEnhanced::CalcKeyPosAndWidth()
 {
-    float noteWidth = (float)width / 75.0f;
-    float noteWidthBlack = (float)width / 115.0f;
-    float pos = 0.0f;
+    MIDIPlayerConfig* config = app->GetConfig();
+    int keyFirst = config->render.GetKeyFirst();
+    int keyLast = config->render.GetKeyLast();
 
+    float rawPos[128];
+    float rawWidth[128];
+    float pos = 0.0f;
     for (int i = 0; i < 128; i++)
     {
-        keyPos[i] = pos / (float)width;
-        pos += keyPosDiff[i % 12] * noteWidth;
+        rawPos[i] = pos;
+        pos += keyPosDiff[i % 12];
     }
+
+    int lastIdxWhiteUnit = -1;
+    for (int j = 0; j < 128; j++)
+    {
+        if (KEY_IS_BLACK(j))
+        {
+            rawWidth[j] = 75.0f / 115.0f; // black key width relative to a white key step
+        }
+        else
+        {
+            if (lastIdxWhiteUnit != -1)
+                rawWidth[lastIdxWhiteUnit] = rawPos[j] - rawPos[lastIdxWhiteUnit];
+            lastIdxWhiteUnit = j;
+        }
+    }
+    if (lastIdxWhiteUnit != -1)
+        rawWidth[lastIdxWhiteUnit] = 1.0f;
+
+    float spanUnits = (rawPos[keyLast] + rawWidth[keyLast]) - rawPos[keyFirst];
+    if (spanUnits < 0.001f)
+        spanUnits = 0.001f;
+
+    // full 0-127 span, used as the baseline that keyboardMaxZ was tuned against
+    float fullSpanUnits = (rawPos[127] + rawWidth[127]) - rawPos[0];
+    if (fullSpanUnits < 0.001f)
+        fullSpanUnits = 0.001f;
+
+    float noteWidth = (float)width / spanUnits; // pixels per white-key unit
+    float noteWidthBlack = noteWidth * (75.0f / 115.0f);
+
+    float firstKeyPos = rawPos[keyFirst] * noteWidth;
+    for (int i = 0; i < 128; i++)
+        keyPos[i] = (rawPos[i] * noteWidth - firstKeyPos) / (float)width;
 
     int lastIdxWhite = -1;
     for (int j = 0; j < 128; j++)
@@ -395,13 +428,71 @@ void MIDIRendererEnhanced::CalcKeyPosAndWidth()
             keyWidth[j] = noteWidthBlack / (float)width;
         else
         {
-            if (lastIdxWhite != -1) keyWidth[lastIdxWhite] = keyPos[j] - keyPos[lastIdxWhite];
+            if (lastIdxWhite != -1)
+                keyWidth[lastIdxWhite] = keyPos[j] - keyPos[lastIdxWhite];
             lastIdxWhite = j;
         }
     }
-    if (lastIdxWhite != -1) keyWidth[lastIdxWhite] = 1.0f - keyPos[lastIdxWhite];
+
+    keyWidth[keyLast] = 1.0f - keyPos[keyLast];
+
+    float aspect = (float)width / (float)height;
+    float heightScale = fullSpanUnits / spanUnits;
+    keyboardHeight = keyboardMaxZ * aspect * heightScale;
+
+    whiteKeyStart = 0;
+    numDrawWhiteKeys = 0;
+    bool foundWhiteStart = false;
+    for (size_t idx = 0; idx < numWhiteKeys; idx++)
+    {
+        uint8_t key = kbIDs[idx];
+        if (key >= keyFirst && key <= keyLast)
+        {
+            if (!foundWhiteStart) { whiteKeyStart = idx; foundWhiteStart = true; }
+            numDrawWhiteKeys++;
+        }
+    }
+
+    blackKeyStart = 0;
+    numDrawBlackKeys = 0;
+    bool foundBlackStart = false;
+    for (size_t idx = 0; idx < numBlackKeys; idx++)
+    {
+        uint8_t key = kbIDs[numWhiteKeys + idx];
+        if (key >= keyFirst && key <= keyLast)
+        {
+            if (!foundBlackStart) { blackKeyStart = idx; foundBlackStart = true; }
+            numDrawBlackKeys++;
+        }
+    }
+
+    RebindKeyboardDrawRange();
 
     keyboardDirty = true;
+}
+
+void MIDIRendererEnhanced::RebindKeyboardDrawRange()
+{
+    keyboardIBO->Bind();
+
+    {
+        VertexArrayBind vaoBind(*whiteKeyVAO);
+        size_t whiteBase = whiteKeyStart * sizeof(RenderKeyboardKey3D);
+        whiteKeyVAO->SetFloatAttribute(1, 1, sizeof(RenderKeyboardKey3D), whiteBase + offsetof(RenderKeyboardKey3D, left));
+        whiteKeyVAO->SetFloatAttribute(2, 1, sizeof(RenderKeyboardKey3D), whiteBase + offsetof(RenderKeyboardKey3D, right));
+        whiteKeyVAO->SetFloatAttribute(3, 1, sizeof(RenderKeyboardKey3D), whiteBase + offsetof(RenderKeyboardKey3D, pressFactor));
+        whiteKeyVAO->SetIntAttribute(4, 1, sizeof(RenderKeyboardKey3D), whiteBase + offsetof(RenderKeyboardKey3D, meta));
+    }
+
+    {
+        VertexArrayBind vaoBind(*blackKeyVAO);
+        size_t blackOffset = numWhiteKeys * sizeof(RenderKeyboardKey3D);
+        size_t blackBase = blackOffset + blackKeyStart * sizeof(RenderKeyboardKey3D);
+        blackKeyVAO->SetFloatAttribute(1, 1, sizeof(RenderKeyboardKey3D), blackBase + offsetof(RenderKeyboardKey3D, left));
+        blackKeyVAO->SetFloatAttribute(2, 1, sizeof(RenderKeyboardKey3D), blackBase + offsetof(RenderKeyboardKey3D, right));
+        blackKeyVAO->SetFloatAttribute(3, 1, sizeof(RenderKeyboardKey3D), blackBase + offsetof(RenderKeyboardKey3D, pressFactor));
+        blackKeyVAO->SetIntAttribute(4, 1, sizeof(RenderKeyboardKey3D), blackBase + offsetof(RenderKeyboardKey3D, meta));
+    }
 }
 
 void MIDIRendererEnhanced::UpdateKeyboardInstance(double deltaTime)
@@ -479,7 +570,9 @@ void MIDIRendererEnhanced::RenderKeyboard()
     cameraDistance = 1.0f / (2.0f * tan(verticalFOVRad / 2.0f) * aspect);
 
     float visibleHeight = 2.0f * cameraDistance * tan(verticalFOVRad / 2.0f);
-    keyboardZOffset = (visibleHeight / 2.0f) - keyboardMaxZ;
+    float keyDepthReach = keyboardHeight * 0.55f; // 2.2 * 0.25, matches the shader's actual multiplier
+    keyboardZOffset = (visibleHeight / 2.0f) - keyDepthReach;
+    keyboardZOffset += keyboardBottomFill;
 
     glm::mat4 projection = glm::perspective(verticalFOVRad, aspect, 0.1f, 100.0f);
 
@@ -489,18 +582,19 @@ void MIDIRendererEnhanced::RenderKeyboard()
     keyboardProgram->SetMat4("projection", projection);
     keyboardProgram->SetMat4("view", view);
     keyboardProgram->SetFloat("keyboardZOffset", keyboardZOffset);
+    keyboardProgram->SetFloat("keyboardHeight", keyboardHeight);
     keyboardProgram->SetVec3("cameraPos", cameraPos);
     keyboardProgram->SetFloat("animTime", app->GetTimer()->Elapsed());
 
 
     {
         VertexArrayBind whiteBind(*whiteKeyVAO);
-        glDrawElementsInstanced(GL_TRIANGLES, Models::WhiteKeyMesh->indices.size(), GL_UNSIGNED_INT, nullptr, numWhiteKeys);
+        glDrawElementsInstanced(GL_TRIANGLES, Models::WhiteKeyMesh->indices.size(), GL_UNSIGNED_INT, nullptr, (GLsizei)numDrawWhiteKeys);
     }
 
     {
         VertexArrayBind blackBind(*blackKeyVAO);
-        glDrawElementsInstanced(GL_TRIANGLES, Models::BlackKeyMesh->indices.size(), GL_UNSIGNED_INT, nullptr, numBlackKeys);
+        glDrawElementsInstanced(GL_TRIANGLES, Models::BlackKeyMesh->indices.size(), GL_UNSIGNED_INT, nullptr, (GLsizei)numDrawBlackKeys);
     }
 }
 
@@ -540,6 +634,10 @@ void MIDIRendererEnhanced::RenderNotes()
 
     notesProgram->SetFloat("kbHeight", keyboardHeight);
     notesProgram->SetFloat("animTime", static_cast<float>(playbackSeconds));
+
+    MIDIPlayerConfig* config = app->GetConfig();
+    int keyFirst = config->render.GetKeyFirst();
+    int keyLast = config->render.GetKeyLast();
 
     for (uint8_t id : kbIDs)
     {
@@ -632,6 +730,8 @@ void MIDIRendererEnhanced::RenderNotes()
                 notesPassed++;
                 polyphony++;
             }
+
+            if (id < keyFirst || id > keyLast) break;
 
             // skip rendering this note if it's basically the same one lol
             if (lastNote &&
@@ -730,8 +830,10 @@ void MIDIRendererEnhanced::RenderSaber()
     float blackKeyElevation = 0.001f * kbThickness;
     float exactTopY = blackKeyHeight + blackKeyElevation;
 
+    float saberZ = keyboardZOffset - 0.01f;
+
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(0.0f, exactTopY, keyboardZOffset - 0.001f));
+    model = glm::translate(model, glm::vec3(0.0f, exactTopY, saberZ));
     model = glm::translate(model, glm::vec3(0.0f, 0.0f, -rendererSettings.saberThickness));
     model = glm::scale(model, glm::vec3(1.0f, rendererSettings.saberThickness, rendererSettings.saberThickness));
 
@@ -813,7 +915,7 @@ void MIDIRendererEnhanced::UpdateParticles(double deltaTime)
 
     const auto& ProcessParticles = [this, deltaTime, pSettings, swirlTime](size_t start, size_t end) {
         float dt = static_cast<float>(deltaTime);
-        
+
         for (size_t i = start; i < end; i++)
         {
             Particle3D& p = particlePool[i];
@@ -848,7 +950,7 @@ void MIDIRendererEnhanced::UpdateParticles(double deltaTime)
             p.color.a = p.life / p.maxLife;
             p.scale = p.life / p.maxLife * 0.002f;
         }
-    };
+        };
 
     if (liveParticleCount > 0)
     {
@@ -858,7 +960,7 @@ void MIDIRendererEnhanced::UpdateParticles(double deltaTime)
         {
             size_t end = std::min(i + CHUNK_SIZE, liveParticleCount);
             particleThreadPool.SubmitJob([&, i, end] {
-                    ProcessParticles(i, end);
+                ProcessParticles(i, end);
                 });
         }
 
@@ -877,9 +979,15 @@ void MIDIRendererEnhanced::UpdateParticles(double deltaTime)
             }
         }
     }
-    
+
+    MIDIPlayerConfig* config = app->GetConfig();
+    int keyFirst = config->render.GetKeyFirst();
+    int keyLast = config->render.GetKeyLast();
+
     for (uint8_t id : kbIDs)
     {
+        if (id < keyFirst || id > keyLast) continue;
+
         const auto& key = keyMetas[id];
         float& timer = particleEmissionTimers[id];
         if (!key.pressed)
@@ -977,6 +1085,13 @@ void MIDIRendererEnhanced::RenderFlares(double deltaTime)
 void MIDIRendererEnhanced::Render(double deltaTime)
 {
     if (!initialized) return;
+
+    MIDIPlayerConfig* config = app->GetConfig();
+    if (config->render.ConsumeKeyRangeChanged())
+    {
+        liveParticleCount = 0;
+        CalcKeyPosAndWidth();
+    }
 
     int samples = GetMSAASamples();
 
@@ -1737,9 +1852,12 @@ void MIDIRendererEnhanced::OnResize(int width, int height)
     this->width = width;
     this->height = height;
 
-    float aspect = (float)width / (float)height;
-    keyboardHeight = keyboardMaxZ * aspect;
-    if (!initialized) return;
+    if (!initialized)
+    {
+        float aspect = (float)width / (float)height;
+        keyboardHeight = keyboardMaxZ * aspect;
+        return;
+    }
     CalcKeyPosAndWidth();
 
     // regenerate bloom stuff

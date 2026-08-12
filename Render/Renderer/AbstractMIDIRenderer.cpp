@@ -44,12 +44,16 @@ void AbstractMIDIRenderer::RenderSettings()
 			{
 				int keyFirst = config->render.GetKeyFirst();
 				int keyLast = config->render.GetKeyLast();
-				if (ImGui::InputInt("##keyFirst", &keyFirst))
+				ImGui::SetNextItemWidth(100);
+				if (ImGui::InputInt("##keyFirst", &keyFirst, 0, 0))
 				{
 					config->render.SetKeyFirst(keyFirst);
 				}
 				ImGui::SameLine();
-				if (ImGui::InputInt("##keyLast", &keyLast))
+				ImGui::Text("~");
+				ImGui::SameLine();
+				ImGui::SetNextItemWidth(100);
+				if (ImGui::InputInt("##keyLast", &keyLast, 0, 0))
 				{
 					config->render.SetKeyLast(keyLast);
 				}
