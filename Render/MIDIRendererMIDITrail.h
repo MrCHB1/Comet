@@ -212,6 +212,7 @@ private:
 	#pragma endregion
 
 	float keyboardHeight = 0.014f;
+	float keyboardOffset = -0.012f;
 
 	void CalcKeyPosAndWidth();
 

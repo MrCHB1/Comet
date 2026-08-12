@@ -159,7 +159,7 @@ void main()
 		{
 			vec2 capUV;
 			capUV.x = uv.x;
-			capUV.y = bottomDistance / capHeight;
+			capUV.y = 1.0 - bottomDistance / capHeight;
 
 			if (isBlack)
 				noteTexColor = texture(noteBlackBottom, capUV);
@@ -173,7 +173,7 @@ void main()
 		{
 			vec2 capUV;
 			capUV.x = uv.x;
-			capUV.y = 1.0 - topDistance / capHeight;
+			capUV.y = topDistance / capHeight;
 
 			if (isBlack)
 				noteTexColor = texture(noteBlackTop, capUV);
