@@ -529,8 +529,7 @@ void SettingsDialog::DrawVisualTab()
 						);
 					);
 
-					SECTION_ENTRY(
-						SECTION_LABEL("Font"),
+					SECTION_ENTRY(SECTION_LABEL("Font"),
 						{
 							std::string currentFontName = "Default";
 
@@ -572,8 +571,15 @@ void SettingsDialog::DrawVisualTab()
 
 								ImGui::EndCombo();
 							}
-						}
-					);
+						});
+
+					SECTION_ENTRY(SECTION_LABEL("Font directory"),
+						{
+							if (ImGui::Button("Open"))
+							{
+								Utils::OpenFolder("./assets/fonts/");
+							}
+						});
 
 					END_SECTION;
 				}
