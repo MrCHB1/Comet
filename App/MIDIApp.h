@@ -54,6 +54,7 @@ public:
 	void LoadColorPalettes();
 	void LoadMIDI(const char* path);
 	void UnloadMIDI();
+	void UpdatePendingSequence();
 	void RenderMIDIVideo(const RenderSettings& renderSettings);
 	void RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt);
 
@@ -123,6 +124,11 @@ private:
 	int currentFrame = 0;
 	std::vector<uint8_t> exportPixels{};
 	std::unique_ptr<FFmpegPipe> ffmpegPipe;
+
+	// staging variables for thread-safe loading
+	std::shared_ptr<MIDISequence> pendingSeq = nullptr;
+	std::string pendingTitle = "";
+	std::atomic_bool hasPendingSeq{ false };
 
 	// prepares the app for rendering (disabling navigation, ui, etc.)
 	void PrepareRendering();

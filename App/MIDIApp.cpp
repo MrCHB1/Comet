@@ -105,36 +105,48 @@ void MIDIApp::LoadMIDI(const char* path)
 			this->loading.store(false);
 			return;
 		}
-		this->loading.store(false);
+		// this->loading.store(false);
 
 		if (this->prog == loader)
 			this->prog = nullptr;
 
 		if (seq)
 		{
-			this->timer->Start(-3.0);
-			this->renderer->LoadSequence(seq);
-			this->navigationBar->SetMIDILengthFromSeq(*seq.get());
-			this->noteCounterInfo->ppq.value = seq->resolution;
-			this->hasSequence = true;
-			this->seqLength = seq->CalcLengthMilliseconds() / 1000.0;
-
-			// this->audioThread->Start(seq, this->timer);
-			this->midiAudio->Start(seq, this->timer);
-			std::filesystem::path filePath = pathStr;
-			this->mainWindow->SetTitleInfo(filePath.filename().string());
+			this->pendingTitle = std::filesystem::path(pathStr).filename().string();
+			this->pendingSeq = seq;
+			this->hasPendingSeq.store(true);
 		}
-		}).detach();
+
+		this->loading.store(false);
+	}).detach();
 	return;
 }
 
 void MIDIApp::UnloadMIDI()
 {
 	if (!hasSequence) return;
+	midiAudio->Reset();
 	renderer->UnloadSequence();
 	hasSequence = false;
-	midiAudio->Reset();
 	mainWindow->SetTitleInfo();
+}
+
+void MIDIApp::UpdatePendingSequence()
+{
+	if (!hasPendingSeq.exchange(false)) return;
+
+	std::shared_ptr<MIDISequence> seq = pendingSeq;
+	pendingSeq.reset();
+
+	this->renderer->LoadSequence(seq);
+	this->navigationBar->SetMIDILengthFromSeq(*seq.get());
+	this->noteCounterInfo->ppq.value = seq->resolution;
+	this->hasSequence = true;
+	this->seqLength = seq->CalcLengthMilliseconds() / 1000.0;
+
+	this->midiAudio->Start(seq, this->timer);
+	this->timer->Start(-3.0);
+	this->mainWindow->SetTitleInfo(pendingTitle);
 }
 
 template <typename T>
@@ -280,6 +292,8 @@ void MIDIApp::LoadColorPalettes()
 
 void MIDIApp::Update()
 {
+	UpdatePendingSequence();
+
 	ImVec4 bgColor = config.render.GetBackground();
 	renderFramebuffer->Bind();
 

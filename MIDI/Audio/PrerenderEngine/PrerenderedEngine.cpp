@@ -455,8 +455,6 @@ void PrerenderedEngine::KillLastGenerator()
 
 void PrerenderedEngine::StartPrerender(bool force, double time)
 {
-    if (!eventsReady) return;
-
     if (!force)
     {
         const double playerTime = GetPlayerTime();
@@ -468,6 +466,8 @@ void PrerenderedEngine::StartPrerender(bool force, double time)
 
     if (force)
     {
+        if (!eventsReady) return;
+
         if (renderThread.joinable())
         {
             stopFlag = true;
