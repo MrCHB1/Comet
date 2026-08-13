@@ -1680,6 +1680,7 @@ void MIDIRendererSynthesia::RenderStyleSettings()
 					});
 				END_SECTION;
 			}
+			ImGui::EndTabItem();
 		}
 		break;
 	}
