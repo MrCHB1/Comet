@@ -126,6 +126,7 @@ void MIDIApp::LoadMIDI(const char* path)
 void MIDIApp::UnloadMIDI()
 {
 	if (!hasSequence) return;
+	timer->Pause();
 	midiAudio->Reset();
 	renderer->UnloadSequence();
 	hasSequence = false;
@@ -145,8 +146,8 @@ void MIDIApp::UpdatePendingSequence()
 	this->hasSequence = true;
 	this->seqLength = seq->CalcLengthMilliseconds() / 1000.0;
 
-	this->midiAudio->Start(seq, this->timer);
 	this->timer->Start(-3.0);
+	this->midiAudio->Start(seq, this->timer);
 	this->mainWindow->SetTitleInfo(pendingTitle);
 }
 

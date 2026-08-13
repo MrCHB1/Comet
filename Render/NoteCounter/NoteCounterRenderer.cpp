@@ -41,7 +41,7 @@ static void BeginNextCounterRow(const char* label)
 
 void NoteCounterRenderer::Render(float heightOffset)
 {
-	auto* config = app->GetConfig();
+	MIDIPlayerConfig* config = app->GetConfig();
 
 	// font magic
 	ImFont* fontToUse = nullptr;
@@ -108,65 +108,85 @@ void NoteCounterRenderer::Render(float heightOffset)
 
 void NoteCounterRenderer::RenderUMP(float counterScale)
 {
+	float minCounterWidth = this->counterWidth * counterScale;
+
 	if (ImGui::Begin("noteCounterUMP", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar))
 	{
 		ImGui::SetWindowFontScale(counterScale);
-		if (ImGui::BeginTable("counterStats", 2, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoClip))
-		{
-			char buf[64];
 
+		// unfortunate that i have to completely change how i calculate counter width, else it fucks with the overall counter width
+		// hence why it was wider than usual when the scake is 1.0 :/
+
+		struct CounterRow { const char* label; char value[64]; };
+		CounterRow rows[7];
+		int rowCount = 0;
+
+		if (noteCounterInfo->tick.shown)
+		{
+			auto ticks = noteCounterInfo->tick.value;
+			FormatText(rows[rowCount].value, "%s/%u", Utils::FormatWithCommas(ticks > 0 ? ticks : 0).c_str(), noteCounterInfo->ppq.value);
+			rows[rowCount].label = "Tick";
+			rowCount++;
+		}
+		if (noteCounterInfo->timeSeconds.shown)
+		{
+			FormatText(rows[rowCount].value, "%s", Utils::FormatDuration2(noteCounterInfo->timeSeconds.value * 1000).c_str());
+			rows[rowCount].label = "Time";
+			rowCount++;
+		}
+		if (noteCounterInfo->bpm.shown)
+		{
+			FormatText(rows[rowCount].value, "%.1f", noteCounterInfo->bpm.value);
+			rows[rowCount].label = "BPM";
+			rowCount++;
+		}
+		if (noteCounterInfo->notesPassed.shown)
+		{
+			FormatText(rows[rowCount].value, "%s", Utils::FormatWithCommas(noteCounterInfo->notesPassed.value).c_str());
+			rows[rowCount].label = "Notes";
+			rowCount++;
+		}
+		if (noteCounterInfo->notesPerSecond.shown)
+		{
+			FormatText(rows[rowCount].value, "%s", Utils::FormatWithCommas(noteCounterInfo->notesPerSecond.value).c_str());
+			rows[rowCount].label = "NPS";
+			rowCount++;
+		}
+		if (noteCounterInfo->polyphony.shown)
+		{
+			FormatText(rows[rowCount].value, "%s", Utils::FormatWithCommas(noteCounterInfo->polyphony.value).c_str());
+			rows[rowCount].label = "Polyphony";
+			rowCount++;
+		}
+		if (noteCounterInfo->fps.shown && !app->IsRendering())
+		{
+			FormatText(rows[rowCount].value, "%.1f", noteCounterInfo->fps.value);
+			rows[rowCount].label = "FPS";
+			rowCount++;
+		}
+
+		float labelColWidth = 0.0f, valueColWidth = 0.0f;
+		for (int i = 0; i < rowCount; i++)
+		{
+			labelColWidth = std::max(labelColWidth, ImGui::CalcTextSize(rows[i].label).x);
+			valueColWidth = std::max(valueColWidth, ImGui::CalcTextSize(rows[i].value).x);
+		}
+
+		float windowPaddingX = 5.0f * counterScale;
+		float cellPaddingX = ImGui::GetStyle().CellPadding.x; // matches the ImGuiStyleVar_CellPadding pushed in Render()
+		float naturalContentWidth = labelColWidth + valueColWidth + cellPaddingX * 4.0f;
+		float minContentWidth = std::max(0.0f, minCounterWidth - windowPaddingX * 2.0f);
+		float tableWidth = std::max(minContentWidth, naturalContentWidth);
+
+		if (ImGui::BeginTable("counterStats", 2, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoClip, ImVec2(tableWidth, 0.0f)))
+		{
 			ImGui::TableSetupColumn("Name");
 			ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoClip);
 
-			// height calculation may be tricky lol
-			if (noteCounterInfo->tick.shown)
+			for (int i = 0; i < rowCount; i++)
 			{
-				BeginNextCounterRow("Tick");
-				auto ticks = noteCounterInfo->tick.value;
-				FormatText(buf, "%s/%u", Utils::FormatWithCommas(ticks > 0 ? ticks : 0).c_str(), noteCounterInfo->ppq.value);
-				RightAlignedTableText(buf);
-			}
-
-			if (noteCounterInfo->timeSeconds.shown)
-			{
-				BeginNextCounterRow("Time");
-				FormatText(buf, "%s", Utils::FormatDuration2(noteCounterInfo->timeSeconds.value * 1000).c_str());
-				RightAlignedTableText(buf);
-			}
-
-			if (noteCounterInfo->bpm.shown)
-			{
-				BeginNextCounterRow("BPM");
-				FormatText(buf, "%.1f", noteCounterInfo->bpm.value);
-				RightAlignedTableText(buf);
-			}
-
-			if (noteCounterInfo->notesPassed.shown)
-			{
-				BeginNextCounterRow("Notes");
-				FormatText(buf, "%s", Utils::FormatWithCommas(noteCounterInfo->notesPassed.value).c_str());
-				RightAlignedTableText(buf);
-			}
-
-			if (noteCounterInfo->notesPerSecond.shown)
-			{
-				BeginNextCounterRow("NPS");
-				FormatText(buf, "%s", Utils::FormatWithCommas(noteCounterInfo->notesPerSecond.value).c_str());
-				RightAlignedTableText(buf);
-			}
-
-			if (noteCounterInfo->polyphony.shown)
-			{
-				BeginNextCounterRow("Polyphony");
-				FormatText(buf, "%s", Utils::FormatWithCommas(noteCounterInfo->polyphony.value).c_str());
-				RightAlignedTableText(buf);
-			}
-
-			if (noteCounterInfo->fps.shown && !app->IsRendering())
-			{
-				BeginNextCounterRow("FPS");
-				FormatText(buf, "%.1f", noteCounterInfo->fps.value);
-				RightAlignedTableText(buf);
+				BeginNextCounterRow(rows[i].label);
+				RightAlignedTableText(rows[i].value);
 			}
 
 			lastCounterWidth = ImGui::GetWindowWidth();
