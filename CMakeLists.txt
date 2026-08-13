@@ -81,6 +81,14 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(rtmidi)
 
+FetchContent_Declare(
+    imgui_knobs
+    GIT_REPOSITORY https://github.com/altschuler/imgui-knobs.git
+    GIT_TAG main
+)
+
+FetchContent_MakeAvailable(imgui_knobs)
+
 file(GLOB IMGUI_SRC
     ${imgui_SOURCE_DIR}/*.cpp
 )
@@ -155,6 +163,14 @@ set_source_files_properties(
 
  target_include_directories(Comet PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
+ )
+
+ target_sources(Comet PRIVATE
+    ${imgui_knobs_SOURCE_DIR}/imgui-knobs.cpp
+)
+
+  target_include_directories(Comet PRIVATE
+    ${imgui_knobs_SOURCE_DIR}
  )
 
 target_link_libraries(Comet PRIVATE

@@ -145,8 +145,8 @@ private:
     double strength = 1.0;
     double minThresh = 0.4;
     double velocityThresh = 1.0;
-    double attackRate = 1.0;   
-    double releaseRate = 0.005;
+    double attackRate = 0.01;   
+    double releaseRate = 0.1;
     std::atomic<double> preVolume{ 1.0 };
 
     std::shared_ptr<MIDISequence> lastSeq;

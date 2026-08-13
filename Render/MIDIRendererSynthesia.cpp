@@ -437,6 +437,7 @@ void MIDIRendererSynthesia::CalculateKeyboardData()
 
 	keyboardHeight = initialKeyboardHeight / (keyLast - keyFirst) * 128.0f;
 	keyboardHeight = keyboardHeight / (1920.0 / 1080.0) * ((float)this->width / (float)this->height);
+	if (keyboardHeight > 0.2468) keyboardHeight = 0.2468;
 }
 
 void MIDIRendererSynthesia::InitializeTextures()
@@ -950,7 +951,14 @@ void MIDIRendererSynthesia::RenderKeyboard()
 		#pragma endregion
 	}
 
-	PushQuad(0, keyTop, 1, initialBarHeight, 0, 0, 1, 1, TextureLayer::LAYER_BAR);
+	// split in two to allow colored bar
+	const float barFrac = 3.0f / 11.0f;
+	const float barSplitHeight = barFrac * initialBarHeight;
+
+	ImVec4 barColor = config->render.GetBarColor();
+	uint32_t barColorPacked = Utils::PackRGBA(barColor.x, barColor.y, barColor.z, 1.0, Utils::ARGB);
+	PushQuad(0, keyTop, 1, barSplitHeight, 0, 0, 1, barFrac, TextureLayer::LAYER_BAR, barColorPacked); // colored bar ooOOO.. default is 0xFFA02020
+	PushQuad(0, keyTop + barSplitHeight, 1, initialBarHeight - barSplitHeight, 0, barFrac, 1, 1.0f - barFrac, TextureLayer::LAYER_BAR);
 
 	for (int i = keyFirst; i <= keyLast; i++)
 	{
@@ -1576,6 +1584,8 @@ void MIDIRendererSynthesia::RenderOctaveTextOverlays()
 
 void MIDIRendererSynthesia::RenderSettings()
 {
+	MIDIPlayerConfig* config = app->GetConfig();
+
 	if (ImGui::BeginTabBar("##renderSettings"))
 	{
 		if (ImGui::BeginTabItem("General"))
@@ -1649,6 +1659,14 @@ void MIDIRendererSynthesia::RenderSettings()
 				SECTION_ENTRY(SECTION_LABEL("Key sparkles"),
 					{
 						ImGui::Checkbox("##keySpark", &renderSettings.renderKeySparkle);
+					});
+				SECTION_ENTRY(SECTION_LABEL("Bar color"),
+					{
+						ImVec4 barColor = config->render.GetBarColor();
+						if (ImGui::ColorEdit3("##barColor", &barColor.x))
+						{
+							config->render.SetBarColor(barColor.x, barColor.y, barColor.z);
+						}
 					});
 				END_SECTION;
 			}

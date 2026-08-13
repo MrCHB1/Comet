@@ -85,6 +85,13 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 
 			render.SetCurrentRenderer(static_cast<RendererType>(renderSec->GetInt("rendererType", 0)));
 
+			std::optional<ConfigSection> keyRangeSec = renderSec->GetSection("keyRange");
+			if (keyRangeSec)
+			{
+				render.SetKeyFirst(keyRangeSec->GetInt("min", 0));
+				render.SetKeyLast(keyRangeSec->GetInt("max", 127));
+			}
+
 			this->render = render;
 		}
 
@@ -132,6 +139,8 @@ void MIDIPlayerConfig::SaveConfig()
 	config["render"]["loopColors"] = render.loopColors;
 	config["render"]["paletteID"] = render.paletteID;
 	config["render"]["rendererType"] = static_cast<int>(render.GetCurrentRenderer());
+	config["render"]["keyRange"]["min"] = render.GetKeyFirst();
+	config["render"]["keyRange"]["max"] = render.GetKeyLast();
 
 	if (audioSettings.IsDefined())
 	{

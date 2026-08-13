@@ -57,6 +57,38 @@ void AbstractMIDIRenderer::RenderSettings()
 				{
 					config->render.SetKeyLast(keyLast);
 				}
+
+				std::string previewText;
+				
+				if (keyFirst == 21 && keyLast == 108)
+				{
+					previewText = "88 Keys";
+				}
+				else if (keyFirst == 0 && keyLast == 127)
+				{
+					previewText = "128 Keys";
+				}
+				else
+				{
+					previewText = "Custom";
+				}
+
+				if (ImGui::BeginCombo("##keyRangePreset", previewText.c_str()))
+				{
+					if (ImGui::Selectable("88 Keys", keyFirst == 21 && keyLast == 108))
+					{
+						config->render.SetKeyFirst(21);
+						config->render.SetKeyLast(108);
+					}
+
+					if (ImGui::Selectable("128 Keys", keyFirst == 0 && keyLast == 127))
+					{
+						config->render.SetKeyFirst(0);
+						config->render.SetKeyLast(127);
+					}
+
+					ImGui::EndCombo();
+				}
 			});
 
 		END_SECTION;
