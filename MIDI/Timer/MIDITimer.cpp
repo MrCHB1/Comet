@@ -8,6 +8,7 @@ void MIDITimer::Start(double startTime)
 	baseTime = startTime;
 	lastTime = startTime;
 	startPoint = clock::now();
+	hasNavigated = true;
 }
 
 void MIDITimer::Stop()
@@ -51,8 +52,9 @@ void MIDITimer::NavigateTo(double timeSeconds)
 	if (running && !paused)
 	{
 		startPoint = clock::now();
-		hasNavigated = true;
 	}
+
+	hasNavigated = true;
 }
 
 double MIDITimer::Elapsed() const

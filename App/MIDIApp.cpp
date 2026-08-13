@@ -140,15 +140,16 @@ void MIDIApp::UpdatePendingSequence()
 	std::shared_ptr<MIDISequence> seq = pendingSeq;
 	pendingSeq.reset();
 
-	this->renderer->LoadSequence(seq);
-	this->navigationBar->SetMIDILengthFromSeq(*seq.get());
-	this->noteCounterInfo->ppq.value = seq->resolution;
-	this->hasSequence = true;
-	this->seqLength = seq->CalcLengthMilliseconds() / 1000.0;
+	renderer->LoadSequence(seq);
+	navigationBar->SetMIDILengthFromSeq(*seq.get());
+	noteCounterInfo->ppq.value = seq->resolution;
+	hasSequence = true;
+	seqLength = seq->CalcLengthMilliseconds() / 1000.0;
 
-	this->timer->Start(-3.0);
-	this->midiAudio->Start(seq, this->timer);
-	this->mainWindow->SetTitleInfo(pendingTitle);
+	midiAudio->Start(seq, this->timer);
+	timer->ClearFlags();
+	timer->Start(-3.0);
+	mainWindow->SetTitleInfo(pendingTitle);
 }
 
 template <typename T>

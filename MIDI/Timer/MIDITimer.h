@@ -36,6 +36,12 @@ public:
 	double Elapsed() const;
 	double GetPauseTime() const { return baseTime; }
 	double GetDeltaTime();
+
+	void ClearFlags()
+	{
+		pauseRequested = false;
+		hasNavigated = false;
+	}
 private:
 	using clock = std::chrono::steady_clock;
 
