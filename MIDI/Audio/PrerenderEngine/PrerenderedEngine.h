@@ -146,7 +146,7 @@ private:
     double minThresh = 0.4;
     double velocityThresh = 1.0;
     double attackRate = 0.01;   
-    double releaseRate = 0.1;
+    double releaseRate = 1.0;
     std::atomic<double> preVolume{ 1.0 };
 
     std::shared_ptr<MIDISequence> lastSeq;

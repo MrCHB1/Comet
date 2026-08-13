@@ -680,6 +680,7 @@ void PrerenderedEngine::RenderSettings()
         preVolume.store(volume);
     }
 
+    std::string memoryUsage = Utils::FormatFilesize(this->bufferSize * sizeof(float), 2);
     if (ImGui::BeginTabBar("##prerendererSettings"))
     {
         if (ImGui::BeginTabItem("General"))
@@ -717,7 +718,6 @@ void PrerenderedEngine::RenderSettings()
                             ResizeBuffer(bufferLength);
                             shouldApplyChanges = true;
                         }
-                        std::string memoryUsage = Utils::FormatFilesize(this->bufferSize * sizeof(float), 2);
                         ImGui::Text("RAM Usage: %s", memoryUsage);
                     });
 
@@ -818,7 +818,7 @@ void PrerenderedEngine::RenderSettings()
             {
                 SETUP_SECTION;
                 
-                SECTION_ENTRY(SECTION_LABEL("Attack rate"),
+                SECTION_ENTRY(SECTION_LABEL("Attack rate (s)"),
                     {
                         float attackRate = this->attackRate;
                         ImGui::SliderFloat("##limAttack", &attackRate, 0.001, 0.01);
@@ -827,7 +827,7 @@ void PrerenderedEngine::RenderSettings()
                         this->attackRate = attackRate;
                     });
 
-                SECTION_ENTRY(SECTION_LABEL("Release rate"),
+                SECTION_ENTRY(SECTION_LABEL("Release rate (s)"),
                     {
                         float releaseRate = this->releaseRate;
                         ImGui::SliderFloat("##limRelease", &releaseRate, 0.1, 2.0);
