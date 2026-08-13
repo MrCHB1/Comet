@@ -13,6 +13,13 @@ void LoadingDialog::DrawContent()
 	{
 		ImGui::Text(prog->GetName().c_str());
 
+		for (int i = 0; i < prog->GetBarCount(); i++)
+		{
+			double pVal = prog->GetBar(i)();
+			if (pVal > 0)
+				ImGui::ProgressBar(pVal, ImVec2(0.0f, 0.0f));
+		}
+
 		if (ImGui::Button("Cancel"))
 		{
 			prog->Stop();

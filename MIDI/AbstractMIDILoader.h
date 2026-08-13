@@ -75,8 +75,11 @@ public:
 		this->loadOnlyNotes = loadOnlyNotes;
 	}
 	virtual std::shared_ptr<MIDISequence> Load(bool timeBasedLoading = false) = 0;
+	virtual void Stop() { Progress::Stop(); }
+
 protected:
 	bool loadOnlyNotes = false;
+
 	struct MIDIStreamInfo
 	{
 		std::string name;
