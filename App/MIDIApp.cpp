@@ -105,18 +105,19 @@ void MIDIApp::LoadMIDI(const char* path)
 			this->loading.store(false);
 			return;
 		}
-		// this->loading.store(false);
+
+		bool hasStopped = this->prog->hasStopped.load();
 
 		if (this->prog == loader)
 			this->prog = nullptr;
 
-		if (seq)
+		if (!hasStopped && seq)
 		{
 			this->pendingTitle = std::filesystem::path(pathStr).filename().string();
 			this->pendingSeq = seq;
 			this->hasPendingSeq.store(true);
 		}
-
+		
 		this->loading.store(false);
 	}).detach();
 	return;
