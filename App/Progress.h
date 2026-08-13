@@ -27,7 +27,9 @@ public:
 		return bars[index];
 	}
 
-	void Stop() {};
+	virtual void Stop() { hasStopped = true; }
+
+	std::atomic<bool> hasStopped = false;
 protected:
 	void SetName(const char* name)
 	{
