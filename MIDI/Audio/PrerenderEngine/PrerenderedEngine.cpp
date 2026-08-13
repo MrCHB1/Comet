@@ -2,6 +2,7 @@
 
 #include "PrerenderedEngine.h"
 #include <imgui.h>
+#include "imgui-knobs.h"
 #include <iostream>
 #include <codecvt>
 #include <locale>
@@ -555,14 +556,8 @@ DWORD CALLBACK PrerenderedEngine::PlaybackStreamProc(HSTREAM handle, void* buffe
         if (engine->loudnessL < engine->minThresh) engine->loudnessL = engine->minThresh;
         if (engine->loudnessR < engine->minThresh) engine->loudnessR = engine->minThresh;
 
-        double scaleL = engine->loudnessL * engine->strength + 2.0 * (1.0 - engine->strength);
-        double scaleR = engine->loudnessR * engine->strength + 2.0 * (1.0 - engine->strength);
-
-        if (scaleL < 1.0) scaleL = 1.0;
-        if (scaleR < 1.0) scaleR = 1.0;
-
-        l = fltBuffer[i] / scaleL;
-        r = fltBuffer[i + 1] / scaleR;
+        l = fltBuffer[i] / (engine->loudnessL * engine->strength + 2.0 * (1.0 - engine->strength)) / 2.0;
+        r = fltBuffer[i + 1] / (engine->loudnessR * engine->strength + 2.0 * (1.0 - engine->strength)) / 2.0;
 
         if (i != 0)
         {
@@ -678,6 +673,13 @@ void PrerenderedEngine::RenderSettings()
 {
     bool shouldApplyChanges = false;
     bool shouldChangeSoundfont = false;
+
+    float volume = preVolume.load();
+    if (ImGuiKnobs::Knob("Volume", &volume, 0.0f, 1.0f))
+    {
+        preVolume.store(volume);
+    }
+
     if (ImGui::BeginTabBar("##prerendererSettings"))
     {
         if (ImGui::BeginTabItem("General"))
@@ -819,18 +821,18 @@ void PrerenderedEngine::RenderSettings()
                 SECTION_ENTRY(SECTION_LABEL("Attack rate"),
                     {
                         float attackRate = this->attackRate;
-                        ImGui::SliderFloat("##limAttack", &attackRate, 0.1, 1.5);
-                        if (attackRate < 0.1) attackRate = 0.1;
-                        if (attackRate > 1.5) attackRate = 1.5;
+                        ImGui::SliderFloat("##limAttack", &attackRate, 0.001, 0.01);
+                        if (attackRate < 0.001) attackRate = 0.001;
+                        if (attackRate > 0.01) attackRate = 0.01;
                         this->attackRate = attackRate;
                     });
 
                 SECTION_ENTRY(SECTION_LABEL("Release rate"),
                     {
                         float releaseRate = this->releaseRate;
-                        ImGui::SliderFloat("##limRelease", &releaseRate, 0.005, 0.1);
-                        if (releaseRate < 0.005) releaseRate = 0.005;
-                        if (releaseRate > 0.1) releaseRate = 0.1;
+                        ImGui::SliderFloat("##limRelease", &releaseRate, 0.1, 2.0);
+                        if (releaseRate < 0.1) releaseRate = 0.1;
+                        if (releaseRate > 2.0) releaseRate = 2.0;
                         this->releaseRate = releaseRate;
                     });
 
