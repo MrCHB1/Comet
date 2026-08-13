@@ -111,6 +111,7 @@ private:
     // shared Event State
     std::vector<PrecalculatedEvent> prerenderedEvents;
     std::atomic_bool eventsReady{ false };
+    std::atomic_bool firstLoad{ false };
     std::atomic<size_t> eventCursor{ 0 };
     std::mutex eventMutex;
 

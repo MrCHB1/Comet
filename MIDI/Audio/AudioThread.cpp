@@ -10,13 +10,15 @@
 
 struct PrecalculatedEvent
 {
-    uint32_t tick;
+    long tick;
     uint32_t message;
 };
 
 void AudioThread::Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDITimer> timer)
 {
     if (!seq || !timer) return;
+
+    Stop();
     stopFlag = false;
 
     std::thread audioThread([this, seq, timer]() {
@@ -28,33 +30,35 @@ void AudioThread::Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDIT
 
         for (const auto& ev : seq->mergedEvents)
         {
-            events.push_back({ (uint32_t)ev.tick, ev.message });
+            events.push_back({ ev.tick, ev.message });
         }
 
         for (int i = 0; i < MIDI_KEYS; ++i)
         {
             NoteSequence& notes = seq->mergedNotes[i];
-            for (size_t i = 0; i < notes.Size(); i++)
+            for (size_t j = 0; j < notes.Size(); j++)
             {
-                uint32_t nTick = notes.tick[i];
-                uint32_t nGate = notes.gate[i];
-                uint8_t nNote = notes.note[i];
-                uint8_t nChannel = notes.channel[i];
-                uint8_t nVel = notes.vel[i];
+                uint32_t nTick = notes.tick[j];
+                uint32_t nGate = notes.gate[j];
+                uint8_t nNote = notes.note[j];
+                uint8_t nChannel = notes.channel[j];
+                uint8_t nVel = notes.vel[j];
 
                 events.push_back({
-                    nTick,
+                    (long)nTick,
                     0x90u | nChannel | ((uint32_t)nNote << 8) | ((uint32_t)nVel << 16)
                     });
 
                 events.push_back({
-                    nTick + (long)nGate,
+                    (long)nTick + (long)nGate,
                     0x80u | nChannel | ((uint32_t)nNote << 8)
                     });
             }
         }
 
         std::stable_sort(events.begin(), events.end(), [](const PrecalculatedEvent& a, const PrecalculatedEvent& b) { return a.tick < b.tick; });
+
+        ResetEvents();
 
         size_t cursor = 0;
         uint32_t msg = 0;
@@ -78,6 +82,15 @@ void AudioThread::Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDIT
                 }
             };
 
+        {
+            double currentTime = timer->IsPaused() ? timer->GetPauseTime() : timer->Elapsed();
+            const long startTick = seq->timeBased
+                ? (long)(currentTime * TIME_BASED_MULTIPLIER)
+                : (long)tempoMap->SecsToTicksFromMap(resolution, currentTime);
+
+            syncToTick(startTick);
+        }
+
         while (!stopFlag)
         {
             if (audioMuted)
@@ -94,7 +107,11 @@ void AudioThread::Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDIT
             {
                 ResetEvents();
 
-                syncToTick(currPos);
+                long targetTick = seq->timeBased
+                    ? (long)(timer->GetPauseTime() * TIME_BASED_MULTIPLIER)
+                    : (long)tempoMap->SecsToTicksFromMap(resolution, timer->GetPauseTime());
+
+                syncToTick(targetTick);
             }
 
             if (navigated || timer->PauseRequestedRecently())

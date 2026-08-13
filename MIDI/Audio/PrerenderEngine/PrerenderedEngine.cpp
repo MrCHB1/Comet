@@ -123,6 +123,7 @@ void PrerenderedEngine::Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr
     
     isPlaying = true;
     awaitingReset = false;
+    firstLoad = true;
     eventCursor = 0;
     bufferWritePos = 0;
     bufferReadPos = 0;
@@ -142,6 +143,7 @@ void PrerenderedEngine::Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr
     }
     
     StartPrerender(true, startTime);
+    firstLoad = false;
 }
 
 void PrerenderedEngine::Stop()
@@ -312,14 +314,7 @@ void PrerenderedEngine::RenderLoop(double initialStartTime)
             samples = targetSamplePos - bufferWritePos;
         }
 
-        // render in small, bounded chunks and NEVER hold bufferMutex while
-        // synthesizing. bassMidi->Read() can take a while in dense/heavy
-        // passages (lots of active voices); if we held the lock across that
-        // call, the realtime PlaybackStreamProc callback would have to wait
-        // on us too, which is exactly what produces the audible delay when
-        // seeking into a heavy section. capping the chunk size also means we
-        // re-check stopFlag frequently, so a seek (which sets stopFlag and
-        // joins this thread) doesn't have to wait out a big pending render.
+        // render in small chunks instead of an entire event
         while (samples > 0 && !stopFlag)
         {
             int spare, writeStart;
@@ -467,7 +462,7 @@ void PrerenderedEngine::StartPrerender(bool force, double time)
 
     if (force)
     {
-        if (!eventsReady) return;
+        if (!eventsReady && !firstLoad) return;
 
         if (renderThread.joinable())
         {
