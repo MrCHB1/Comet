@@ -21,8 +21,9 @@ public:
 
 	std::shared_ptr<MIDISequence> Load(bool timeBasedLoading = false) override;
 
-	void Stop()
+	void Stop() override
 	{
+		AbstractMIDILoader::Stop();
 		running = false;
 	}
 
