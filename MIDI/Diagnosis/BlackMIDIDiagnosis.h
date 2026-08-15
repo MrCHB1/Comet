@@ -57,7 +57,7 @@ public:
 class BlackMIDIDiagnosis : public ADiagnosis
 {
 public:
-	BlackMIDIDiagnosis(MIDIApp* app, const char* filePath);
+	BlackMIDIDiagnosis(MIDIApp* app, std::filesystem::path filePath);
 	void Run() override;
 	void Stop() override
 	{
@@ -90,5 +90,5 @@ private:
 	Long* fOverlap;
 
 	std::ifstream fileStream;
-	std::string filePath;
+	std::filesystem::path filePath;
 };

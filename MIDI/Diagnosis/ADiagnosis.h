@@ -8,7 +8,7 @@
 class ADiagnosis
 {
 public:
-	ADiagnosis(MIDIApp* app, const char* filePath)
+	ADiagnosis(MIDIApp* app, std::filesystem::path filePath)
 		: app(app), file(filePath) { }
 	virtual ~ADiagnosis() = default;
 
@@ -41,7 +41,7 @@ protected:
 		return fieldPtr;
 	}
 
-	const char* file;
+	std::filesystem::path file;
 	MIDIApp* app;
 	bool isRunning = false;
 

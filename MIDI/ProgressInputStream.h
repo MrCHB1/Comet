@@ -7,7 +7,7 @@
 class ProgressInputStream : public InputStream
 {
 public:
-	ProgressInputStream(const char* file);
+	ProgressInputStream(const std::string file);
 	ProgressInputStream(const std::filesystem::path& path);
 	ProgressInputStream(InputStream in);
 	ProgressInputStream(InputStream in, size_t size);

@@ -3,7 +3,7 @@
 #include <iostream>
 #include "../../IO/BufferedByteReader.h"
 
-BlackMIDIDiagnosis::BlackMIDIDiagnosis(MIDIApp* app, const char* filePath)
+BlackMIDIDiagnosis::BlackMIDIDiagnosis(MIDIApp* app, std::filesystem::path filePath)
 	: ADiagnosis(app, filePath), filePath(filePath),
 	noteonsGlobal(16, std::vector<int>(128)),
 	bpm(0),
@@ -79,7 +79,11 @@ void BlackMIDIDiagnosis::Run()
 
 std::shared_ptr<SavedInputStream> BlackMIDIDiagnosis::CreateStream()
 {
+#ifdef _WIN32
+	auto fs = std::make_shared<std::ifstream>(filePath.wstring(), std::ios::binary);
+#else
 	auto fs = std::make_shared<std::ifstream>(filePath.c_str(), std::ios::binary);
+#endif
 	fs->seekg(0, std::ios::end);
 	long size = fs->tellg();
 	fs->seekg(0, std::ios::beg);
