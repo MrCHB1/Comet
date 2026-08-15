@@ -6,7 +6,7 @@
 class BasicDiagnosis : public ADiagnosis
 {
 public:
-	BasicDiagnosis(MIDIApp* app, const char* filePath) :
+	BasicDiagnosis(MIDIApp* app, std::filesystem::path filePath) :
 		ADiagnosis(app, filePath),
 		noteons(16, std::vector<int>(128)),
 		tracksHuge(std::vector<int>(1)),
@@ -23,7 +23,11 @@ public:
 		memory(0),
 		length(0)
 	{
+#ifdef _WIN32
+		std::shared_ptr<std::ifstream> fileStream = std::make_shared<std::ifstream>(filePath.wstring(), std::ios::binary);
+#else
 		std::shared_ptr<std::ifstream> fileStream = std::make_shared<std::ifstream>(filePath, std::ios::binary);
+#endif
 		fileStream->seekg(0, std::ios::end);
 		size_t fileLength = fileStream->tellg();
 		fileStream->seekg(0, std::ios::beg);

@@ -9,7 +9,7 @@ public:
 	{
 		data.fill(0);
 	}
-	SavedInputStream(const char* filePath) : ProgressInputStream(filePath), dataPos(-1)
+	SavedInputStream(const std::string filePath) : ProgressInputStream(filePath), dataPos(-1)
 	{
 		data.fill(0);
 	}
