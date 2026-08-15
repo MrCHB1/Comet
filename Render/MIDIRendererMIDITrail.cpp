@@ -839,9 +839,8 @@ void MIDIRendererMIDITrail::CalcKeyPosAndWidth()
 	}
 
 	keyWidth[keyLast] = 1.0f - keyPos[keyLast];
-	float aspect = (float)width / (float)height;
 	float heightScale = fullSpanUnits / spanUnits;
-	keyboardHeight = 0.007f * aspect * heightScale;
+	keyboardHeight = 0.007f * heightScale;
 
 	separatorVerts.clear();
 
