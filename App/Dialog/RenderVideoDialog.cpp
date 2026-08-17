@@ -1,6 +1,6 @@
 #include "RenderVideoDialog.h"
-#include "FFmpeg/FFmpegCommandBuilder.h"
-#include "Utils.h"
+#include "../../FFmpeg/FFmpegCommandBuilder.h"
+#include "../../Utils.h"
 #include <filesystem>
 
 #if defined(_WIN32)

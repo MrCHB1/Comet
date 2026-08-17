@@ -4,7 +4,7 @@
 #include <optional>
 #include <fstream>
 #include <iostream>
-#include "Utils.h"
+#include "../Utils.h"
 #include <filesystem>
 
 void MIDIPlayerConfig::LoadConfigOrDefault()

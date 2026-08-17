@@ -1,11 +1,11 @@
 #pragma once
 
-#include "MIDI/MIDIDefs.h"
+#include "../MIDI/MIDIDefs.h"
 #include "Renderer/AbstractMIDIRenderer.h"
 #include <cstdint>
 #include <mutex>
 #include <glm/glm.hpp>
-#include "Concurrency/ThreadPool.h"
+#include "../Concurrency/ThreadPool.h"
 
 #define NOTE_BUFFER_SIZE 262144
 #define NOTES_MAX_BATCHES 512

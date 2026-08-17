@@ -3,16 +3,16 @@
 #include "MIDIRendererEnhanced.h"
 #include "MIDIRendererEnhancedShaders.h"
 #include <glm/glm.hpp>
-#include "App/MIDIApp.h"
-#include "App/Models.h"
+#include "../App/MIDIApp.h"
+#include "../App/Models.h"
 #include <algorithm>
 #include <random>
-#include "Utils.h"
-#include "App/Dialog/DialogMacros.h"
+#include "../Utils.h"
+#include "../App/Dialog/DialogMacros.h"
 #include "RenderView.h"
 
-#include "MIDI/Timer/MIDITimer.h"
-#include "MIDI/TempoMap.h"
+#include "../MIDI/Timer/MIDITimer.h"
+#include "../MIDI/TempoMap.h"
 
 const float keyPosDiff[] = {
     0.6F, 0.4F, 0.8F, 0.2F, 1.0F, 0.6F, 0.4F, 0.675F, 0.325F, 0.8F, 0.2F, 1.0F

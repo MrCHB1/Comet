@@ -1,15 +1,15 @@
 #include "MIDIRenderer.h"
-#include "Comet.h"
-#include "Render/Renderer/PrimitiveShaders.h"
+#include "../Comet.h"
+#include "Renderer/PrimitiveShaders.h"
 #include "../App/MIDIApp.h"
-#include "ResourcePack/ResourcePack.h"
-#include "ResourcePack/DefaultResourcePack.h"
-#include "ResourcePack/ResourcePackList.h"
-#include "MIDI/TempoMap.h"
-#include "MIDI/Timer/MIDITimer.h"
-#include "Utils.h"
+#include "../ResourcePack/ResourcePack.h"
+#include "../ResourcePack/DefaultResourcePack.h"
+#include "../ResourcePack/ResourcePackList.h"
+#include "../MIDI/TempoMap.h"
+#include "../MIDI/Timer/MIDITimer.h"
+#include "../Utils.h"
 #include <algorithm>
-#include "App/Dialog/DialogMacros.h"
+#include "../App/Dialog/DialogMacros.h"
 
 #pragma region Shaders
 

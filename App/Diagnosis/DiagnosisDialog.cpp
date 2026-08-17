@@ -5,6 +5,8 @@
 #include <nfd.h>
 #include <filesystem>
 
+#include "imgui.h"
+
 void DiagnosisDialog::DrawContent()
 {
 	if (isDiagnosing)

@@ -1,5 +1,5 @@
 #include "DefaultResourcePack.h"
-#include "Comet.h"
+#include "../Comet.h"
 
 void DefaultResourcePack::Init()
 {

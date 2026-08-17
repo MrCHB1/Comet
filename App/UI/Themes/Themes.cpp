@@ -1,10 +1,11 @@
 #include "Themes.h"
-#include "Config/ConfigSection.h"
+#include "../../../Config/ConfigSection.h"
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
-#include "Utils.h"
+#include "../../../Utils.h"
+#include "imgui.h"
 
 std::shared_ptr<AppTheme> CometDefaultThemes::DefaultLightMode = nullptr;
 std::shared_ptr<AppTheme> CometDefaultThemes::DefaultDarkMode = nullptr;
@@ -88,7 +89,7 @@ void AppTheme::ApplyTheme()
     c[ImGuiCol_WindowBg] = colors.background;
     c[ImGuiCol_ChildBg] = colors.backgroundAlt;
     c[ImGuiCol_PopupBg] = colors.backgroundAlt;
-    c[ImGuiCol_DockingEmptyBg] = colors.background;
+    //c[ImGuiCol_DockingEmptyBg] = colors.background; // Possibly Deprecated already ??
 
     // Title / Menu / Scrollbar bases
     c[ImGuiCol_TitleBg] = colors.headerBg;
@@ -142,7 +143,7 @@ void AppTheme::ApplyTheme()
 
     // Other
     c[ImGuiCol_TitleBgActive] = colors.controlBase;
-    c[ImGuiCol_DockingPreview] = ImVec4(colors.accent.x, colors.accent.y, colors.accent.z, 0.25f);
+    //c[ImGuiCol_DockingPreview] = ImVec4(colors.accent.x, colors.accent.y, colors.accent.z, 0.25f); // Possibly Deprecated already ??
 }
 
 ThemesList::ThemesList(const std::string& themesFolder)
