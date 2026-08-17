@@ -55,20 +55,22 @@ void RenderVideoDialog::OnRegister()
 
 void RenderVideoDialog::DetectFFmpeg()
 {
+    #if defined(_WIN32)
 	std::filesystem::path binDir = GetBinaryDirectory();
 	if (binDir.empty())
 	{
 		hasFFmpeg = false;
 		return;
 	}
+	#endif
 
 #if defined(_WIN32)
 	std::filesystem::path ffmpegPath = binDir / "ffmpeg.exe";
-#else
-	std::filesystem::path ffmpegPath = binDir / "ffmpeg";
-#endif
-
 	hasFFmpeg = std::filesystem::exists(ffmpegPath) && std::filesystem::is_regular_file(ffmpegPath);
+#endif
+	
+
+	hasFFmpeg = true; // Linux always has ffmpeg installed
 }
 
 void RenderVideoDialog::DrawContent()
