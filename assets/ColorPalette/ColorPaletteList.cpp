@@ -1,10 +1,12 @@
 #include "ColorPaletteList.h"
-#include "Render/GPUImage.h"
+#include "../../Render/GPUImage.h"
 #include <filesystem>
-#include "Utils.h"
+#include "../../Utils.h"
 
-#include "stb_image.h"
-#include "stb_image_write.h"
+#include "imgui.h"
+
+#include "../../stb_image.h"
+#include "../../stb_image_write.h"
 
 ColorPaletteList::ColorPaletteList()
 {

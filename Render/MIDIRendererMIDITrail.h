@@ -4,7 +4,7 @@
 #include <memory>
 #include "RenderEngine/Buffers.h"
 #include <glm/glm.hpp>
-#include "MIDI/MIDIDefs.h"
+#include "../MIDI/MIDIDefs.h"
 #include "MIDIRenderer.h" // for RenderNote struct
 #include <filesystem>
 

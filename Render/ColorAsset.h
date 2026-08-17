@@ -5,6 +5,8 @@
 #include <array>
 #include <memory>
 
+#include "imgui.h"
+
 struct ImVec4;
 
 class ColorAsset

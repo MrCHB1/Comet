@@ -1,6 +1,6 @@
 #include "MIDIOut.h"
 #include <iostream>
-#include "Utils.h"
+#include "../../Utils.h"
 
 #ifdef WIN32
 

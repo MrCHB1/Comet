@@ -1,6 +1,6 @@
 #pragma once
 
-#include "App/VideoRender/RenderSettings.h"
+#include "../App/VideoRender/RenderSettings.h"
 
 class FFmpegCommandBuilder
 {

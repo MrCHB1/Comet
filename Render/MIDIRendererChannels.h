@@ -3,7 +3,7 @@
 #include "Renderer/AbstractMIDIRenderer.h"
 #include "RenderEngine/Shaders.h"
 #include "RenderEngine/Buffers.h"
-#include "MIDI/MIDIDefs.h"
+#include "../MIDI/MIDIDefs.h"
 #include <memory>
 #include <array>
 #include <mutex>

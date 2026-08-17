@@ -1,9 +1,9 @@
 #include "MIDIRendererPFA.h"
-#include "Utils.h"
-#include "App/MIDIApp.h"
-#include "MIDI/Timer/MIDITimer.h"
-#include "MIDI/TempoMap.h"
-#include "Render/RenderView.h"
+#include "../Utils.h"
+#include "../App/MIDIApp.h"
+#include "../MIDI/Timer/MIDITimer.h"
+#include "../MIDI/TempoMap.h"
+#include "RenderView.h"
 
 #define NUM_WHITE_KEYS 75
 
