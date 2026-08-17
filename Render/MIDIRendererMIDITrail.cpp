@@ -1,10 +1,10 @@
 #include "MIDIRendererMIDITrail.h"
-#include "App/MIDIApp.h"
-#include "MIDI/TempoMap.h"
-#include "Utils.h"
+#include "../App/MIDIApp.h"
+#include "../MIDI/TempoMap.h"
+#include "../Utils.h"
 #include <algorithm>
-#include "App/Dialog/DialogMacros.h"
-#include "MIDI/Timer/MIDITimer.h"
+#include "../App/Dialog/DialogMacros.h"
+#include "../MIDI/Timer/MIDITimer.h"
 
 const std::array<float, 24> CUBE_VERTICES = {
 	0.0f, 1.0f, 0.0f,

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "MIDI/MIDISequence.h"
-#include "MIDI/Timer/MIDITimer.h"
+#include "../MIDISequence.h"
+#include "../Timer/MIDITimer.h"
 #include "MIDIOut.h"
 #include "MIDIAudio.h"
 #include <memory>

@@ -1,10 +1,10 @@
 #include "NoteCounterRenderer.h"
-#include "App/Fonts.h"
-#include "App/FontList.h"
+#include "../../App/Fonts.h"
+#include "../../App/FontList.h"
 #include "imgui.h"
 #include <string>
-#include "Utils.h"
-#include "App/MIDIApp.h"
+#include "../../Utils.h"
+#include "../../App/MIDIApp.h"
 
 static void RightAlignedTableText(const char* text)
 {

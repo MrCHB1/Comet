@@ -5,8 +5,8 @@
 #include <vector>
 #include <algorithm>
 #include <chrono>
-#include "MIDI/TempoMap.h"
-#include "MIDI/MIDIDefs.h"
+#include "../TempoMap.h"
+#include "../MIDIDefs.h"
 
 struct PrecalculatedEvent
 {

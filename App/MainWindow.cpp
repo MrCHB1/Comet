@@ -5,22 +5,22 @@
 #include "Dialog/RenderVideoDialog.h"
 #include "Dialog/SettingsDialog.h"
 #include "imgui.h"
-#include "backends/imgui_impl_glfw.h"
-#include "backends/imgui_impl_opengl3.h"
-#include "Render/Renderer/PrimitiveShaders.h"
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+#include "../Render/Renderer/PrimitiveShaders.h"
 #include "Fonts.h"
 #include <iostream>
 #include "nfd.h"
-#include "Comet.h"
+#include "../Comet.h"
 #include "UI/Themes/Themes.h"
-#include "Config/MIDIPlayerConfig.h"
+#include "../Config/MIDIPlayerConfig.h"
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
-#include "stb_image.h"
+#include "../stb_image.h"
 
-#include "icon32.hpp"
+#include "../icon32.hpp"
 
 MainWindow::MainWindow(const char* title)
 {
