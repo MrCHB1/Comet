@@ -1,6 +1,6 @@
 #include "ProgressInputStream.h"
 #include "../IO/InputStream.h"
-#include "../Comet.h"
+#include "Comet.h"
 
 #ifdef _WIN32
 #include <Windows.h>

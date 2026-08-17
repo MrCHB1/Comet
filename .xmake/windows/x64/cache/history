@@ -1,0 +1,105 @@
+{
+    cmdlines = {
+        "xmake build -v -y Comet",
+        [[xmake lua "C:\\Program Files\\xmake\\modules\\private\\utils\\statistics.lua" --verbose --yes]],
+        "xmake build -v -y Comet",
+        "xmake build -v -y Comet",
+        "xmake build -v -y Comet",
+        "xmake build -v -y Comet",
+        "xmake build -v -y Comet",
+        "xmake f -y",
+        [[xmake lua -c "import(\"core.project.config\"); import(\"core.project.project\"); config.load(); for name, _ in pairs((project.targets())) do print(name) end"]],
+        "xmake lua -c \"import('core.project.config')\13\
+import('core.project.project')\13\
+import('core.project.rule')\13\
+config.load()\13\
+for k,t in pairs(project:targets()) do\13\
+\9local rules = t:get('rules')\13\
+\9if rules and type(rules) == 'string' then\13\
+\9\9local on_config = rules:script('config')\13\
+\9\9if on_config then\13\
+\9\9\9utils.trycall(on_config, nil, t)\13\
+\9\9end\13\
+    elseif rules and type(rules) == 'table' then\13\
+\9\9for k, r in pairs(rules) do\13\
+\9\9\9local rule = rule.rule(r)\13\
+\9\9\9local on_config = rule:script('config')\13\
+\9\9\9if on_config then\13\
+\9\9\9\9utils.trycall(on_config, nil, t)\13\
+\9\9\9end\13\
+        end\13\
+    end\13\
+    local name = t:name() or ''\13\
+    local define = ''\13\
+\9local defines = t:get('defines') or ''\13\
+\9if type(defines) == 'string' then\13\
+\9\9define = defines\13\
+    elseif type(defines) == 'table' then\13\
+\9\9for k, p in pairs(defines) do\13\
+\9\9\9define = define == '' and p or (define.. ';' .. p)\13\
+        end\13\
+    end\13\
+    local arch = t:get('arch') or 'x86'\13\
+\9local includes = ''\13\
+\9for k, p in pairs(t:pkgs()) do\13\
+\9\9local dir = p:get('sysincludedirs')\13\
+\9    if type(dir) == 'string' then\13\
+\9\9    includes = includes == '' and dir or (includes .. ';' .. dir)\13\
+        elseif type(dir) == 'table' then\13\
+\9\9    for m, n in pairs(dir) do\13\
+\9\9\9    includes = includes == '' and n or (includes .. ';' .. n)\13\
+            end\13\
+        end\13\
+\9end\13\
+    local includedirs = t:get('includedirs')\13\
+\9if type(includedirs) == 'string' then\13\
+\9\9includes = includes == '' and includedirs or (includes .. ';' .. includedirs)\13\
+    elseif type(includedirs) == 'table' then\13\
+\9\9for k, p in pairs(includedirs) do\13\
+\9\9\9includes = includes == '' and p or (includes .. ';' .. p)\13\
+        end\13\
+    end\13\
+    local sysincludedirs = t:get('sysincludedirs')\13\
+\9if type(sysincludedirs) == 'string' then\13\
+\9\9includes = includes == '' and sysincludedirs or (includes .. ';' .. sysincludedirs)\13\
+    elseif type(sysincludedirs) == 'table' then\13\
+\9\9for k, p in pairs(sysincludedirs) do\13\
+\9\9\9includes = includes == '' and p or (includes .. ';' .. p)\13\
+        end\13\
+    end\13\
+    local toolchains = t:toolchains()\13\
+    if toolchains then\13\
+\9\9for k, toolchain in pairs(toolchains) do\13\
+\9\9\9local runenvs = toolchain:runenvs()\13\
+            if runenvs then\13\
+                local include = runenvs.INCLUDE\13\
+                if include then\13\
+                    includes = includes == '' and include or (includes .. ';' .. include)\13\
+                end\13\
+            end\13\
+        end\13\
+    end\13\
+    print(string.format('name=%s|define=%s|arch=%s|includes=%s', name, define, arch, includes))\13\
+end\"",
+        "xmake f -p windows -m release",
+        "xmake ",
+        "xmake build -v -y Comet",
+        "xmake build -v -y Comet",
+        "xmake build -v -y Comet",
+        "xmake build -v -y Comet",
+        "xmake build -v -y Comet",
+        "xmake build -v -y Comet",
+        "xmake build -v -y Comet",
+        "xmake c Comet",
+        [[xmake lua -c "import(\"core.project.config\"); config.load(); print(\"$(plat) $(arch) $(mode)\")"]],
+        [[xmake lua -c "import(\"core.project.config\"); import(\"core.project.project\"); config.load(); for name, _ in pairs((project.targets())) do print(name) end"]],
+        "xmake build -v -y Comet",
+        "xmake ",
+        [[xmake l c:\Users\ponpon\.vscode\extensions\tboox.xmake-vscode-2.5.9\assets\explorer.lua]],
+        [[xmake l c:\Users\ponpon\.vscode\extensions\tboox.xmake-vscode-2.5.9\assets\config.lua]],
+        "xmake check",
+        "xmake ",
+        "xmake check",
+        [[xmake l c:\Users\ponpon\.vscode\extensions\tboox.xmake-vscode-2.5.9\assets\explorer.lua]]
+    }
+}

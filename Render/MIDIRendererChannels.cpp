@@ -1,7 +1,7 @@
 #include "MIDIRendererChannels.h"
-#include "../App/MIDIApp.h"
-#include "../MIDI/Timer/MIDITimer.h"
-#include "../MIDI/TempoMap.h"
+#include "App/MIDIApp.h"
+#include "MIDI/Timer/MIDITimer.h"
+#include "MIDI/TempoMap.h"
 
 static const char* channelsVert = R"(#version 330 core
 layout (location = 0) in vec2 aPos;

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "../../MIDI/Timer/MIDITimer.h"
-#include "../../MIDI/MIDISequence.h"
-#include "../../MIDI/TempoMap.h"
-#include "../../Render/RenderView.h"
+#include "MIDI/Timer/MIDITimer.h"
+#include "MIDI/MIDISequence.h"
+#include "MIDI/TempoMap.h"
+#include "Render/RenderView.h"
 #include <memory>
 
 class NavigationBar

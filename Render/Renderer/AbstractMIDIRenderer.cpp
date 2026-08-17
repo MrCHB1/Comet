@@ -1,7 +1,7 @@
 #include "AbstractMIDIRenderer.h"
-#include "../../App/MIDIApp.h"
+#include "App/MIDIApp.h"
 #include "PrimitiveShaders.h"
-#include "../../App/Dialog/DialogMacros.h"
+#include "App/Dialog/DialogMacros.h"
 
 void AbstractMIDIRenderer::Initialize()
 {

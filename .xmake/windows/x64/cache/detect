@@ -1,0 +1,246 @@
+{
+    find_program = {
+        nim = false,
+        dotnet = [[C:\Program Files\dotnet\dotnet.exe]],
+        gzip = false,
+        zig = false,
+        ["7z"] = [[C:\Program Files\xmake\winenv\bin\7z]],
+        ["cl.exe"] = [[C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\cl.exe]],
+        git = [[C:\Program Files\Git\cmd\git.exe]],
+        ["C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\HostX64\\x64\\cl.exe"] = [[c:\program files\microsoft visual studio\2022\community\vc\tools\msvc\14.44.35207\bin\hostx64\x64\cl.exe]]
+    },
+    find_program_fetch_package_xmake = {
+        ninja = false,
+        cmake = false
+    },
+    find_program_fetch_package_system = {
+        ninja = [[C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja]],
+        cmake = [[C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake]]
+    },
+    find_program_msvc_arch_x64_plat_windows_checktoolcxx = {
+        ["cl.exe"] = [[C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\cl.exe]]
+    },
+    ["detect.sdks.find_dotnet"] = {
+        dotnet = {
+            sdks = {
+                {
+                    version = "9.0.312",
+                    directory = [[C:\Program Files\dotnet\sdk\9.0.312]]
+                }
+            },
+            runtimes = {
+                {
+                    version = "8.0.25",
+                    name = "Microsoft.AspNetCore.App"
+                },
+                {
+                    version = "9.0.14",
+                    name = "Microsoft.AspNetCore.App"
+                },
+                {
+                    version = "5.0.17",
+                    name = "Microsoft.NETCore.App"
+                },
+                {
+                    version = "8.0.25",
+                    name = "Microsoft.NETCore.App"
+                },
+                {
+                    version = "9.0.14",
+                    name = "Microsoft.NETCore.App"
+                },
+                {
+                    version = "5.0.17",
+                    name = "Microsoft.WindowsDesktop.App"
+                },
+                {
+                    version = "8.0.25",
+                    name = "Microsoft.WindowsDesktop.App"
+                },
+                {
+                    version = "9.0.14",
+                    name = "Microsoft.WindowsDesktop.App"
+                }
+            },
+            sdkver = "9.0.312",
+            bindir = [[C:\Program Files\dotnet]],
+            sdkdir = [[C:\Program Files\dotnet\sdk\9.0.312]],
+            version = "9.0.312"
+        }
+    },
+    find_program_msvc_arch_x64_plat_windows_checktoolld = {
+        ["link.exe"] = [[C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\link.exe]]
+    },
+    find_package_windows_x64_fetch_package_xmake = {
+        ["xmake::glad_728361337c5c4347a2bbe35cbbe1c092_release_v0.1.36_external"] = {
+            version = "v0.1.36",
+            links = {
+                "glad"
+            },
+            static = true,
+            linkdirs = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\g\glad\v0.1.36\728361337c5c4347a2bbe35cbbe1c092\lib]]
+            },
+            sysincludedirs = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\g\glad\v0.1.36\728361337c5c4347a2bbe35cbbe1c092\include]]
+            },
+            license = "MIT",
+            libfiles = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\g\glad\v0.1.36\728361337c5c4347a2bbe35cbbe1c092\lib\glad.lib]]
+            }
+        },
+        ["xmake::glfw_d59f6dd71e7647cc95d2c1d35e51a39a_release_3.4_external"] = {
+            syslinks = {
+                "user32",
+                "shell32",
+                "gdi32"
+            },
+            defines = "GLFW_INCLUDE_NONE",
+            license = "zlib",
+            links = {
+                "glfw3"
+            },
+            version = "3.4",
+            linkdirs = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\g\glfw\3.4\d59f6dd71e7647cc95d2c1d35e51a39a\lib]]
+            },
+            libfiles = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\g\glfw\3.4\d59f6dd71e7647cc95d2c1d35e51a39a\lib\glfw3.lib]]
+            },
+            sysincludedirs = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\g\glfw\3.4\d59f6dd71e7647cc95d2c1d35e51a39a\include]]
+            },
+            static = true
+        },
+        ["xmake::tbb_c1186432d2414cbab95cd10c0d4297a1_release_2022.1.0_external"] = {
+            defines = "__TBB_NO_IMPLICIT_LINKAGE",
+            version = "2022.1.0",
+            links = {
+                "tbb",
+                "tbbmalloc",
+                "tbbmalloc_proxy"
+            },
+            license = "Apache-2.0",
+            libfiles = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\t\tbb\2022.1.0\c1186432d2414cbab95cd10c0d4297a1\lib\tbb.lib]],
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\t\tbb\2022.1.0\c1186432d2414cbab95cd10c0d4297a1\lib\tbbmalloc.lib]],
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\t\tbb\2022.1.0\c1186432d2414cbab95cd10c0d4297a1\lib\tbbmalloc_proxy.lib]],
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\t\tbb\2022.1.0\c1186432d2414cbab95cd10c0d4297a1\lib\tbb12.lib]],
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\t\tbb\2022.1.0\c1186432d2414cbab95cd10c0d4297a1\bin\tbb12.dll]],
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\t\tbb\2022.1.0\c1186432d2414cbab95cd10c0d4297a1\bin\tbbmalloc.dll]],
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\t\tbb\2022.1.0\c1186432d2414cbab95cd10c0d4297a1\bin\tbbmalloc_proxy.dll]]
+            },
+            linkdirs = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\t\tbb\2022.1.0\c1186432d2414cbab95cd10c0d4297a1\lib]]
+            },
+            sysincludedirs = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\t\tbb\2022.1.0\c1186432d2414cbab95cd10c0d4297a1\include]]
+            },
+            shared = true,
+            static = true
+        },
+        ["xmake::glm_be4858b18f1c4ec49107db1df2647382_release_1.0.3_external"] = {
+            version = "1.0.3",
+            license = "MIT",
+            sysincludedirs = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\g\glm\1.0.3\be4858b18f1c4ec49107db1df2647382\include]]
+            }
+        },
+        ["xmake::imgui_e44674a633ef40f5b84eb0a27255fc7f_release_v1.92.9_external"] = {
+            version = "v1.92.9",
+            links = {
+                "imgui"
+            },
+            static = true,
+            syslinks = "imm32",
+            linkdirs = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\i\imgui\v1.92.9\e44674a633ef40f5b84eb0a27255fc7f\lib]]
+            },
+            license = "MIT",
+            sysincludedirs = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\i\imgui\v1.92.9\e44674a633ef40f5b84eb0a27255fc7f\include]],
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\i\imgui\v1.92.9\e44674a633ef40f5b84eb0a27255fc7f\include\imgui]],
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\i\imgui\v1.92.9\e44674a633ef40f5b84eb0a27255fc7f\include\backends]],
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\i\imgui\v1.92.9\e44674a633ef40f5b84eb0a27255fc7f\include\misc\cpp]]
+            },
+            libfiles = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\i\imgui\v1.92.9\e44674a633ef40f5b84eb0a27255fc7f\lib\imgui.lib]]
+            }
+        },
+        ["xmake::rtmidi_70d3dba6fdce413bacc1be977772f16f_release_6.0.0_external"] = {
+            version = "6.0.0",
+            links = {
+                "rtmidi"
+            },
+            syslinks = "winmm",
+            linkdirs = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\r\rtmidi\6.0.0\70d3dba6fdce413bacc1be977772f16f\lib]]
+            },
+            static = true,
+            sysincludedirs = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\r\rtmidi\6.0.0\70d3dba6fdce413bacc1be977772f16f\include]]
+            },
+            libfiles = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\r\rtmidi\6.0.0\70d3dba6fdce413bacc1be977772f16f\lib\rtmidi.lib]]
+            }
+        },
+        ["xmake::yaml-cpp_c0926e9bd3924318a735576bfb7ca8f2_release_0.8.0_external"] = {
+            version = "0.8.0",
+            links = {
+                "yaml-cpp"
+            },
+            static = true,
+            license = "MIT",
+            linkdirs = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\y\yaml-cpp\0.8.0\c0926e9bd3924318a735576bfb7ca8f2\lib]]
+            },
+            sysincludedirs = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\y\yaml-cpp\0.8.0\c0926e9bd3924318a735576bfb7ca8f2\include]]
+            },
+            defines = "YAML_CPP_STATIC_DEFINE",
+            libfiles = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\y\yaml-cpp\0.8.0\c0926e9bd3924318a735576bfb7ca8f2\lib\yaml-cpp.lib]]
+            }
+        },
+        ["xmake::miniz_b78f8b3f4f29409795bb793d5b1b9f2d_release_3.1.1_external"] = {
+            version = "3.1.1",
+            links = {
+                "miniz"
+            },
+            static = true,
+            license = "MIT",
+            linkdirs = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\m\miniz\3.1.1\b78f8b3f4f29409795bb793d5b1b9f2d\lib]]
+            },
+            sysincludedirs = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\m\miniz\3.1.1\b78f8b3f4f29409795bb793d5b1b9f2d\include]],
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\m\miniz\3.1.1\b78f8b3f4f29409795bb793d5b1b9f2d\include\miniz]]
+            },
+            defines = "MINIZ_STATIC_DEFINE",
+            libfiles = {
+                [[C:\Users\ponpon\AppData\Local\.xmake\packages\m\miniz\3.1.1\b78f8b3f4f29409795bb793d5b1b9f2d\lib\miniz.lib]]
+            }
+        }
+    },
+    find_programver = {
+        ["C:\\Program Files\\dotnet\\dotnet.exe"] = "9.0.312"
+    },
+    find_programver_fetch_package_system = {
+        ["C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake"] = "3.31.6-msvc6",
+        ["C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja\\ninja"] = "1.12.1"
+    },
+    ["lib.detect.has_flags"] = {
+        ["windows_x64_c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.44.35207\\bin\\hostx64\\x64\\cl.exe__cc_cxflags_-nologo_-DNDEBUG"] = true,
+        ["windows_x64_c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.44.35207\\bin\\hostx64\\x64\\cl.exe__cc__-nologo_-O2"] = true,
+        ["windows_x64_c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.44.35207\\bin\\hostx64\\x64\\cl.exe__cxx_cxflags_-nologo_-DNDEBUG"] = true,
+        ["windows_x64_c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.44.35207\\bin\\hostx64\\x64\\cl.exe__cxx_cxflags_-nologo_cl_external_includedir"] = true,
+        ["windows_x64_c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.44.35207\\bin\\hostx64\\x64\\cl.exe__cc_cxflags_-nologo_cl_external_includedir"] = true,
+        ["windows_x64_c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.44.35207\\bin\\hostx64\\x64\\cl.exe__cxx_cxflags_-nologo_cl_sourceDependencies"] = true,
+        ["windows_x64_c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.44.35207\\bin\\hostx64\\x64\\cl.exe__cc_cxflags_-nologo_cl_sourceDependencies"] = true,
+        ["windows_x64_c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.44.35207\\bin\\hostx64\\x64\\cl.exe__cxx__-nologo_-O2"] = true,
+        ["windows_x64_c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.44.35207\\bin\\hostx64\\x64\\cl.exe__cxx_cxflags_-nologo_-std:c++20"] = true
+    },
+    find_program_msvc_arch_x64_plat_windows_checktoolcc = {
+        ["cl.exe"] = [[C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\cl.exe]]
+    }
+}

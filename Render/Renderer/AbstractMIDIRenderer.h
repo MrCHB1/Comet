@@ -7,7 +7,7 @@
 #include "../RenderEngine/Buffers.h" // needed for getting Framebuffer
 #include "../ColorAsset.h"
 #include "../NoteCounter/NoteCounterInfo.h"
-#include "../../Config/MIDIPlayerConfig.h"
+#include "Config/MIDIPlayerConfig.h"
 #include "QuadDrawer.h"
 
 #define LOAD_VAL(n, key, target) \

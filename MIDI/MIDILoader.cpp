@@ -2,8 +2,8 @@
 
 #include "MIDILoader.h"
 #include <filesystem>
-#include "../IO/BufferedByteReader.h"
-#include "../Comet.h"
+#include "IO/BufferedByteReader.h"
+#include "Comet.h"
 #include <algorithm>
 #include "Sequence/SequenceFuncs.h"
 #include "TempoMap.h"
