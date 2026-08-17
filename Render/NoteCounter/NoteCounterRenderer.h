@@ -2,7 +2,7 @@
 
 #include "NoteCounterInfo.h"
 #include "NoteCounterStyles.h"
-#include "Config/MIDIPlayerConfig.h"
+#include "../../Config/MIDIPlayerConfig.h"
 #include <memory>
 #include <array>
 #include <glm/glm.hpp>

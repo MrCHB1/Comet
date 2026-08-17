@@ -1,7 +1,9 @@
 #pragma once
 
+#include "imgui.h"
+
 #include "ConfigSection.h"
-#include "MIDI/MIDIDefs.h"
+#include "../MIDI/MIDIDefs.h"
 #include <string>
 
 enum class RendererType
