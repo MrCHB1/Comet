@@ -1,6 +1,6 @@
 #include "ColorAsset.h"
 #include "imgui.h"
-#include "../stb_image.h"
+#include "stb_image.h"
 
 void ColorAsset::ResetColors()
 {

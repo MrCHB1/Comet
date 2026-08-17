@@ -3,7 +3,6 @@
 #include <vector>
 #include <sstream>
 #include <iostream>
-#include <cstring>
 
 static WAVEFORMATEX waveFormatStatic = WAVEFORMATEX{};
 static int fontCount = 0;
@@ -33,13 +32,11 @@ BASSMIDI::BASSMIDI(int voices, bool nofx = true)
 		0x800000,
 		waveFormatStatic.nSamplesPerSec);
 
-#ifdef WIN32
 	if (streamHandle == -1)
 	{
 		int err = BASS_ErrorGetCode();
 		MessageBoxW(NULL, L"BASSMIDI Handle failed to load!\0", L"Error\0", MB_ICONERROR);
 	}
-#endif
 
 	BASS_ChannelSetAttribute(streamHandle, BASS_ATTRIB_MIDI_VOICES, voices);
 	BASS_ChannelSetAttribute(streamHandle, BASS_ATTRIB_SRC, 3);
@@ -215,13 +212,11 @@ DWORD BASSMIDI::Read(float* buffer, int offset, int count) {
 	DWORD size = count * sizeof(float);
 	DWORD ret = BASS_ChannelGetData(streamHandle, buffer + offset, size | BASS_DATA_FLOAT);
 
-#ifdef WIN32
 	if (ret == (DWORD)-1)
 	{
 		int err = BASS_ErrorGetCode();
 		MessageBoxW(NULL, L"Error\0", L"Error\0", MB_ICONERROR);
 		return 0;
 	}
-#endif
 	return ret / 4;
 }

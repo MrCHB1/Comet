@@ -1,7 +1,7 @@
 #pragma once
 
 /* Mimicks how PFA(viz) does the rendering, ensuring a 1:1 replica (at least visually). */
-#include "../MIDI/MIDIDefs.h"
+#include "MIDI/MIDIDefs.h"
 #include "Renderer/AbstractMIDIRenderer.h"
 #include "RenderEngine/Buffers.h"
 #include "RenderEngine/Shaders.h"

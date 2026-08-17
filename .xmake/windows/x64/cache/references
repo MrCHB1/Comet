@@ -1,0 +1,12 @@
+{
+    packages = {
+        [[C:\Users\ponpon\AppData\Local\.xmake\packages\g\glfw\3.4\d59f6dd71e7647cc95d2c1d35e51a39a]],
+        [[C:\Users\ponpon\AppData\Local\.xmake\packages\i\imgui\v1.92.9\e44674a633ef40f5b84eb0a27255fc7f]],
+        [[C:\Users\ponpon\AppData\Local\.xmake\packages\g\glad\v0.1.36\728361337c5c4347a2bbe35cbbe1c092]],
+        [[C:\Users\ponpon\AppData\Local\.xmake\packages\g\glm\1.0.3\be4858b18f1c4ec49107db1df2647382]],
+        [[C:\Users\ponpon\AppData\Local\.xmake\packages\m\miniz\3.1.1\b78f8b3f4f29409795bb793d5b1b9f2d]],
+        [[C:\Users\ponpon\AppData\Local\.xmake\packages\r\rtmidi\6.0.0\70d3dba6fdce413bacc1be977772f16f]],
+        [[C:\Users\ponpon\AppData\Local\.xmake\packages\y\yaml-cpp\0.8.0\c0926e9bd3924318a735576bfb7ca8f2]],
+        [[C:\Users\ponpon\AppData\Local\.xmake\packages\t\tbb\2022.1.0\c1186432d2414cbab95cd10c0d4297a1]]
+    }
+}

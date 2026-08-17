@@ -4,8 +4,8 @@
 #include <yaml-cpp/yaml.h>
 
 #include "MIDIOut.h"
-#include "../MIDISequence.h"
-#include "../Timer/MIDITimer.h"
+#include "MIDI/MIDISequence.h"
+#include "MIDI/Timer/MIDITimer.h"
 
 class MIDIAudio;
 

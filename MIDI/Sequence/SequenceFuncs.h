@@ -2,8 +2,8 @@
 
 #include "../Events/MIDIEvent.h"
 #include "../Events/NoteEvent.h"
-#include "../TempoMap.h"
-#include "../MIDIDefs.h"
+#include "MIDI/TempoMap.h"
+#include "MIDI/MIDIDefs.h"
 #include <vector>
 #include <algorithm>
 #include <iterator>

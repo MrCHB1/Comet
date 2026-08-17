@@ -1,5 +1,5 @@
 #include "Shaders.h"
-#include "../../Comet.h"
+#include "Comet.h"
 #include <fstream>
 #include <string>
 #include <iostream>

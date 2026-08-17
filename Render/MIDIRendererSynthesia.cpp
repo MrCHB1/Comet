@@ -1,10 +1,10 @@
 #include "MIDIRendererSynthesia.h"
-#include "../Utils.h"
-#include "../App/MIDIApp.h"
-#include "../MIDI/Timer/MIDITimer.h"
-#include "../MIDI/TempoMap.h"
+#include "Utils.h"
+#include "App/MIDIApp.h"
+#include "MIDI/Timer/MIDITimer.h"
+#include "MIDI/TempoMap.h"
 #include "RenderView.h"
-#include "../App/Dialog/DialogMacros.h"
+#include "App/Dialog/DialogMacros.h"
 #include <memory>
 #include <algorithm>
 

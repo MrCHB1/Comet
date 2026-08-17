@@ -4,7 +4,6 @@
 #include <bass.h>
 #include <bassmidi.h>
 #include <vector>
-#include <string>
 
 class BASSMIDI
 {
