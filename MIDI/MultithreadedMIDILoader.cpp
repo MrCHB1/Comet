@@ -120,7 +120,7 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 #pragma endregion
 
 #pragma region Sequential Assembly 
-	// Step 3: Combine parsed chunks back into the main structural sequence sequentially.
+
 	std::vector<int> illegalTracks{};
 	int noteTrackIdx = 0;
 
@@ -137,7 +137,6 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 			seq->tracks.emplace_back(0, std::move(trackRes.notes), std::move(trackRes.events));
 		}
 
-		// Collect parsed global tempo events from tracks
 		if (!trackRes.tempos.empty())
 		{
 			seq->tempos.insert(seq->tempos.end(), trackRes.tempos.begin(), trackRes.tempos.end());
