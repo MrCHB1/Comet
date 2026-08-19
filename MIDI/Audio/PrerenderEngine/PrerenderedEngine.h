@@ -47,6 +47,11 @@ public:
     // UI for soundfonts and voices
     void RenderSettings() override;
 
+    double GetBufferSeconds()
+    {
+        std::lock_guard<std::mutex> lock(bufferMutex);
+        return std::max(0, bufferWritePos - bufferReadPos) / (float)SAMPLE_RATE;
+    }
 private:
     int GetSkippingVelocity()
     {
@@ -85,11 +90,6 @@ private:
         return startTime + bufferReadPos / 48000.0;
     }
 
-    double GetBufferSeconds()
-    {
-        std::lock_guard<std::mutex> lock(bufferMutex);
-        return std::max(0, bufferWritePos - bufferReadPos) / 48000.0;
-    }
     void WrappedCopy(float* src, int pos, int srcCount, float* dst, int pos2, int count);
     void ResizeBuffer(double newBufferLengthSecs);
 

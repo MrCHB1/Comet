@@ -32,6 +32,7 @@
 #include "Render/BlurredQuadRenderer.h"
 #include "FFmpeg/FFmpegPipe.h"
 #include "MIDI/Audio/MIDIAudio.h"
+#include "MIDI/Audio/PrerenderEngine/PrerenderedEngine.h"
 #include "Models.h"
 #include "UI/Themes/Themes.h"
 #include "FontList.h"
@@ -317,10 +318,9 @@ void MIDIApp::Update()
 	{
 		double time = Utils::GetCurrTime<std::chrono::microseconds>() / 1000000.0;
 		renderer->Render(time - lastFrameTime);
-		noteCounterInfo->fps = 1.0 / (time - lastFrameTime);
+		UpdateNoteCounterInfo();
 		lastFrameTime = time;
 	}
-
 
 	// make sure the render framebuffer is bound
 	renderFramebuffer->Bind();
@@ -380,6 +380,18 @@ void MIDIApp::Update()
 		{
 			timer->Pause();
 		}
+	}
+}
+
+void MIDIApp::UpdateNoteCounterInfo()
+{
+	double time = Utils::GetCurrTime<std::chrono::microseconds>() / 1000000.0;
+	noteCounterInfo->fps = 1.0 / (time - lastFrameTime);
+	noteCounterInfo->audioBuffer = -1.0;
+	auto* prAudio = dynamic_cast<PrerenderedEngine*>(GetMIDIAudio()->GetCurrentEngine());
+	if (prAudio)
+	{
+		noteCounterInfo->audioBuffer = prAudio->GetBufferSeconds();
 	}
 }
 

@@ -8,6 +8,8 @@
 #include <future>
 #include "MIDISequence.h"
 
+class BufferedByteReader;
+
 class MultithreadedMIDILoader : public AbstractMIDILoader
 {
 public:
@@ -32,6 +34,7 @@ private:
 	std::shared_ptr<MIDISequence> seq;
 	std::shared_ptr<InputStream> is;
 	std::shared_ptr<ProgressInputStream> pis;
+	std::mutex fileMutex;
 
 	std::atomic<bool> running{ false };
 	std::atomic<size_t> tracksProcessed{ 0 };
@@ -40,7 +43,7 @@ private:
 	struct RawTrackChunk
 	{
 		size_t index;
-		std::vector<uint8_t> data;
+		std::unique_ptr<BufferedByteReader> reader;
 	};
 
 	// output structure for an isolated track parsing session
@@ -48,7 +51,8 @@ private:
 	{
 		size_t trackIndex;
 		size_t numNotes = 0;
-		std::vector<MIDITrack> channelTracks;
+		NoteSequence notes;
+		std::vector<MIDIMessageEvent> events;
 		std::vector<TempoEvent> tempos;
 		std::vector<TimeSignatureEvent> timeSignatures;
 		bool mixedChannelsInTrack = false;
@@ -57,4 +61,5 @@ private:
 
 	// isolated worker task to optimize cache usage and eliminate synchronization locks
 	ParsedTrackResult ParseTrackData(const RawTrackChunk& chunk);
+	uint32_t ReadVLQ(BufferedByteReader* reader);
 };

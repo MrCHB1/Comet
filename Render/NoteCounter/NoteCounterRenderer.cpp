@@ -118,7 +118,7 @@ void NoteCounterRenderer::RenderUMP(float counterScale)
 		// hence why it was wider than usual when the scake is 1.0 :/
 
 		struct CounterRow { const char* label; char value[64]; };
-		CounterRow rows[7];
+		CounterRow rows[8];
 		int rowCount = 0;
 
 		if (noteCounterInfo->tick.shown)
@@ -158,12 +158,24 @@ void NoteCounterRenderer::RenderUMP(float counterScale)
 			rows[rowCount].label = "Polyphony";
 			rowCount++;
 		}
-		if (noteCounterInfo->fps.shown && !app->IsRendering())
+		if (!app->IsRendering())
 		{
-			FormatText(rows[rowCount].value, "%.1f", noteCounterInfo->fps.value);
-			rows[rowCount].label = "FPS";
-			rowCount++;
+			if (noteCounterInfo->fps.shown)
+			{
+				FormatText(rows[rowCount].value, "%.1f", noteCounterInfo->fps.value);
+				rows[rowCount].label = "FPS";
+				rowCount++;
+			}
+
+			if (noteCounterInfo->audioBuffer.shown)
+			{
+				double buffer = noteCounterInfo->audioBuffer.value;
+				FormatText(rows[rowCount].value, buffer < -0.5 ? "N/A" : Utils::FormatDuration2(buffer * 1000).c_str(), buffer);
+				rows[rowCount].label = "Buffer";
+				rowCount++;
+			}
 		}
+		
 
 		float labelColWidth = 0.0f, valueColWidth = 0.0f;
 		for (int i = 0; i < rowCount; i++)

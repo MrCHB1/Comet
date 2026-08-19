@@ -16,6 +16,14 @@ set(FETCHCONTENT_QUIET OFF)
 include(FetchContent)
 
 FetchContent_Declare(
+    hwy
+    GIT_REPOSITORY https://github.com/google/highway.git
+    GIT_TAG 1.4.0
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(hwy)
+
+FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
     GIT_TAG docking
@@ -174,6 +182,7 @@ set_source_files_properties(
  )
 
 target_link_libraries(Comet PRIVATE
+    hwy
     imgui
     nfd
     glad

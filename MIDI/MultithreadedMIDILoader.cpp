@@ -4,6 +4,7 @@
 #include <execution>
 #include "Sequence/SequenceFuncs.h"
 #include "TempoMap.h"
+#include "IO/BufferedByteReader.h"
 
 MultithreadedMIDILoader::MultithreadedMIDILoader(const char* file) : AbstractMIDILoader(file)
 {
@@ -42,7 +43,7 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 
 	SetName("Loading MIDI File...");
 
-	#pragma region Header Parse
+#pragma region Header Parse
 	std::vector<uint8_t> header(14);
 	pis->Read(header.data(), 14);
 	uint8_t* hdrP = header.data();
@@ -55,9 +56,9 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 	uint16_t tracks = ToShort(hdrP); hdrP += 2;
 	seq->trackCount = tracks;
 	seq->resolution = ToShort(hdrP);
-	#pragma endregion
-	
-	#pragma region Sequential Track Ingestion
+#pragma endregion
+
+#pragma region Sequential Track Ingestion
 
 	std::vector<RawTrackChunk> rawChunks;
 	rawChunks.reserve(tracks);
@@ -69,25 +70,26 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 		pis->Read(chunkHdr, 8);
 		if (ToInt(chunkHdr) != 0x4D54726B) throw std::runtime_error("Invalid track header");
 
+		size_t start = pis->GetPosition();
 		uint32_t trackLength = ToInt(chunkHdr + 4);
 
 		RawTrackChunk chunk;
 		chunk.index = i;
-		chunk.data.resize(trackLength);
-		pis->Read(chunk.data.data(), trackLength);
+		chunk.reader = std::make_unique<BufferedByteReader>(pis->GetStream(), start, trackLength, 100000, &fileMutex);
+		pis->Seek(start + trackLength, SEEK_SET);
 
 		rawChunks.push_back(std::move(chunk));
 	}
-	pis->Close();
-	#pragma endregion
+	
+#pragma endregion
 
-	#pragma region Parallel Track Parsing
+#pragma region Parallel Track Parsing
 
 	std::vector<ParsedTrackResult> parsedTrackResults(tracks);
 	std::atomic<size_t> currentTrackIdx{ 0 };
 
 	unsigned int hardwareThreads = std::thread::hardware_concurrency();
-	if (hardwareThreads == 0) hardwareThreads = 4;
+	if (hardwareThreads == 0) hardwareThreads = 16;
 	unsigned int numThreads = std::min((unsigned int)tracks, hardwareThreads);
 
 	std::vector<std::thread> workers;
@@ -106,7 +108,7 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 				parsedTrackResults[idx] = ParseTrackData(rawChunks[idx]);
 				tracksProcessed++;
 			}
-		});
+			});
 	}
 
 	for (auto& worker : workers)
@@ -114,9 +116,10 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 		if (worker.joinable()) worker.join();
 	}
 
-	#pragma endregion
-	
-	#pragma region Sequential Assembly 
+	pis->Close();
+#pragma endregion
+
+#pragma region Sequential Assembly 
 	// Step 3: Combine parsed chunks back into the main structural sequence sequentially.
 	std::vector<int> illegalTracks{};
 	int noteTrackIdx = 0;
@@ -129,24 +132,9 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 		seq->length = std::max(seq->length, trackRes.length);
 		seq->notes += trackRes.numNotes;
 
-		int activeChannelsInTrack = 0;
-		for (auto& channelTrack : trackRes.channelTracks)
+		if (!trackRes.notes.Empty() || !trackRes.events.empty())
 		{
-			if (!channelTrack.notes.Empty())
-			{
-				size_t noteCount = channelTrack.notes.Size();
-				for (size_t k = 0; k < noteCount; k++)
-				{
-					channelTrack.notes.track[k] = noteTrackIdx;
-				}
-				noteTrackIdx++;
-				activeChannelsInTrack++;
-			}
-
-			if (!channelTrack.notes.Empty() || !channelTrack.messages.empty())
-			{
-				seq->tracks.push_back(std::move(channelTrack));
-			}
+			seq->tracks.emplace_back(0, std::move(trackRes.notes), std::move(trackRes.events));
 		}
 
 		// Collect parsed global tempo events from tracks
@@ -163,49 +151,14 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 		{
 			seq->timeSignatures.emplace_back(0, 4, 4);
 		}
-
-		if (activeChannelsInTrack >= 2)
-		{
-			illegalTracks.push_back(trackRes.trackIndex);
-		}
 	}
-	#pragma endregion
-	
-	#pragma region Post-processing & Merging
+#pragma endregion
+
+#pragma region Post-processing & Merging
 	seq->noteTrackCount = noteTrackIdx;
 
 	std::sort(std::execution::par_unseq, seq->tempos.begin(), seq->tempos.end(), [](auto& a, auto& b) { return a.tick < b.tick; });
 	std::sort(std::execution::par_unseq, seq->timeSignatures.begin(), seq->timeSignatures.end(), [](auto& a, auto& b) { return a.tick < b.tick; });
-
-	for (size_t i = 0; i < seq->tracks.size(); i++)
-	{
-		std::cout << "  Preprocessing notes of track " << i << "/" << seq->tracks.size() << std::endl;
-
-		auto& trackNotes = seq->tracks[i].notes;
-		if (!trackNotes.Empty())
-		{
-			std::vector<size_t> indices(trackNotes.Size());
-			std::iota(indices.begin(), indices.end(), 0);
-
-			// Execute parallel sorting on the indices
-			std::sort(std::execution::par_unseq, indices.begin(), indices.end(), [&](size_t a, size_t b) {
-				return trackNotes.tick[a] < trackNotes.tick[b];
-				});
-
-			// Re-assemble SoA in sorted order
-			NoteSequence sortedNotes;
-			sortedNotes.Reserve(trackNotes.Size());
-			for (size_t idx : indices)
-			{
-				sortedNotes.Emplace(
-					trackNotes.track[idx], trackNotes.channel[idx],
-					trackNotes.tick[idx], trackNotes.note[idx],
-					trackNotes.gate[idx], trackNotes.vel[idx]
-				);
-			}
-			seq->tracks[i].notes = std::move(sortedNotes);
-		}
-	}
 
 	// handle edge cases for tempos
 	if (seq->tempos.empty())
@@ -229,6 +182,7 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 	seq->tracks.shrink_to_fit();
 
 	std::cout << "  Parsing finished! Merging events..." << std::endl;
+	SetName("Parsing finished! Merging events...");
 
 	std::vector<NoteSequence> toMerge(seq->tracks.size());
 	std::vector<std::vector<MIDIMessageEvent>> eventsToMerge(seq->tracks.size());
@@ -250,6 +204,7 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 
 	if (timeBasedLoading)
 	{
+		SetName("Applying tempo events...");
 		TempoMap* tempoMap = seq->GetTempoMap();
 		for (auto& notes : seq->mergedNotes)
 		{
@@ -261,6 +216,7 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 
 	seq->timeBased = timeBasedLoading;
 
+	SetName("Done!");
 	std::cout << "MIDI has successfully loaded." << std::endl;
 	std::cout << "  " << seq->tempos.size() << " Tempo events" << std::endl;
 	std::cout << "  " << seq->timeSignatures.size() << " Time signature events" << std::endl;
@@ -282,7 +238,6 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 	}
 
 #pragma endregion
-
 	return seq;
 }
 
@@ -290,174 +245,193 @@ MultithreadedMIDILoader::ParsedTrackResult MultithreadedMIDILoader::ParseTrackDa
 {
 	ParsedTrackResult result;
 	result.trackIndex = chunk.index;
-	result.channelTracks.resize(16);
+	auto* reader = chunk.reader.get();
 
-	// Pre-allocation heuristic for Black MIDIs to drastically lower re-alloc overhead
-	size_t estimatedNotesPerChannel = chunk.data.size() / 16 / 4;
-	for (int c = 0; c < 16; ++c)
+	std::array<std::vector<size_t>, MIDI_KEYS << 4> unendedNotes{};
+	size_t currNoteId = 0;
+
+	uint32_t currTick = 0;
+	uint8_t prevCommand = 0;
+	bool ended = false;
+
+	auto& notes = result.notes;
+	auto& messages = result.events;
+
+	while (running && !ended)
 	{
-		result.channelTracks[c].notes.Reserve(estimatedNotesPerChannel);
-		if (!loadOnlyNotes) result.channelTracks[c].messages.reserve(estimatedNotesPerChannel / 2);
-	}
-
-	// Completely isolated state storage mapping per thread
-	std::array<std::vector<size_t>, 2048> threadUnendedNotes{};
-	NoteSequence threadNoteOns;
-	threadNoteOns.Reserve(chunk.data.size() / 4);
-
-	size_t localCurrNoteId = 0;
-	const uint8_t* p = chunk.data.data();
-	const uint8_t* end = p + chunk.data.size();
-
-	bool read = true;
-	long tick = 0L;
-	uint8_t lastStatus = 0;
-
-	while (p < end && read && running)
-	{
-		tick += (long)ReadVariableLengthValue(p, end);
-		if (p >= end) break;
-
-		uint8_t b = *p++;
-
-		if (b == 0xFF)
+		uint32_t delta = ReadVLQ(reader);
+		currTick += delta;
+		uint8_t command = reader->ReadByte();
+		if (command < 0x80)
 		{
-			if (p >= end) break;
-			uint8_t type = *p++;
-			uint32_t len = ReadVariableLengthValue(p, end);
+			reader->Seek(-1, SEEK_CUR);
+			command = prevCommand;
+		}
+		prevCommand = command;
 
-			switch (type)
+		uint8_t channel = command & 0x0F;
+		switch (command & 0xF0)
+		{
+			case 0x80:
 			{
-			case 0x2F:
-				read = false;
-				p += len;
-				continue;
-			case 0x51:
-				if (len == 3)
+				uint8_t key = reader->ReadByte();
+				reader->Skip(1);
+
+				auto& un = unendedNotes[((size_t)key << 4) | (size_t)channel];
+				if (!un.empty())
 				{
-					long msec = ((long)p[0] << 16) | ((long)p[1] << 8) | (long)p[2];
-					if (msec != 0)
-					{
-						double bpm = 6.0e7 / (double)msec;
-						result.tempos.emplace_back(tick, bpm);
-					}
+					size_t n = un.back();
+					un.pop_back();
+					notes.gate[n] = currTick - notes.tick[n];
 				}
-				p += len;
-				continue;
-			case 0x58:
-				if (len == 4)
-				{
-					uint8_t numerator = p[0];
-					uint8_t denominator = (1 << p[1]);
-					result.timeSignatures.emplace_back(tick, numerator, denominator);
-				}
-				p += len;
-				continue;
-			default:
-				p += len;
+
 				continue;
 			}
-		}
-
-		if (b == 0xF0 || b == 0xF7)
-		{
-			p += ReadVariableLengthValue(p, end);
-			continue;
-		}
-		if (b == 0xF2) { p += 2; continue; }
-		if (b == 0xF3) { ++p; continue; }
-		if (b >= 0xF8) continue;
-
-		uint8_t status, data1;
-		if ((b & 0x80) != 0)
-		{
-			status = b;
-			lastStatus = status;
-			data1 = *p++;
-		}
-		else
-		{
-			status = lastStatus;
-			data1 = b;
-		}
-
-		uint8_t channel = (uint8_t)(status & 0x0F);
-
-		switch (status & 0xF0)
-		{
-		case 0x80:
-		{
-			++p; // Skip velocity
-			if (data1 >= 0x80) continue;
-
-			uint16_t idx = ((uint16_t)data1 << 4) | channel;
-			if (!threadUnendedNotes[idx].empty())
+			case 0x90:
 			{
-				size_t n = threadUnendedNotes[idx].back();
-				threadUnendedNotes[idx].pop_back();
-				if (n < threadNoteOns.Size())
+				uint8_t key = reader->ReadByte();
+				uint8_t vel = reader->ReadByte();
+
+				auto& un = unendedNotes[((size_t)key << 4) | (size_t)channel];
+
+				if (vel > 0)
 				{
-					long nTick = threadNoteOns.tick[n];
-					uint32_t gate = (tick <= nTick) ? 1 : (uint32_t)(tick - nTick);
-					result.channelTracks[channel].notes.Emplace(
-						chunk.index, channel, nTick, threadNoteOns.note[n], gate, threadNoteOns.vel[n]
-					);
+					notes.Emplace(chunk.index, channel, currTick, key, (uint32_t)(-1), vel);
+					un.push_back(currNoteId);
+					currNoteId++;
 					result.numNotes++;
 				}
-			}
-			continue;
-		}
-		case 0x90:
-		{
-			uint8_t vel = *p++;
-			if (data1 >= 0x80) continue;
-			if (vel == 0)
-			{
-				uint16_t idx = ((uint16_t)data1 << 4) | channel;
-				if (!threadUnendedNotes[idx].empty())
+				else if (!un.empty())
 				{
-					size_t n = threadUnendedNotes[idx].back();
-					threadUnendedNotes[idx].pop_back();
-					if (n < threadNoteOns.Size())
-					{
-						long nTick = threadNoteOns.tick[n];
-						uint32_t gate = (tick <= nTick) ? 1 : (uint32_t)(tick - nTick);
-
-						result.channelTracks[channel].notes.Emplace(
-							chunk.index, channel, nTick, threadNoteOns.note[n], gate, threadNoteOns.vel[n]
-						);
-						result.numNotes++;
-					}
+					size_t n = un.back();
+					un.pop_back();
+					notes.gate[n] = currTick - notes.tick[n];
 				}
 				continue;
 			}
+			case 0xA0:
+			case 0xB0:
+			case 0xE0:
+			{
+				uint8_t data1 = reader->ReadByte();
+				uint8_t data2 = reader->ReadByte();
 
-			threadNoteOns.Emplace(chunk.index, channel, tick, data1, 0, vel);
-			uint16_t index = ((uint16_t)data1 << 4) | channel;
-			threadUnendedNotes[index].push_back(localCurrNoteId++);
-			continue;
-		}
-		case 0xA0:
-		case 0xB0:
-		case 0xE0:
-		{
-			uint8_t val2 = *p++;
-			if (loadOnlyNotes) continue;
-			result.channelTracks[channel].messages.emplace_back(tick, ((uint32_t)val2 << 16) | ((uint32_t)data1 << 8) | (uint32_t)status);
-			continue;
-		}
-		case 0xC0:
-		case 0xD0:
-		{
-			if (loadOnlyNotes) continue;
-			result.channelTracks[channel].messages.emplace_back(tick, ((uint32_t)data1 << 8) | (uint32_t)status);
-			continue;
-		}
-		default:
-			continue;
+				if (loadOnlyNotes) continue;
+
+				messages.emplace_back(
+					currTick,
+					((uint32_t)data2 << 16) | ((uint32_t)data1 << 8) | (uint32_t)command
+				);
+				continue;
+			}
+
+			case 0xC0:
+			case 0xD0:
+			{
+				uint8_t data1 = reader->ReadByte();
+
+				if (loadOnlyNotes) continue;
+
+				messages.emplace_back(
+					currTick,
+					((uint32_t)data1 << 8) | (uint32_t)command
+				);
+				continue;
+			}
+			case 0xF0:
+			{
+
+				if (command == 0xFF)
+				{
+					uint8_t type = reader->ReadByte();
+					uint32_t len = ReadVLQ(reader);
+
+					switch (type)
+					{
+					case 0x2F:
+						ended = true;
+						continue;
+					case 0x51:
+						if (len == 3)
+						{
+							long msec = ((long)reader->ReadByte() << 16) | ((long)reader->ReadByte() << 8) | (long)reader->ReadByte();
+							if (msec == 0)
+								throw std::runtime_error("Infinity BPM");
+							double bpm = 6.0e7 / (double)msec;
+							result.tempos.emplace_back(currTick, bpm);
+						}
+						else
+						{
+							reader->Skip(len);
+						}
+						continue;
+					case 0x58:
+						if (len == 4)
+						{
+							uint8_t numerator = reader->ReadByte();
+							uint8_t denominator = (1 << reader->ReadByte());
+							// 3 and 4 are omitted until it's actually needed
+							reader->Skip(2);
+							result.timeSignatures.emplace_back(currTick, numerator, denominator);
+						}
+						else
+						{
+							reader->Skip(len);
+						}
+
+						continue;
+					case 0x0A:
+					{
+						std::cout << "Color events will be implemented soon" << std::endl;
+						reader->Skip(len);
+						continue;
+					}
+					default:
+						reader->Skip(len);
+						continue;
+					}
+				}
+
+				if (command == 0xF0 || command == 0xF7)
+				{
+					uint32_t len = ReadVLQ(reader);
+					reader->Skip(len);
+					continue;
+				}
+
+				if (command == 0xF2)
+				{
+					reader->Skip(2);
+					continue;
+				}
+
+				if (command == 0xF3)
+				{
+					reader->Skip(1);
+					continue;
+				}
+
+				if (command >= 0xF8)
+				{
+					continue;
+				}
+
+				continue;
+			}
 		}
 	}
-
-	result.length = tick;
+	result.length = currTick;
 	return result;
+}
+
+uint32_t MultithreadedMIDILoader::ReadVLQ(BufferedByteReader* reader)
+{
+	uint32_t vlq = 0;
+	while (true)
+	{
+		uint8_t b = reader->ReadByte();
+		vlq = (vlq << 7) | ((uint32_t)(b & 0x7F));
+		if (!(b & 0x80)) break;
+	}
+	return vlq;
 }

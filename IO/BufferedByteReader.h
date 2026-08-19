@@ -15,8 +15,8 @@ public:
 		bytes = nullptr;
 	}
 
-	BufferedByteReader(const BufferedByteReader&) = delete;
-	BufferedByteReader& operator=(const BufferedByteReader&) = delete;
+	// BufferedByteReader(const BufferedByteReader&) = delete;
+	// BufferedByteReader& operator=(const BufferedByteReader&) = delete;
 
 	void Read(uint8_t* dst, size_t size) override;
 	void Skip(size_t nbytes);
