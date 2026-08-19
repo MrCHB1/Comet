@@ -54,6 +54,16 @@ struct NoteSequence
 		vel.reserve(cap);
 	}
 
+	void Resize(size_t count)
+	{
+		track.resize(count);
+		channel.resize(count);
+		tick.resize(count);
+		gate.resize(count);
+		note.resize(count);
+		vel.resize(count);
+	}
+
 	size_t Size() const { return tick.size(); }
 	bool Empty() const { return tick.empty(); }
 

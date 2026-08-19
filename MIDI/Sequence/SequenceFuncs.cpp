@@ -13,11 +13,12 @@ NoteSequence SequenceFuncs::FlattenSequence(std::vector<NoteSequence>&& tracks)
 
     NoteSequence result;
     if (totalSize == 0) return result;
+    result.Reserve(totalSize);
 
     struct TrackHead
     {
-        size_t trackIdx;
         size_t elementIdx;
+        uint32_t trackIdx;
         uint32_t tick;
 
         bool operator<(const TrackHead& other) const
@@ -35,7 +36,7 @@ NoteSequence SequenceFuncs::FlattenSequence(std::vector<NoteSequence>&& tracks)
     {
         if (!tracks[i].Empty())
         {
-            heap.push_back({ i, 0, tracks[i].tick[0] });
+            heap.push_back({ 0, static_cast<uint32_t>(i), tracks[i].tick[0] });
         }
     }
 
@@ -75,8 +76,15 @@ NoteSequence SequenceFuncs::FlattenSequence(std::vector<NoteSequence>&& tracks)
 
 std::vector<NoteSequence> SequenceFuncs::DistributeNotes(NoteSequence&& notes)
 {
-    std::vector<NoteSequence> result(128);
+    std::vector<NoteSequence> result(MIDI_KEYS);
     const size_t numNotes = notes.Size();
+
+    size_t counts[MIDI_KEYS]{};
+    for (size_t n = 0; n < numNotes; n++)
+        counts[notes.note[n]]++;
+
+    for (size_t n = 0; n < MIDI_KEYS; n++)
+        result[n].Reserve(counts[n]);
 
     for (size_t i = 0; i < numNotes; ++i)
     {

@@ -78,6 +78,7 @@ public:
 	void BuildFontAtlas();
 
 	void Update();
+	void UpdateNoteCounterInfo();
 	void RunFrame();
 	void CaptureFrame();
 	void OnResize(int width, int height);
