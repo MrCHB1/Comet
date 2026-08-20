@@ -124,13 +124,16 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 	std::vector<int> illegalTracks{};
 	int noteTrackIdx = 0;
 
-	seq->tracks.reserve((size_t)tracks * 16);
+	seq->tracks.reserve((size_t)tracks);
 
 	for (auto& trackRes : parsedTrackResults)
 	{
 		if (!running) return seq;
 		seq->length = std::max(seq->length, trackRes.length);
 		seq->notes += trackRes.numNotes;
+
+		if (trackRes.mixedChannelsInTrack)
+			illegalTracks.push_back(noteTrackIdx);
 
 		if (!trackRes.notes.Empty() || !trackRes.events.empty())
 		{
@@ -150,6 +153,8 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 		{
 			seq->timeSignatures.emplace_back(0, 4, 4);
 		}
+
+		noteTrackIdx++;
 	}
 #pragma endregion
 
@@ -256,6 +261,8 @@ MultithreadedMIDILoader::ParsedTrackResult MultithreadedMIDILoader::ParseTrackDa
 	auto& notes = result.notes;
 	auto& messages = result.events;
 
+	uint8_t firstChannel = 255;
+
 	while (running && !ended)
 	{
 		uint32_t delta = ReadVLQ(reader);
@@ -269,6 +276,19 @@ MultithreadedMIDILoader::ParsedTrackResult MultithreadedMIDILoader::ParseTrackDa
 		prevCommand = command;
 
 		uint8_t channel = command & 0x0F;
+		
+		if (!result.mixedChannelsInTrack && (command & 0xF0) >= 0x80 && (command & 0xF0) <= 0xE0)
+		{
+			if (firstChannel == 255)
+			{
+				firstChannel = channel;
+			}
+			else if (firstChannel != channel)
+			{
+				result.mixedChannelsInTrack = true;
+			}
+		}
+
 		switch (command & 0xF0)
 		{
 			case 0x80:

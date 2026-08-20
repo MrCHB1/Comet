@@ -438,7 +438,7 @@ void MIDIRendererEnhanced::CalcKeyPosAndWidth()
 
     float aspect = (float)width / (float)height;
     float heightScale = fullSpanUnits / spanUnits;
-    keyboardHeight = keyboardMaxZ * aspect * heightScale;
+    keyboardHeight = keyboardMaxZ * heightScale * 1.75f;
 
     whiteKeyStart = 0;
     numDrawWhiteKeys = 0;
