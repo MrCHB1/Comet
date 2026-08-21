@@ -20,7 +20,7 @@ public:
 
 	void Read(uint8_t* dst, size_t size) override;
 	void Skip(size_t nbytes);
-	void Seek(int offset, int whence) override;
+	void Seek(size_t offset, int whence) override;
 	void Close() override
 	{
 		InputStream::Close();

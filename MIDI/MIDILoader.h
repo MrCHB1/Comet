@@ -26,10 +26,7 @@ public:
 	}
 private:
 	std::string file;
-	std::array<std::unique_ptr<MIDITrack>, 16> channels{};
-	std::array<uint32_t, 16> colors{};
-	std::array<std::vector<size_t>, 2048> unendedNotes{};
-	NoteSequence noteons;
+
 	std::shared_ptr<MIDISequence> seq;
 	std::shared_ptr<InputStream> is;
 	std::shared_ptr<ProgressInputStream> pis;
@@ -39,14 +36,5 @@ private:
 	bool running = false;
 	size_t currNoteId = 0;
 
-	void LoadTrack(std::shared_ptr<InputStream> is, int track);
-	inline void NoteOff(uint8_t ch, uint8_t data1, long tick);
-	inline void ClearUnendedNotes()
-	{
-		for (auto& note : unendedNotes)
-		{
-			note.clear();
-		}
-	}
-	inline MIDITrack* GetChannelTrack(uint8_t ch);
+	ParsedTrack LoadTrack(std::shared_ptr<InputStream> is, int track);
 };

@@ -42,24 +42,12 @@ private:
 	// context structure holding raw track bytes before processing
 	struct RawTrackChunk
 	{
+		size_t start;
 		size_t index;
 		std::unique_ptr<BufferedByteReader> reader;
 	};
 
-	// output structure for an isolated track parsing session
-	struct ParsedTrackResult
-	{
-		size_t trackIndex;
-		size_t numNotes = 0;
-		NoteSequence notes;
-		std::vector<MIDIMessageEvent> events;
-		std::vector<TempoEvent> tempos;
-		std::vector<TimeSignatureEvent> timeSignatures;
-		bool mixedChannelsInTrack = false;
-		long length = 0;
-	};
-
 	// isolated worker task to optimize cache usage and eliminate synchronization locks
-	ParsedTrackResult ParseTrackData(const RawTrackChunk& chunk);
+	ParsedTrack ParseTrackData(const RawTrackChunk& chunk);
 	uint32_t ReadVLQ(BufferedByteReader* reader);
 };

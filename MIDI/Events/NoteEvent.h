@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <algorithm>
+#include "RLEvec.h"
 
 /*struct NoteEvent : public TrackEvent
 {
@@ -27,16 +29,16 @@
 // Changed from AoS to SoA for cache optimizations. This is generally better for rendering
 struct NoteSequence
 {
-	std::vector<uint16_t> track;
-	std::vector<uint8_t> channel;
 	std::vector<uint32_t> tick;
 	std::vector<uint32_t> gate;
+	RLEVec<uint16_t> track;
+	std::vector<uint8_t> channel;
 	std::vector<uint8_t> note;
 	std::vector<uint8_t> vel;
 
 	void Emplace(uint16_t trk, uint8_t ch, uint32_t tk, uint8_t nt, uint32_t gt, uint8_t vl)
 	{
-		track.push_back(trk);
+		track.Push(trk);
 		channel.push_back(ch);
 		tick.push_back(tk);
 		gate.push_back(gt);
@@ -46,7 +48,7 @@ struct NoteSequence
 
 	void Reserve(size_t cap)
 	{
-		track.reserve(cap);
+		// track.reserve(cap);
 		channel.reserve(cap);
 		tick.reserve(cap);
 		gate.reserve(cap);
@@ -56,7 +58,7 @@ struct NoteSequence
 
 	void Resize(size_t count)
 	{
-		track.resize(count);
+		// track.resize(count);
 		channel.resize(count);
 		tick.resize(count);
 		gate.resize(count);
@@ -69,7 +71,7 @@ struct NoteSequence
 
 	void Clear()
 	{
-		track.clear();
+		track.Clear();
 		channel.clear();
 		tick.clear();
 		gate.clear();

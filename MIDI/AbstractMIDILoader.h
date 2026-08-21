@@ -87,6 +87,16 @@ protected:
 		std::shared_ptr<ProgressInputStream> stream;
 	};
 
+	struct ParsedTrack
+	{
+		NoteSequence notes;
+		std::vector<MIDIMessageEvent> messages;
+		std::vector<TempoEvent> tempos;
+		std::vector<TimeSignatureEvent> timeSignatures;
+		long length = 0;
+		bool multiChannel = false;
+	};
+
 	MIDIStreamInfo OpenMIDIFileStream(const std::filesystem::path& path)
 	{
 		bool exists = std::filesystem::exists(path);

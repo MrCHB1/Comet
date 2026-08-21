@@ -42,7 +42,7 @@ public:
 			throw std::runtime_error("End of Stream");
 		}
 	}
-	virtual void Seek(int offset, int whence)
+	virtual void Seek(size_t offset, int whence)
 	{
 		if (whence == SEEK_CUR)
 		{
