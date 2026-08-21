@@ -85,7 +85,7 @@ void ProgressInputStream::Read(uint8_t* dst, size_t size)
 	read += stream->gcount();
 }
 
-void ProgressInputStream::Seek(int offset, int whence)
+void ProgressInputStream::Seek(size_t offset, int whence)
 {
 	stream->clear();
 	if (whence == SEEK_CUR)

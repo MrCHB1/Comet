@@ -41,7 +41,7 @@ void BufferedByteReader::UpdateBuffer()
 	bufferPos = 0;
 }
 
-void BufferedByteReader::Seek(int offset, int whence)
+void BufferedByteReader::Seek(size_t offset, int whence)
 {
 	if (whence != SEEK_SET && whence != SEEK_CUR)
 		throw std::runtime_error("Invalid seek whence");

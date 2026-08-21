@@ -257,7 +257,7 @@ void MIDIRendererPFA::Initialize()
 	uint8_t keyID = 0;
 	for (uint8_t key = 0; key < MIDI_KEYS; key++)
 	{
-		bool black = KEY_IS_BLACK(key);
+		bool black = blackArr[key];
 		if (black) blackIDs.push_back(key);
 		else whiteIDs.push_back(key);
 	}
@@ -280,12 +280,8 @@ void MIDIRendererPFA::LoadSequence(std::shared_ptr<MIDISequence> sequence)
 
 	colors.LoadColors();
 	seq = sequence;
-	lastTime = 0;
 
 	for (auto& id : startRenderIDs)
-		id = 0;
-
-	for (auto& id : endRenderIDs)
 		id = 0;
 }
 
@@ -303,8 +299,8 @@ void MIDIRendererPFA::UpdateGlobals()
 	notesY = 0.0f;
 
 	allWhiteKeys = GetNumWhiteKeys(keyFirst, keyLast + 1);
-	float fBuffer = (IsSharp(keyFirst) ? SharpRatio / 2.0f : 0.0f) +
-		(IsSharp(keyLast) ? SharpRatio / 2.0f : 0.0f);
+	float fBuffer = (blackArr[keyFirst] ? SharpRatio / 2.0f : 0.0f) +
+		(blackArr[keyLast] ? SharpRatio / 2.0f : 0.0f);
 	whiteCX = notesCX / (allWhiteKeys + fBuffer);
 
 	float maxKeyCY = static_cast<float>(height) * KBPercent;
@@ -326,8 +322,8 @@ void MIDIRendererPFA::GenNoteXTable()
 	for (int i = keyFirst; i <= keyLast; i++)
 	{
 		int whiteKeys = GetNumWhiteKeys(keyFirst, i);
-		float startX = (IsSharp(keyFirst) - IsSharp(i)) * SharpRatio / 2.0f;
-		if (IsSharp(i))
+		float startX = (blackArr[keyFirst] - blackArr[i]) * SharpRatio / 2.0f;
+		if (blackArr[i])
 		{
 			int key12 = i % 12;
 			if (key12 == 1 || key12 == 6) startX -= SharpRatio / 5.0f;
@@ -371,10 +367,10 @@ void MIDIRendererPFA::RenderLines()
 	// vertical lines
 	for (int i = keyFirst + 1; i <= keyLast; i++)
 	{
-		if (IsSharp(i - 1) || IsSharp(i)) continue;
+		if (blackArr[i - 1] || blackArr[i]) continue;
 
 		int whiteKeys = GetNumWhiteKeys(keyFirst, i);
-		float startX = IsSharp(keyFirst) * SharpRatio / 2.0f;
+		float startX = blackArr[keyFirst] * SharpRatio / 2.0f;
 		float x = notesX + whiteCX * (whiteKeys + startX);
 		x = std::floor(x + 0.5f);
 		PushRect(x - 1.0f, notesY, 3.0f, notesCY,
@@ -501,10 +497,10 @@ void MIDIRendererPFA::RenderKeyboard()
 	float keyGap = std::max(1.0f, std::floor(whiteCX * 0.05f + 0.5f));
 	float keyGap1 = keyGap - std::floor(keyGap / 2.0f + 0.5f);
 
-	int startRender = (IsSharp(keyFirst) ? keyFirst - 1 : keyFirst);
-	int endRender = (IsSharp(keyLast) ? keyLast + 1 : keyLast);
+	int startRender = (blackArr[keyFirst] ? keyFirst - 1 : keyFirst);
+	int endRender = (blackArr[keyLast] ? keyLast + 1 : keyLast);
 
-	float startX = (IsSharp(keyFirst) ? whiteCX * (SharpRatio / 2.0f - 1.0f) : 0.0f);
+	float startX = (blackArr[keyFirst] ? whiteCX * (SharpRatio / 2.0f - 1.0f) : 0.0f);
 	float sharpCY = topCY * 0.67f;
 
 	// draw the white keys
@@ -513,7 +509,7 @@ void MIDIRendererPFA::RenderKeyboard()
 	float curY = keysY + transitionCY + redCY + spacerCY;
 	for (int i = startRender; i <= endRender; i++)
 	{
-		if (IsSharp(i)) continue;
+		if (blackArr[i]) continue;
 
 		auto& keyState = keyStates[i];
 		if (keyState.pressed)
@@ -556,9 +552,9 @@ void MIDIRendererPFA::RenderKeyboard()
 	}
 	#pragma endregion
 
-	startRender = (keyFirst != 21 && !IsSharp(keyFirst) && keyFirst > 0 && IsSharp(keyFirst - 1) ? keyFirst - 1 : keyFirst);
-	endRender = (keyLast != 108 && keyLast != 127) && !IsSharp(keyLast) && keyLast < 255 && IsSharp(keyLast + 1) ? keyLast + 1 : keyLast;
-	startX = IsSharp(keyFirst) ? whiteCX * SharpRatio / 2.0f : 0.0f;
+	startRender = (keyFirst != 21 && !blackArr[keyFirst] && keyFirst > 0 && blackArr[keyFirst - 1] ? keyFirst - 1 : keyFirst);
+	endRender = (keyLast != 108 && keyLast != 127) && !blackArr[keyLast] && keyLast < 255 && blackArr[keyLast + 1] ? keyLast + 1 : keyLast;
+	startX = blackArr[keyFirst] ? whiteCX * SharpRatio / 2.0f : 0.0f;
 
 	float sharpTop = SharpRatio * 0.7f;
 	curX = notesX + startX;
@@ -566,7 +562,7 @@ void MIDIRendererPFA::RenderKeyboard()
 	#pragma region Sharp Keys
 	for (int i = keyFirst; i <= keyLast; i++)
 	{
-		if (!IsSharp(i))
+		if (!blackArr[i])
 		{
 			curX += whiteCX;
 			continue;
@@ -735,8 +731,8 @@ void MIDIRendererPFA::RenderNotes()
 	auto keyFirst = config->render.GetKeyFirst();
 	auto keyLast = config->render.GetKeyLast();
 
-	int startRender = (IsSharp(keyFirst) ? keyFirst - 1 : keyFirst);
-	int endRender = (IsSharp(keyLast) ? keyLast + 1 : keyLast);
+	int startRender = (blackArr[keyFirst] ? keyFirst - 1 : keyFirst);
+	int endRender = (blackArr[keyLast] ? keyLast + 1 : keyLast);
 
 	for (uint8_t id : kbIDs)
 	{
@@ -751,56 +747,42 @@ void MIDIRendererPFA::RenderNotes()
 #pragma region Note culling
 
 		size_t noteBegin = startRenderIDs[id];
-
-		if (lastTime < time)
+		
+		if (lastTime != time)
 		{
-			while (noteBegin < notesNote.Size())
+			if (lastTime < time)
 			{
-				double noteEnd = isTimeBased
-					? (double)(notesNote.tick[noteBegin] + notesNote.gate[noteBegin]) * invTimeMultiplier
-					: (double)(notesNote.tick[noteBegin] + notesNote.gate[noteBegin]);
+				while (noteBegin < notesNote.Size())
+				{
+					double noteEnd = seq->timeBased
+						? (double)(notesNote.tick[noteBegin] + notesNote.gate[noteBegin]) * invTimeMultiplier
+						: (double)(notesNote.tick[noteBegin] + notesNote.gate[noteBegin]);
 
-				if (noteEnd > accTime) break; // Note is still on screen
-				++noteBegin;
+					if (noteEnd > accTime) break;
+					++noteBegin;
+				}
+			}
+			else if (lastTime > time)
+			{
+				while (noteBegin > 0)
+				{
+					size_t prev = noteBegin - 1;
+					double noteEnd = seq->timeBased
+						? (double)(notesNote.tick[prev] + notesNote.gate[prev]) * invTimeMultiplier
+						: (double)(notesNote.tick[prev] + notesNote.gate[prev]);
+
+					if (noteEnd <= accTime) break;
+					--noteBegin;
+				}
 			}
 		}
-		else if (lastTime > time)
-		{
-			while (noteBegin > 0)
-			{
-				size_t prev = noteBegin - 1;
-				double noteEnd = isTimeBased
-					? (double)(notesNote.tick[prev] + notesNote.gate[prev]) * invTimeMultiplier
-					: (double)(notesNote.tick[prev] + notesNote.gate[prev]);
 
-				if (noteEnd <= accTime) break;
-				--noteBegin;
-			}
-		}
-
-		auto searchStart = notesNote.tick.begin() + noteBegin;
-		auto endIt = notesNote.tick.end();
-
-		if (isTimeBased)
-		{
-			double targetSecs = playbackSeconds + viewRegion;
-			long target10Us = static_cast<long>(targetSecs * TIME_BASED_MULTIPLIER);
-			endIt = std::upper_bound(searchStart, notesNote.tick.end(), target10Us);
-		}
-		else
-		{
-			long targetTick = time + renderView->viewTicks;
-			endIt = std::upper_bound(searchStart, notesNote.tick.end(), targetTick);
-		}
-
-		size_t noteEnd = std::distance(notesNote.tick.begin(), endIt);
 		startRenderIDs[id] = noteBegin;
-		endRenderIDs[id] = noteEnd;
 		notesPassed += noteBegin;
 
 #pragma endregion
 
-		bool isBlack = IsSharp(id);
+		bool isBlack = blackArr[id];
 
 		float cx = whiteCX;
 		float x = noteXTable[id];
@@ -811,7 +793,7 @@ void MIDIRendererPFA::RenderNotes()
 		}
 
 		// actually render each note
-		for (size_t i = noteBegin; i < noteEnd; ++i)
+		for (size_t i = noteBegin; i < notesNote.Size(); ++i)
 		{
 			uint32_t nTick = notesNote.tick[i];
 			uint32_t nGate = notesNote.gate[i];

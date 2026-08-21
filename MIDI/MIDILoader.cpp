@@ -15,8 +15,6 @@ MIDILoader::MIDILoader(const char* file) : AbstractMIDILoader(file)
 {
 	this->file = std::string(file);
 	is = nullptr;
-	channels = std::array<std::unique_ptr<MIDITrack>, 16>();
-	colors = std::array<uint32_t, 16>();
 
 	AddBar([this]() { return (this->pis == nullptr || !this->pis->IsOpened()) ? this->prog : this->pis->GetProgress(); });
 }
@@ -52,15 +50,7 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 		pis = std::make_shared<ProgressInputStream>(*(is.get()));
 	}
 
-	for (int c = 0; c < 16; ++c)
-	{
-		if (!channels[c]) channels[c] = std::make_unique<MIDITrack>();
-	}
-
 	SetName("Loading MIDI File");
-	ClearUnendedNotes();
-	currNoteId = 0;
-	noteons.Clear();
 
 	#pragma region Header Parse
 	
@@ -84,25 +74,24 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 	hdrP += 2;
 	seq->resolution = ToShort(hdrP);
 	hdrP += 2;
-	seq->tracks.reserve((size_t)tracks * 16);
-	
+
 	#pragma endregion
 
 	#pragma region Track Parse
 
-	for (int c = 0; c < 16; c++)
-	{
-		if (!channels[c]) channels[c] = std::make_unique<MIDITrack>();
-	}
+	std::vector<uint16_t> illegalTracks{};
 
-	std::vector<int> illegalTracks{};
-	int noteTrackIdx = 0;
-	int i;
+	std::vector<NoteSequence> notesToMerge;
+	notesToMerge.reserve((size_t)tracks);
+	std::vector<std::vector<MIDIMessageEvent>> eventsToMerge;
+	eventsToMerge.reserve((size_t)tracks);
+
 #ifdef COMET_DEBUG
 	try
 	{
 #endif
-	for (i = 0; i < tracks; i++)
+	size_t noteTrackIdx = 0;
+	for (uint16_t trk = 0; trk < tracks; trk++)
 	{
 		if (!running)
 		{
@@ -110,42 +99,38 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 			pis->Close();
 			return seq;
 		}
-		std::cout << "\r  Loading new track " << (i + 1) << "/" << tracks << std::endl;
-		SetName(("Loading track " + std::to_string(i + 1) + "/" + std::to_string(tracks)).c_str());
-		LoadTrack(pis, i);
-		for (int o = 0; o < channels.size(); o++)
-		{
-			if (channels[o])
-			{
-				channels[o]->color = colors[o];
-			}
-		}
-		int c = 0;
-		for (int j = 0; j < channels.size(); j++)
-		{
-			MIDITrack* channelTrack = channels[j].get();
+		std::cout << "\r  Loading new track " << (trk + 1) << "/" << tracks << std::endl;
+		SetName(("Loading track " + std::to_string(trk + 1) + "/" + std::to_string(tracks)).c_str());
 
-			if (channelTrack && !channelTrack->notes.Empty())
-			{
-				for (size_t k = 0; k < channelTrack->notes.Size(); k++)
-				{
-					channelTrack->notes.track[k] = noteTrackIdx;
-				}
-
-				noteTrackIdx++;
-				c++;
-			}
-
-			if (!channelTrack->notes.Empty() || !channelTrack->messages.empty())
-			{
-				seq->tracks.push_back(std::move(*channelTrack));
-			}
-		}
-		noteons.Clear();
-		if (c >= 2)
+		ParsedTrack results = LoadTrack(pis, noteTrackIdx);
+		
+		if (!results.notes.Empty())
 		{
-			illegalTracks.push_back(i);
+			seq->notes += results.notes.Size();
+			notesToMerge.push_back(std::move(results.notes));
+			noteTrackIdx++;
 		}
+
+		if (!results.messages.empty())
+		{
+			eventsToMerge.push_back(std::move(results.messages));
+		}
+
+		if (!results.tempos.empty())
+		{
+			seq->tempos.insert(seq->tempos.end(), results.tempos.begin(), results.tempos.end());
+		}
+
+		if (!results.timeSignatures.empty())
+		{
+			seq->timeSignatures.insert(seq->timeSignatures.end(), results.timeSignatures.begin(), results.timeSignatures.end());
+		}
+		else
+		{
+			seq->timeSignatures.emplace_back(0, 4, 4);
+		}
+		if (results.multiChannel) illegalTracks.push_back(trk);
+		seq->length = std::max(seq->length, results.length);
 	}
 #ifdef COMET_DEBUG
 	}
@@ -168,37 +153,7 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 	auto& timeSignatures = seq->timeSignatures;
 	std::sort(tempos.begin(), tempos.end(), [](const auto& a, const auto& b) { return a.tick < b.tick; });
 	std::sort(timeSignatures.begin(), timeSignatures.end(), [](const auto& a, const auto& b) { return a.tick < b.tick; });
-	for (int i = 0; i < seq->tracks.size(); i++)
-	{
-		prog = (double)i / (double)seq->tracks.size();
-		auto status = std::string("Preprocessing notes of track ") + std::to_string(i + 1) + "/" + std::to_string(seq->tracks.size());
-		std::cout << "  " << status << std::endl;
-		SetName(status.c_str());
-		auto& track = seq->tracks[i];
-		// std::sort(track.notes.begin(), track.notes.end(), [](const auto& a, const auto& b) { return a.tick < b.tick; });
-		if (!track.notes.Empty())
-		{
-			std::vector<size_t> indices(track.notes.Size());
-			std::iota(indices.begin(), indices.end(), 0);
 
-			std::sort(indices.begin(), indices.end(), [&](size_t a, size_t b) {
-				return track.notes.tick[a] < track.notes.tick[b];
-				});
-
-			NoteSequence sortedNotes;
-			for (size_t idx : indices) {
-				sortedNotes.Emplace(
-					track.notes.track[idx],
-					track.notes.channel[idx],
-					track.notes.tick[idx],
-					track.notes.note[idx],
-					track.notes.gate[idx],
-					track.notes.vel[idx]
-				);
-			}
-			track.notes = std::move(sortedNotes);
-		}
-	}
 	prog = -1;
 
 	// handle edge cases for tempos
@@ -226,17 +181,10 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 	#pragma region Merge events
 	SetName("Merging events...");
 	std::cout << "  Parsing finished! Merging events..." << std::endl;
-	std::vector<NoteSequence> toMerge(seq->tracks.size());
-	std::vector<std::vector<MIDIMessageEvent>> eventsToMerge(seq->tracks.size());
-	// gather notes from tracks
-	i = 0;
-	for (auto& tracks : seq->tracks)
-	{
-		eventsToMerge[i] = std::move(tracks.messages);
-		toMerge[i++] = std::move(tracks.notes);
-	}
-	NoteSequence mergedNotes = SequenceFuncs::FlattenSequence(std::move(toMerge));
+
+	NoteSequence mergedNotes = SequenceFuncs::FlattenSequence(std::move(notesToMerge));
 	std::vector<MIDIMessageEvent> mergedEvents = SequenceFuncs::FlattenSequence(std::move(eventsToMerge));
+
 	SetName("Finishing up!");
 	std::cout << "  Finishing up" << std::endl;
 	seq->mergedNotes = SequenceFuncs::DistributeNotes(std::move(mergedNotes));
@@ -290,12 +238,10 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 	return seq;
 }
 
-void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
+AbstractMIDILoader::ParsedTrack MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 {
-	ClearUnendedNotes();
-
-	currNoteId = 0;
-	noteons.Clear();
+	std::array<std::vector<size_t>, 2048> unendedNotes{};
+	size_t currNoteId = 0;
 
 	uint8_t hdr[4];
 
@@ -314,7 +260,11 @@ void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 
 	bool read = true;
 	long tick = 0L;
+
 	uint8_t lastStatus = 0;
+	uint8_t firstChannel = 255;
+
+	ParsedTrack midiTrack;
 
 	try
 	{
@@ -348,7 +298,7 @@ void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 							if (msec == 0)
 								throw std::runtime_error("Infinity BPM");
 							double bpm = 6.0e7 / (double)msec;
-							seq->tempos.emplace_back(tick, bpm);
+							midiTrack.tempos.emplace_back(tick, bpm);
 						}
 						p += len;
 						continue;
@@ -358,7 +308,7 @@ void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 							uint8_t numerator = p[0];
 							uint8_t denominator = (1 << p[1]);
 							// 3 and 4 are omitted until it's actually needed
-							seq->timeSignatures.emplace_back(tick, numerator, denominator);
+							midiTrack.timeSignatures.emplace_back(tick, numerator, denominator);
 						}
 						p += len;
 						continue;
@@ -417,6 +367,17 @@ void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 			}
 
 			uint8_t channel = (uint8_t)(status & 0x0F);
+			if (!midiTrack.multiChannel && ((status & 0xF0) >= 0x80 && (status & 0xF0) <= 0xE0))
+			{
+				if (firstChannel == 255)
+				{
+					firstChannel = channel;
+				}
+				else if (channel != firstChannel)
+				{
+					midiTrack.multiChannel = true;
+				}
+			}
 
 			switch (status & 0xF0)
 			{
@@ -425,7 +386,15 @@ void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 					if (p >= end) break;
 					++p; // velocity, ignored
 					if (data1 >= MIDI_KEYS) continue; // disregard of notes above key 127
-					NoteOff(channel, data1, tick);
+
+					auto& un = unendedNotes[((size_t)data1 << 4) | (size_t)channel];
+					if (!un.empty())
+					{
+						size_t n = un.back();
+						un.pop_back();
+						midiTrack.notes.gate[n] = tick - midiTrack.notes.tick[n];
+					}
+
 					continue;
 				}
 
@@ -436,16 +405,22 @@ void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 						uint8_t vel = *p++;
 
 						if (data1 >= MIDI_KEYS) continue; // disregard of notes above key 127
-						if (vel == 0)
+						
+						auto& un = unendedNotes[((size_t)data1 << 4) | (size_t)channel];
+
+						if (vel > 0)
 						{
-							NoteOff(channel, data1, tick);
-							continue;
+							midiTrack.notes.Emplace(track, channel, tick, data1, (uint32_t)(-1), vel);
+							un.push_back(currNoteId);
+							currNoteId++;
+						}
+						else if (!un.empty())
+						{
+							size_t n = un.back();
+							un.pop_back();
+							midiTrack.notes.gate[n] = tick - midiTrack.notes.tick[n];
 						}
 
-						noteons.Emplace(track, channel, tick, data1, 0, vel);
-						uint16_t index = ((uint16_t)data1 << 4) | channel;
-						unendedNotes[index].push_back(currNoteId);
-						currNoteId++;
 						continue;
 					}
 				}
@@ -458,7 +433,7 @@ void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 
 					if (loadOnlyNotes) continue;
 
-					GetChannelTrack(channel)->messages.emplace_back(
+					midiTrack.messages.emplace_back(
 						tick,
 						((uint32_t)val2 << 16) | ((uint32_t)data1 << 8) | (uint32_t)status
 					);
@@ -470,7 +445,7 @@ void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 				{
 					if (loadOnlyNotes) continue;
 
-					GetChannelTrack(channel)->messages.emplace_back(
+					midiTrack.messages.emplace_back(
 						tick,
 						((uint32_t)data1 << 8) | (uint32_t)status
 					);
@@ -487,42 +462,6 @@ void MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 		std::cout << "Error encountered while parsing track. " << e.what() << std::endl;
 	}
 
-	seq->length = std::max(seq->length, tick);
-}
-
-void MIDILoader::NoteOff(uint8_t ch, uint8_t key, long tick)
-{
-	// std::stack<size_t>& un = unendedNotes[((uint16_t)(key) << 4) | (uint16_t)ch];
-	uint16_t index = ((uint16_t)key << 4) | ch;
-	std::vector<size_t>& un = unendedNotes[index];
-	if (un.empty()) return;
-
-	size_t n = un.back();
-	un.pop_back();
-	if (n >= noteons.Size()) return;
-
-	// Calculate gate
-	long noteTick = noteons.tick[n];
-	uint32_t calculatedGate = (tick <= noteTick) ? 1 : (tick - noteTick);
-
-	// Update the temporary SoA gate array
-	noteons.gate[n] = calculatedGate;
-
-	GetChannelTrack(ch)->notes.Emplace(
-		noteons.track[n],
-		noteons.channel[n],
-		noteons.tick[n],
-		noteons.note[n],
-		calculatedGate,
-		noteons.vel[n]
-	);
-	seq->notes++;
-	
-	if (seq->longestNoteLength < calculatedGate)
-		seq->longestNoteLength = calculatedGate;
-}
-
-MIDITrack* MIDILoader::GetChannelTrack(uint8_t ch)
-{
-	return channels[ch].get();
+	midiTrack.length = tick;
+	return midiTrack;
 }

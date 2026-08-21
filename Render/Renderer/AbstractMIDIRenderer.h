@@ -28,6 +28,7 @@ protected:
 	bool isTimeBased = false;
 
 	std::shared_ptr<NoteCounterInfo> noteCounterInfo;
+	std::array<bool, MIDI_KEYS> blackArr{};
 
 	MIDIApp* app;
 	ColorAsset colors;
@@ -37,7 +38,11 @@ protected:
 public:
 	AbstractMIDIRenderer(MIDIApp* app) : app(app)
 	{
-
+		for (size_t key = 0; key < MIDI_KEYS; key++)
+		{
+			size_t k = (key % 12);
+			blackArr[key] = k == 1 || k == 3 || k == 6 || k == 8 || k == 10;
+		}
 	}
 	virtual ~AbstractMIDIRenderer() = default;
 
