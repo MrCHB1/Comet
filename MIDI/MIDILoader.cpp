@@ -185,13 +185,61 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 	NoteSequence mergedNotes = SequenceFuncs::FlattenSequence(std::move(notesToMerge));
 	std::vector<MIDIMessageEvent> mergedEvents = SequenceFuncs::FlattenSequence(std::move(eventsToMerge));
 
-	SetName("Finishing up!");
+	SetName("Finalizing (1/2)...");
 	std::cout << "  Finishing up" << std::endl;
 	seq->mergedNotes = SequenceFuncs::DistributeNotes(std::move(mergedNotes));
 	seq->mergedEvents = std::move(mergedEvents);
 	// really weird way to do this but ok
 	seq->tempoMap = std::make_shared<TempoMap>();
 	seq->tempoMap->RebuildTempoMap(seq.get());
+
+	// NEW: apply note bounds
+	ClearBars();
+
+	SetName("Finalizing (2/2)...\nIndexing note blocks...");
+	size_t blockProgress = 0;
+	AddBar([this, &blockProgress]() { return (double)blockProgress / (double)seq->notes; });
+
+	std::array<std::vector<NoteBlock>, MIDI_KEYS> noteBlockArray{};
+
+	size_t key = 0;
+	for (const NoteSequence& notes : seq->mergedNotes)
+	{
+		std::vector<NoteBlock> blocks{};
+		blocks.reserve((notes.Size() + NOTE_BLOCK_SIZE - 1) / NOTE_BLOCK_SIZE);
+
+		uint32_t blockMin = (uint32_t)(-1); // funny underflow hack
+		uint32_t blockMax = 0;
+
+		for (size_t i = 0; i < notes.Size(); ++i)
+		{
+			uint32_t tick = notes.tick[i];
+			uint32_t tickEnd = tick + notes.gate[i];
+
+			blockMin = std::min(blockMin, tick);
+			blockMax = std::max(blockMax, tickEnd);
+
+			++blockProgress;
+
+			if ((i + 1) % NOTE_BLOCK_SIZE == 0)
+			{
+				blocks.emplace_back(blockMin, blockMax);
+				blockMin = (uint32_t)(-1);
+				blockMax = 0;
+			}
+		}
+
+		if (notes.Size() % NOTE_BLOCK_SIZE != 0)
+		{
+			blocks.emplace_back(blockMin, blockMax);
+		}
+
+		noteBlockArray[key++] = std::move(blocks);
+	}
+	seq->noteBlocks = std::move(noteBlockArray);
+
+	ClearBars();
+
 	#pragma endregion
 
 	#pragma region Time-based loading if enabled

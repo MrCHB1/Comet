@@ -1,4 +1,4 @@
-﻿#if defined(WIN32)
+﻿#ifdef _WIN32
 
 #include "PrerenderedEngine.h"
 #include <imgui.h>

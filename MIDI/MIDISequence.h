@@ -7,6 +7,8 @@
 #include "Events/TimeSignatureEvent.h"
 #include <fstream>
 #include <memory>
+#include "MIDIDefs.h"
+#define NOTE_BLOCK_SIZE 1024
 
 class TempoMap;
 
@@ -20,6 +22,7 @@ public:
 	std::vector<TempoEvent> tempos{};
 	std::vector<TimeSignatureEvent> timeSignatures{};
 	std::vector<NoteSequence> mergedNotes{};
+	std::array<std::vector<NoteBlock>, MIDI_KEYS> noteBlocks{};
 	std::vector<MIDIMessageEvent> mergedEvents{};
 	std::shared_ptr<TempoMap> tempoMap = nullptr;
 	size_t noteTrackCount;

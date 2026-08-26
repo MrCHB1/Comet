@@ -171,7 +171,11 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 		if (!trackRes.notes.Empty())
 		{
 			seq->notes += trackRes.notes.Size();
-			trackRes.notes.track.Fill(noteTrackIdx++);
+
+			for (auto& trk : trackRes.notes.track)
+				trk = noteTrackIdx;
+
+			noteTrackIdx++;
 			notesToMerge.push_back(std::move(trackRes.notes));
 		}
 
@@ -200,27 +204,30 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 
 #pragma region Post-processing & Merging
 	seq->noteTrackCount = noteTrackIdx;
-
-	std::sort(std::execution::par_unseq, seq->tempos.begin(), seq->tempos.end(), [](auto& a, auto& b) { return a.tick < b.tick; });
-	std::sort(std::execution::par_unseq, seq->timeSignatures.begin(), seq->timeSignatures.end(), [](auto& a, auto& b) { return a.tick < b.tick; });
+	std::cout << "\nLoaded all tracks, sorting tempo events." << std::endl;
+	SetName("Starting event preprocessing");
+	auto& tempos = seq->tempos;
+	auto& timeSignatures = seq->timeSignatures;
+	std::sort(std::execution::par_unseq, tempos.begin(), tempos.end(), [](auto& a, auto& b) { return a.tick < b.tick; });
+	std::sort(std::execution::par_unseq, timeSignatures.begin(), timeSignatures.end(), [](auto& a, auto& b) { return a.tick < b.tick; });
 
 	// handle edge cases for tempos
-	if (seq->tempos.empty())
+	if (tempos.empty())
 	{
-		seq->tempos.emplace_back(0, 120.0);
+		tempos.emplace_back(0, 120.0);
 	}
-	else if (seq->tempos.front().tick > 0)
+	else if (tempos.front().tick > 0)
 	{
-		seq->tempos.insert(seq->tempos.begin(), TempoEvent(0, 120.0));
+		tempos.insert(tempos.begin(), TempoEvent(0, 120.0));
 	}
 
-	if (seq->timeSignatures.empty())
+	if (timeSignatures.empty())
 	{
-		seq->timeSignatures.emplace_back(0, 4, 4);
+		timeSignatures.emplace_back(0, 4, 4);
 	}
-	else if (seq->timeSignatures.front().tick > 0)
+	else if (timeSignatures.front().tick > 0)
 	{
-		seq->timeSignatures.insert(seq->timeSignatures.begin(), TimeSignatureEvent(0, 4, 4));
+		timeSignatures.insert(timeSignatures.begin(), TimeSignatureEvent(0, 4, 4));
 	}
 
 	std::cout << "  Parsing finished! Merging events..." << std::endl;
@@ -229,11 +236,60 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 	NoteSequence mergedNotes = SequenceFuncs::FlattenSequence(std::move(notesToMerge));
 	std::vector<MIDIMessageEvent> mergedEvents = SequenceFuncs::FlattenSequence(std::move(eventsToMerge));
 
+	SetName("Finalizing (1/2)...");
+	std::cout << "  Finishing up" << std::endl;
 	seq->mergedNotes = SequenceFuncs::DistributeNotes(std::move(mergedNotes));
 	seq->mergedEvents = std::move(mergedEvents);
 
 	seq->tempoMap = std::make_shared<TempoMap>();
 	seq->tempoMap->RebuildTempoMap(seq.get());
+
+	// NEW: Apply note bounds
+	ClearBars();
+
+	SetName("Finalizing (2/2)...\nIndexing note blocks...");
+	size_t blockProgress = 0;
+	AddBar([this, &blockProgress]() { return (double)blockProgress / (double)seq->notes; });
+
+	std::array<std::vector<NoteBlock>, MIDI_KEYS> noteBlockArray{};
+
+	size_t key = 0;
+	for (const NoteSequence& notes : seq->mergedNotes)
+	{
+		std::vector<NoteBlock> blocks{};
+		blocks.reserve((notes.Size() + NOTE_BLOCK_SIZE - 1) / NOTE_BLOCK_SIZE);
+
+		uint32_t blockMin = (uint32_t)(-1); // funny underflow hack
+		uint32_t blockMax = 0;
+
+		for (size_t i = 0; i < notes.Size(); ++i)
+		{
+			uint32_t tick = notes.tick[i];
+			uint32_t tickEnd = tick + notes.gate[i];
+
+			blockMin = std::min(blockMin, tick);
+			blockMax = std::max(blockMax, tickEnd);
+
+			++blockProgress;
+
+			if ((i + 1) % NOTE_BLOCK_SIZE == 0)
+			{
+				blocks.emplace_back(blockMin, blockMax);
+				blockMin = (uint32_t)(-1);
+				blockMax = 0;
+			}
+		}
+
+		if (notes.Size() % NOTE_BLOCK_SIZE != 0)
+		{
+			blocks.emplace_back(blockMin, blockMax);
+		}
+
+		noteBlockArray[key++] = std::move(blocks);
+	}
+	seq->noteBlocks = std::move(noteBlockArray);
+
+	ClearBars();
 
 	if (timeBasedLoading)
 	{

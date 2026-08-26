@@ -264,10 +264,7 @@ void MIDIRenderer::LoadSequence(std::shared_ptr<MIDISequence> sequence)
 	seq = sequence;
 	lastTime = 0;
 
-	for (auto& id : startRenderIDs)
-		id = 0;
-
-	for (auto& id : endRenderIDs)
+	for (auto& id : startBlockIDs)
 		id = 0;
 }
 
@@ -909,6 +906,8 @@ void MIDIRenderer::RenderNotes()
 	const double invViewRegion = 1.0 / viewRegion;
 	const double invTimeMultiplier = 1.0 / (double)TIME_BASED_MULTIPLIER;
 
+	double targetTick = accTime; if (isTimeBased) targetTick *= TIME_BASED_MULTIPLIER;
+
 	for (uint8_t id : kbIDs)
 	{
 		uint16_t lastTrack = 0;
@@ -917,133 +916,144 @@ void MIDIRenderer::RenderNotes()
 		uint32_t lastGate = 0;
 		uint32_t lastNote = 0;
 
-		NoteSequence& notesNote = notes[id];
+		const NoteSequence& notesNote = notes[id];
+		const std::vector<NoteBlock>& blocks = seq->noteBlocks[id];
+		if (blocks.empty()) continue;
 
-#pragma region Note culling
+#pragma region Note block culling
 
-		size_t noteBegin = startRenderIDs[id];
-		size_t noteEnd = endRenderIDs[id];
+		size_t& blockIndex = startBlockIDs[id];
+		size_t noteBegin = blockIndex * NOTE_BLOCK_SIZE;
 
-		if (lastTime != time)
+		if (lastTime < time)
 		{
-			if (lastTime < time)
+			while (blockIndex < blocks.size() && blocks[blockIndex].maxBound <= targetTick)
 			{
-				while (noteBegin < notesNote.Size())
-				{
-					double noteEnd = isTimeBased
-						? (double)(notesNote.tick[noteBegin] + notesNote.gate[noteBegin]) * invTimeMultiplier
-						: (double)(notesNote.tick[noteBegin] + notesNote.gate[noteBegin]);
-
-					if (noteEnd > accTime) break;
-					++noteBegin;
-				}
+				++blockIndex;
 			}
-			else if (lastTime > time)
+		}
+		else if (lastTime > time)
+		{
+			while (blockIndex > 0 && blocks[blockIndex - 1].maxBound > targetTick)
 			{
-				while (noteBegin > 0)
-				{
-					size_t prev = noteBegin - 1;
-					double noteEnd = isTimeBased
-						? (double)(notesNote.tick[prev] + notesNote.gate[prev]) * invTimeMultiplier
-						: (double)(notesNote.tick[prev] + notesNote.gate[prev]);
-
-					if (noteEnd <= accTime) break;
-					--noteBegin;
-				}
+				--blockIndex;
 			}
-
-			auto searchStart = notesNote.tick.begin() + noteBegin;
-			auto endIt = notesNote.tick.end();
-
-			if (isTimeBased)
-			{
-				double targetSecs = playbackSeconds + viewRegion;
-				long target10Us = static_cast<long>(targetSecs * TIME_BASED_MULTIPLIER);
-				endIt = std::upper_bound(searchStart, notesNote.tick.end(), target10Us);
-			}
-			else
-			{
-				long targetTick = time + renderView->viewTicks;
-				endIt = std::upper_bound(searchStart, notesNote.tick.end(), targetTick);
-			}
-
-			noteEnd = std::distance(notesNote.tick.begin(), endIt);
-			startRenderIDs[id] = noteBegin;
-			endRenderIDs[id] = noteEnd;
 		}
 		
+		noteBegin = std::min(notesNote.Size(), blockIndex * NOTE_BLOCK_SIZE);
 		notesPassed += noteBegin;
 
 #pragma endregion
 
-		bool isBlack = KEY_IS_BLACK(id);
 		// actually render each note
-		for (size_t i = noteBegin; i < noteEnd; ++i)
+		bool isBlack = blackArr[id];
+		size_t numNotes = notesNote.Size();
+
+		size_t i = noteBegin;
+
+		while (i < numNotes)
 		{
-			uint32_t nTick = notesNote.tick[i];
-			uint32_t nGate = notesNote.gate[i];
-			uint8_t nNote = notesNote.note[i];
-			uint16_t nTrack = notesNote.track[i];
-			uint8_t nChannel = notesNote.channel[i];
+			const size_t blockIndex = i / NOTE_BLOCK_SIZE;
+			const size_t blockEnd = std::min(numNotes, (blockIndex + 1) * NOTE_BLOCK_SIZE);
 
-			double noteStart = isTimeBased ? (double)nTick * invTimeMultiplier : (double)nTick;
-			double noteEnd = isTimeBased
-				? (double)(nTick + nGate) * invTimeMultiplier
-				: (double)(nTick + nGate);
+			const NoteBlock& currBlock = blocks[blockIndex];
+			double blockMin = currBlock.minBound;
+			double blockMax = currBlock.maxBound;
 
-			if (noteStart > accTime + viewRegion) break;
-
-			if (noteEnd <= accTime)
+			if (isTimeBased)
 			{
-				notesPassed++;
-				continue;
-			}
-			if (noteStart <= accTime)
-			{
-				keyMetas[nNote].MarkPressed(true);
-				keyMetas[nNote].color = colors.GetColor(nTrack, nChannel);
-				keyboardDirty = true;
-				notesPassed++;
-				polyphony++;
+				blockMin *= invTimeMultiplier;
+				blockMax *= invTimeMultiplier;
 			}
 
-			// skip rendering this note if it's basically the same one lol
-			if (lastNote &&
-				nTick == lastTick &&
-				nNote == lastNote &&
-				nChannel == lastChannel &&
-				nTrack == lastTrack &&
-				nGate == lastGate)
+			if (blockMax <= accTime)
 			{
+				notesPassed += blockEnd - i;
+				i = blockEnd;
 				continue;
 			}
 
-			lastTick = nTick;
-			lastNote = nNote;
-			lastChannel = nChannel;
-			lastTrack = nTrack;
-			lastGate = nGate;
+			if (blockMin > accTime + viewRegion) break;
 
-			renderNotes[noteID++] = RenderNote(
-				keyPos[id],
-				keyPos[id] + keyWidth[id],
-				(float)((noteStart - accTime) * invViewRegion),
-				(float)((noteEnd - accTime) * invViewRegion),
-				colors.GetColor(nTrack, nChannel) | (isBlack << 24)
-			);
+			bool beyondView = false;
 
-			if (noteID >= NOTE_BUFFER_SIZE)
+			for (; i < blockEnd; ++i)
 			{
-				UploadNoteBuffer(NOTE_BUFFER_SIZE);
-				batchCount++;
-				if (batchCount >= NOTES_MAX_BATCHES)
+				uint32_t nTick = notesNote.tick[i];
+				uint32_t nGate = notesNote.gate[i];
+				uint8_t nNote = notesNote.note[i];
+				uint16_t nTrack = notesNote.track[i];
+				uint8_t nChannel = notesNote.channel[i];
+
+				double noteStart = (double)nTick;
+				double noteEnd = (double)(nTick + nGate);
+
+				if (isTimeBased)
 				{
-					glFlush();
-					batchCount = 0;
+					noteStart *= invTimeMultiplier;
+					noteEnd *= invTimeMultiplier;
 				}
-				noteID = 0;
+
+				if (noteStart > accTime + viewRegion)
+				{
+					beyondView = true;
+					break;
+				}
+
+				if (noteEnd <= accTime)
+				{
+					notesPassed++;
+					continue;
+				}
+				if (noteStart <= accTime)
+				{
+					keyMetas[nNote].MarkPressed(true);
+					keyMetas[nNote].color = colors.GetColor(nTrack, nChannel);
+					keyboardDirty = true;
+					notesPassed++;
+					polyphony++;
+				}
+
+				// skip rendering this note if it's basically the same one lol
+				if (lastNote &&
+					nTick == lastTick &&
+					nNote == lastNote &&
+					nChannel == lastChannel &&
+					nTrack == lastTrack &&
+					nGate == lastGate)
+				{
+					continue;
+				}
+
+				lastTick = nTick;
+				lastNote = nNote;
+				lastChannel = nChannel;
+				lastTrack = nTrack;
+				lastGate = nGate;
+
+				renderNotes[noteID++] = RenderNote(
+					keyPos[id],
+					keyPos[id] + keyWidth[id],
+					(float)((noteStart - accTime) * invViewRegion),
+					(float)((noteEnd - accTime) * invViewRegion),
+					colors.GetColor(nTrack, nChannel) | (isBlack << 24)
+				);
+
+				if (noteID >= NOTE_BUFFER_SIZE)
+				{
+					UploadNoteBuffer(NOTE_BUFFER_SIZE);
+					batchCount++;
+					if (batchCount >= NOTES_MAX_BATCHES)
+					{
+						glFlush();
+						batchCount = 0;
+					}
+					noteID = 0;
+				}
+				notesToRender++;
 			}
-			notesToRender++;
+
+			if (beyondView) break;
 		}
 	}
 

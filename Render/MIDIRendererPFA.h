@@ -113,13 +113,11 @@ private:
 	#pragma endregion
 
 	bool noteXTableDirty = true;
-	// float noteXTable[128]{};
 	std::array<float, MIDI_KEYS> noteXTable{};
 	std::array<KeyState, MIDI_KEYS> keyStates{};
 
 	double lastTime = 0.0f;
-	std::array<size_t, MIDI_KEYS> startRenderIDs{};
-	std::array<size_t, MIDI_KEYS> endRenderIDs{};
+	std::array<size_t, MIDI_KEYS> startBlockIDs{};
 
 	std::array<uint8_t, MIDI_KEYS> kbIDs;
 

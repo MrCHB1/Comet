@@ -7,7 +7,7 @@
 #include <mutex>
 #include <string>
 
-#if defined(WIN32)
+#ifdef _WIN32
 
 #define SAMPLE_RATE 48000
 #define BUFFER_SECS_MIN 1.0
