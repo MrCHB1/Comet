@@ -2,7 +2,7 @@
 #include <iostream>
 #include "Utils.h"
 
-#ifdef WIN32
+#ifdef _WIN32
 
 MIDIOut::MIDIOut()
 {

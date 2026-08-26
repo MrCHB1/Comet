@@ -281,7 +281,10 @@ void MIDIRendererPFA::LoadSequence(std::shared_ptr<MIDISequence> sequence)
 	colors.LoadColors();
 	seq = sequence;
 
-	for (auto& id : startRenderIDs)
+	// for (auto& id : startRenderIDs)
+	// 	id = 0;
+
+	for (auto& id : startBlockIDs)
 		id = 0;
 }
 
@@ -742,42 +745,31 @@ void MIDIRendererPFA::RenderNotes()
 		uint32_t lastGate = 0;
 		uint32_t lastNote = 0;
 
-		NoteSequence& notesNote = notes[id];
+		const NoteSequence& notesNote = notes[id];
+		const std::vector<NoteBlock>& blocks = seq->noteBlocks[id];
+		if (blocks.empty()) continue;
 
-#pragma region Note culling
+#pragma region Note block culling
 
-		size_t noteBegin = startRenderIDs[id];
-		
-		if (lastTime != time)
+		size_t& blockIndex = startBlockIDs[id];
+		size_t noteBegin = blockIndex * NOTE_BLOCK_SIZE;
+
+		if (lastTime < time)
 		{
-			if (lastTime < time)
+			while (blockIndex < blocks.size() && blocks[blockIndex].maxBound <= targetTick)
 			{
-				while (noteBegin < notesNote.Size())
-				{
-					double noteEnd = seq->timeBased
-						? (double)(notesNote.tick[noteBegin] + notesNote.gate[noteBegin]) * invTimeMultiplier
-						: (double)(notesNote.tick[noteBegin] + notesNote.gate[noteBegin]);
-
-					if (noteEnd > accTime) break;
-					++noteBegin;
-				}
+				++blockIndex;
 			}
-			else if (lastTime > time)
+		}
+		else if (lastTime > time)
+		{
+			while (blockIndex > 0 && blocks[blockIndex - 1].maxBound > targetTick)
 			{
-				while (noteBegin > 0)
-				{
-					size_t prev = noteBegin - 1;
-					double noteEnd = seq->timeBased
-						? (double)(notesNote.tick[prev] + notesNote.gate[prev]) * invTimeMultiplier
-						: (double)(notesNote.tick[prev] + notesNote.gate[prev]);
-
-					if (noteEnd <= accTime) break;
-					--noteBegin;
-				}
+				--blockIndex;
 			}
 		}
 
-		startRenderIDs[id] = noteBegin;
+		noteBegin = std::min(notesNote.Size(), blockIndex * NOTE_BLOCK_SIZE);
 		notesPassed += noteBegin;
 
 #pragma endregion
@@ -793,87 +785,135 @@ void MIDIRendererPFA::RenderNotes()
 		}
 
 		// actually render each note
-		for (size_t i = noteBegin; i < notesNote.Size(); ++i)
+		size_t numNotes = notesNote.Size();
+
+		size_t i = noteBegin;
+
+		while (i < numNotes)
 		{
-			uint32_t nTick = notesNote.tick[i];
-			uint32_t nGate = notesNote.gate[i];
-			uint8_t nNote = notesNote.note[i];
-			uint16_t nTrack = notesNote.track[i];
-			uint8_t nChannel = notesNote.channel[i];
+			const size_t blockIndex = i / NOTE_BLOCK_SIZE;
+			const size_t blockEnd = std::min(numNotes, (blockIndex + 1) * NOTE_BLOCK_SIZE);
 
-			double noteStart = isTimeBased ? (double)nTick * invTimeMultiplier : (double)nTick;
-			double noteEnd = isTimeBased
-				? (double)(nTick + nGate) * invTimeMultiplier
-				: (double)(nTick + nGate);
+			const NoteBlock& currBlock = blocks[blockIndex];
+			double blockMin = currBlock.minBound;
+			double blockMax = currBlock.maxBound;
 
-			if (noteStart > accTime + viewRegion) break;
-
-			if (noteEnd <= accTime)
+			if (isTimeBased)
 			{
-				notesPassed++;
-				continue;
-			}
-			if (noteStart <= accTime)
-			{
-				keyStates[id].color.SetColor(colors.GetColor(nTrack, nChannel));
-				keyStates[id].pressed = true;
-
-				notesPassed++;
-				polyphony++;
+				blockMin *= invTimeMultiplier;
+				blockMax *= invTimeMultiplier;
 			}
 
-			if (id < startRender || id > endRender) break;
-
-			// skip rendering this note if it's basically the same one lol
-			if (lastNote &&
-				nTick == lastTick &&
-				nNote == lastNote &&
-				nChannel == lastChannel &&
-				nTrack == lastTrack &&
-				nGate == lastGate)
+			if (blockMax <= accTime)
 			{
+				notesPassed += blockEnd - i;
+				i = blockEnd;
 				continue;
 			}
 
-			lastTick = nTick;
-			lastNote = nNote;
-			lastChannel = nChannel;
-			lastTrack = nTrack;
-			lastGate = nGate;
+			if (blockMin > accTime + viewRegion) break;
 
-			float yDistStart = (float)((noteStart - accTime) * invViewRegion) * notesCY;
-			float yDistEnd = (float)((noteEnd - accTime) * invViewRegion) * notesCY;
+			bool beyondView = false;
 
-			float noteBottom = notesY + notesCY - yDistStart;
-			float noteTop = notesY + notesCY - yDistEnd;
-
-			float noteCY = noteBottom - noteTop;
-			if (settings.roundedNoteLengths)
+			for (; i < blockEnd; ++i)
 			{
-				noteTop = std::round(noteTop);
-				noteCY = std::round(noteCY);
-			}
+				uint32_t nTick = notesNote.tick[i];
+				uint32_t nGate = notesNote.gate[i];
+				uint8_t nNote = notesNote.note[i];
+				uint16_t nTrack = notesNote.track[i];
+				uint8_t nChannel = notesNote.channel[i];
 
-			renderNotes[noteID++] = {
-				x,
-				noteTop,
-				isBlack ? cx : whiteCX,     
-				noteCY, 
-				colors.GetColor(nTrack, nChannel)
-			};
+				double noteStart = (double)nTick;
+				double noteEnd = (double)(nTick + nGate);
 
-			if (noteID >= NOTE_BUFFER_SIZE)
-			{
-				UploadNoteBuffer(NOTE_BUFFER_SIZE);
-				batchCount++;
-				if (batchCount >= NOTES_MAX_BATCHES)
+				if (isTimeBased)
 				{
-					glFlush();
-					batchCount = 0;
+					noteStart *= invTimeMultiplier;
+					noteEnd *= invTimeMultiplier;
 				}
-				noteID = 0;
+
+				// don't render any more notes
+				if (noteStart > accTime + viewRegion)
+				{
+					beyondView = true;
+					break;
+				}
+
+				if (noteEnd <= accTime)
+				{
+					notesPassed++;
+					continue;
+				}
+
+				if (noteStart <= accTime)
+				{
+					keyStates[id].color.SetColor(colors.GetColor(nTrack, nChannel));
+					keyStates[id].pressed = true;
+
+					notesPassed++;
+					polyphony++;
+				}
+
+				// note is outside bounds, so don't bother rendering this column's notes
+				if (id < startRender || id > endRender)
+				{
+					beyondView = true;
+					break;
+				}
+
+				// skip rendering this note if it's basically the same one lol
+				if (lastNote &&
+					nTick == lastTick &&
+					nNote == lastNote &&
+					nChannel == lastChannel &&
+					nTrack == lastTrack &&
+					nGate == lastGate)
+				{
+					continue;
+				}
+
+				lastTick = nTick;
+				lastNote = nNote;
+				lastChannel = nChannel;
+				lastTrack = nTrack;
+				lastGate = nGate;
+
+				float yDistStart = (float)((noteStart - accTime) * invViewRegion) * notesCY;
+				float yDistEnd = (float)((noteEnd - accTime) * invViewRegion) * notesCY;
+
+				float noteBottom = notesY + notesCY - yDistStart;
+				float noteTop = notesY + notesCY - yDistEnd;
+
+				float noteCY = noteBottom - noteTop;
+				if (settings.roundedNoteLengths)
+				{
+					noteTop = std::round(noteTop);
+					noteCY = std::round(noteCY);
+				}
+
+				renderNotes[noteID++] = {
+					x,
+					noteTop,
+					isBlack ? cx : whiteCX,
+					noteCY,
+					colors.GetColor(nTrack, nChannel)
+				};
+
+				if (noteID >= NOTE_BUFFER_SIZE)
+				{
+					UploadNoteBuffer(NOTE_BUFFER_SIZE);
+					batchCount++;
+					if (batchCount >= NOTES_MAX_BATCHES)
+					{
+						glFlush();
+						batchCount = 0;
+					}
+					noteID = 0;
+				}
+				notesToRender++;
 			}
-			notesToRender++;
+
+			if (beyondView) break;
 		}
 	}
 

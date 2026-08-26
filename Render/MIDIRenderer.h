@@ -166,9 +166,8 @@ private:
 	std::unique_ptr<Buffer> notesIBO;
 	std::unique_ptr<Buffer> notesEBO;
 
-	std::array<RenderNote, NOTE_BUFFER_SIZE> renderNotes;
-	std::array<size_t, MIDI_KEYS> startRenderIDs;
-	std::array<size_t, MIDI_KEYS> endRenderIDs;
+	std::array<RenderNote, NOTE_BUFFER_SIZE> renderNotes{};
+	std::array<size_t, MIDI_KEYS> startBlockIDs{};
 	long lastTime = -1;
 #pragma endregion
 

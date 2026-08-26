@@ -238,8 +238,7 @@ private:
 	std::array<KeyboardState, MIDI_KEYS> keyStates{};
 	std::array<size_t, MIDI_KEYS> kbIDs{};
 
-	std::array<size_t, MIDI_KEYS> startRenderIDs;
-	std::array<size_t, MIDI_KEYS> endRenderIDs;
+	std::array<size_t, MIDI_KEYS> startBlockIDs;
 	long lastTime = -1;
 
 	bool keyArrayDirty = true;

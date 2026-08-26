@@ -31,14 +31,14 @@ struct NoteSequence
 {
 	std::vector<uint32_t> tick;
 	std::vector<uint32_t> gate;
-	RLEVec<uint16_t> track;
+	std::vector<uint16_t> track;
 	std::vector<uint8_t> channel;
 	std::vector<uint8_t> note;
 	std::vector<uint8_t> vel;
 
 	void Emplace(uint16_t trk, uint8_t ch, uint32_t tk, uint8_t nt, uint32_t gt, uint8_t vl)
 	{
-		track.Push(trk);
+		track.push_back(trk);
 		channel.push_back(ch);
 		tick.push_back(tk);
 		gate.push_back(gt);
@@ -48,7 +48,7 @@ struct NoteSequence
 
 	void Reserve(size_t cap)
 	{
-		// track.reserve(cap);
+		track.reserve(cap);
 		channel.reserve(cap);
 		tick.reserve(cap);
 		gate.reserve(cap);
@@ -58,7 +58,7 @@ struct NoteSequence
 
 	void Resize(size_t count)
 	{
-		// track.resize(count);
+		track.resize(count);
 		channel.resize(count);
 		tick.resize(count);
 		gate.resize(count);
@@ -71,11 +71,20 @@ struct NoteSequence
 
 	void Clear()
 	{
-		track.Clear();
+		track.clear();
 		channel.clear();
 		tick.clear();
 		gate.clear();
 		note.clear();
 		vel.clear();
 	}
+};
+
+// Keeps track of 1,024 notes and identifies the minimum and maximum bounds of those 1,024 notes
+struct NoteBlock
+{
+	uint32_t minBound;
+	uint32_t maxBound;
+
+	NoteBlock(uint32_t min, uint32_t max) : minBound(min), maxBound(max) {}
 };
