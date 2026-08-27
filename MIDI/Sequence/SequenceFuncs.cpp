@@ -51,12 +51,12 @@ NoteSequence SequenceFuncs::FlattenSequence(std::vector<NoteSequence>&& tracks)
         size_t idx = head.elementIdx;
 
         result.Emplace(
-            src.track[idx],
-            src.channel[idx],
+            src.GetTrack(idx),
+            src.GetChannel(idx),
             src.tick[idx],
-            src.note[idx],
+            src.GetKey(idx),
             src.gate[idx],
-            src.vel[idx]
+            src.GetVelocity(idx)
         );
 
         head.elementIdx++;
@@ -81,22 +81,22 @@ std::vector<NoteSequence> SequenceFuncs::DistributeNotes(NoteSequence&& notes)
 
     size_t counts[MIDI_KEYS]{};
     for (size_t n = 0; n < numNotes; n++)
-        counts[notes.note[n]]++;
+        counts[notes.GetKey(n)]++;
 
     for (size_t n = 0; n < MIDI_KEYS; n++)
         result[n].Reserve(counts[n]);
 
     for (size_t i = 0; i < numNotes; ++i)
     {
-        uint8_t noteVal = notes.note[i];
+        uint8_t noteVal = notes.GetKey(i);
 
         result[noteVal].Emplace(
-            notes.track[i],
-            notes.channel[i],
+            notes.GetTrack(i),
+            notes.GetChannel(i),
             notes.tick[i],
-            notes.note[i],
+            noteVal,
             notes.gate[i],
-            notes.vel[i]
+            notes.GetVelocity(i)
         );
     }
 

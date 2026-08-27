@@ -15,19 +15,21 @@ enum class RendererType
 	MIDITrail,
 	Channels,
 	Velocities,
+	CounterOnly
 };
 
 inline const std::string ToString(RendererType type)
 {
 	switch (type)
 	{
-		case RendererType::PFA:        return "Piano From Above";
-		case RendererType::Synthesia:  return "Synthesia";
-		case RendererType::Textured:   return "Textured";
-		case RendererType::Enhanced:   return "Enhanced Graphics";
-		case RendererType::MIDITrail:  return "MIDITrail";
-		case RendererType::Channels:   return "Channels";
-		case RendererType::Velocities: return "Velocities";
+		case RendererType::PFA:         return "Piano From Above";
+		case RendererType::Synthesia:   return "Synthesia";
+		case RendererType::Textured:    return "Textured";
+		case RendererType::Enhanced:    return "Enhanced Graphics";
+		case RendererType::MIDITrail:   return "MIDITrail";
+		case RendererType::Channels:    return "Channels";
+		case RendererType::Velocities:  return "Velocities";
+		case RendererType::CounterOnly: return "Counter Only";
 	}
 
 	return "Unknown";

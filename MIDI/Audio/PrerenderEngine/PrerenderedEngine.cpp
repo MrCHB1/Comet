@@ -216,9 +216,9 @@ void PrerenderedEngine::EventGeneratorLoop()
         {
             uint32_t nTick = notes.tick[j];
             uint32_t nGate = notes.gate[j];
-            uint8_t nNote = notes.note[j];
-            uint8_t nChannel = notes.channel[j];
-            uint8_t nVel = notes.vel[j];
+            uint8_t nNote = notes.GetKey(j);
+            uint8_t nChannel = notes.GetChannel(j);
+            uint8_t nVel = notes.GetVelocity(j);
 
             localEvents.push_back({
               nTick,

@@ -281,9 +281,6 @@ void MIDIRendererPFA::LoadSequence(std::shared_ptr<MIDISequence> sequence)
 	colors.LoadColors();
 	seq = sequence;
 
-	// for (auto& id : startRenderIDs)
-	// 	id = 0;
-
 	for (auto& id : startBlockIDs)
 		id = 0;
 }
@@ -446,6 +443,7 @@ void MIDIRendererPFA::RenderLines()
 				beat++;
 				if (beat >= timeSignature->numerator) beat = 0;
 			}
+			measureTime = futureTimeSigTick;
 		}
 		else
 		{
@@ -728,7 +726,7 @@ void MIDIRendererPFA::RenderNotes()
 	const double invViewRegion = 1.0 / viewRegion;
 	const double invTimeMultiplier = 1.0 / (double)TIME_BASED_MULTIPLIER;
 
-	double targetTick = isTimeBased ? (accTime / invTimeMultiplier) : accTime;
+	double targetTick = isTimeBased ? (accTime * TIME_BASED_MULTIPLIER) : accTime;
 
 	MIDIPlayerConfig* config = app->GetConfig();
 	auto keyFirst = config->render.GetKeyFirst();
@@ -819,9 +817,9 @@ void MIDIRendererPFA::RenderNotes()
 			{
 				uint32_t nTick = notesNote.tick[i];
 				uint32_t nGate = notesNote.gate[i];
-				uint8_t nNote = notesNote.note[i];
-				uint16_t nTrack = notesNote.track[i];
-				uint8_t nChannel = notesNote.channel[i];
+				uint8_t nNote = notesNote.GetKey(i);
+				uint16_t nTrack = notesNote.GetTrack(i);
+				uint8_t nChannel = notesNote.GetChannel(i);
 
 				double noteStart = (double)nTick;
 				double noteEnd = (double)(nTick + nGate);

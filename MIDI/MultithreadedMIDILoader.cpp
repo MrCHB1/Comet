@@ -172,8 +172,10 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 		{
 			seq->notes += trackRes.notes.Size();
 
-			for (auto& trk : trackRes.notes.track)
-				trk = noteTrackIdx;
+			const uint32_t trackMask = NOTE_TRACK_MASK << NOTE_TRACK_BIT_IDX;
+			for (uint32_t& packed : trackRes.notes.packed)
+				packed = (packed & ~trackMask)
+				| ((noteTrackIdx & NOTE_TRACK_MASK) << NOTE_TRACK_BIT_IDX);
 
 			noteTrackIdx++;
 			notesToMerge.push_back(std::move(trackRes.notes));
@@ -247,6 +249,23 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 	// NEW: Apply note bounds
 	ClearBars();
 
+#pragma region Time-based loading if enabled
+	if (timeBasedLoading)
+	{
+		std::cout << "Applying tempo events..." << std::endl;
+		std::cout << "  Processing notes" << std::endl;
+		TempoMap* tempoMap = seq->GetTempoMap();
+		for (auto& notes : seq->mergedNotes)
+		{
+			SequenceFuncs::ApplyTempoEvents(seq->resolution, tempoMap, notes);
+		}
+		std::cout << "  Processing events" << std::endl;
+		SequenceFuncs::ApplyTempoEvents(seq->resolution, tempoMap, seq->mergedEvents);
+		SequenceFuncs::ApplyTempoEvents(seq->resolution, tempoMap, seq->timeSignatures);
+	}
+	seq->timeBased = timeBasedLoading;
+#pragma endregion
+
 	SetName("Finalizing (2/2)...\nIndexing note blocks...");
 	size_t blockProgress = 0;
 	AddBar([this, &blockProgress]() { return (double)blockProgress / (double)seq->notes; });
@@ -290,20 +309,6 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 	seq->noteBlocks = std::move(noteBlockArray);
 
 	ClearBars();
-
-	if (timeBasedLoading)
-	{
-		SetName("Applying tempo events...");
-		TempoMap* tempoMap = seq->GetTempoMap();
-		for (auto& notes : seq->mergedNotes)
-		{
-			SequenceFuncs::ApplyTempoEvents(seq->resolution, tempoMap, notes);
-		}
-		SequenceFuncs::ApplyTempoEvents(seq->resolution, tempoMap, seq->mergedEvents);
-		SequenceFuncs::ApplyTempoEvents(seq->resolution, tempoMap, seq->timeSignatures);
-	}
-
-	seq->timeBased = timeBasedLoading;
 
 	SetName("Done!");
 	std::cout << "MIDI has successfully loaded." << std::endl;

@@ -17,6 +17,7 @@
 #include "../Render/MIDIRendererChannels.h"
 #include "../Render/MIDIRendererMIDITrail.h"
 #include "../Render/MIDIRendererVelocities.h"
+#include "../Render/MIDIRendererCounter.h"
 #include "../Render/MIDIRenderer.h" // Textured renderer + AbstractMIDIRenderer full definition
 
 #include "../ResourcePack/DefaultResourcePack.h"
@@ -207,6 +208,7 @@ template void MIDIApp::SetRenderer<MIDIRendererEnhanced>();
 template void MIDIApp::SetRenderer<MIDIRendererMIDITrail>();
 template void MIDIApp::SetRenderer<MIDIRendererChannels>();
 template void MIDIApp::SetRenderer<MIDIRendererVelocities>();
+template void MIDIApp::SetRenderer<MIDIRendererCounter>(); // <--- errors here
 
 // called after glfw/glad initialization has finished, and is safe to load stuff, such as images, for rendering
 void MIDIApp::LoadResources()
@@ -254,6 +256,9 @@ void MIDIApp::LoadResources()
 		break;
 	case RendererType::Velocities:
 		SetRenderer<MIDIRendererVelocities>();
+		break;
+	case RendererType::CounterOnly:
+		SetRenderer<MIDIRendererCounter>();
 		break;
 	default:
 		SetRenderer<MIDIRendererPFA>();
