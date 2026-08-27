@@ -1,5 +1,6 @@
 #include "TempoMap.h"
 #include <algorithm>
+#include <cmath>
 
 void TempoMap::RebuildTempoMap(MIDISequence* seq)
 {
@@ -84,7 +85,7 @@ long TempoMap::SecsToTicksFromMap(uint16_t ppq, double secs)
 {
 	if (tempoMap.empty())
 	{
-		return static_cast<long>(secs * (120.0 * (double)ppq) / 60.0);
+		return static_cast<long>(std::llround(secs * (120.0 * (double)ppq) / 60.0));
 	}
 
 	auto it = std::upper_bound(
@@ -105,5 +106,5 @@ long TempoMap::SecsToTicksFromMap(uint16_t ppq, double secs)
 	double secsPerTick = 60.0 / (p.tempo * (double)ppq);
 	double deltaSecs = secs - p.GetSecsAtTick();
 	double deltaTicks = deltaSecs / secsPerTick;
-	return p.tick + (long)deltaTicks;
+	return p.tick + static_cast<long>(std::llround(deltaTicks));
 }

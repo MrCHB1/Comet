@@ -438,6 +438,39 @@ void MIDIApp::RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt)
 			timer->NavigateTo(seekTime);
 			break;
 		}
+		// seeks to previous tick
+		case ImGuiKey_Comma: // <
+		{
+			if (IsRendering()) return;
+			// VERY hacky, lmfao
+			MIDISequence* seq = nullptr;
+			if (this->renderer) seq = GetRenderer()->GetSequence().get();
+			if (!seq) return;
+
+			TempoMap* tempoMap = seq->GetTempoMap();
+			if (!tempoMap) return;
+
+			double currTime = timer->Elapsed();
+			long currTick = tempoMap->SecsToTicksFromMap(seq->resolution, currTime);
+			timer->NavigateTo(tempoMap->TicksToSecsFromMap(seq->resolution, currTick - 1));
+			break;
+		}
+		case ImGuiKey_Period: // >
+		{
+			if (IsRendering()) return;
+
+			MIDISequence* seq = nullptr;
+			if (this->renderer) seq = GetRenderer()->GetSequence().get();
+			if (!seq) return;
+
+			TempoMap* tempoMap = seq->GetTempoMap();
+			if (!tempoMap) return;
+
+			double currTime = timer->Elapsed();
+			long currTick = tempoMap->SecsToTicksFromMap(seq->resolution, currTime);
+			timer->NavigateTo(tempoMap->TicksToSecsFromMap(seq->resolution, currTick + 1));
+			break;
+		}
 		case ImGuiKey_Enter:
 		{
 			if (!alt) return;
