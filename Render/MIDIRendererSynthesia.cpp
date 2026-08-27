@@ -420,9 +420,8 @@ void MIDIRendererSynthesia::Initialize()
 		kbIDs[i++] = black;
 	}
 
-	GenerateKeyLayoutArrays();
-	CalculateKeyboardData();
-	InitializeTextures();
+	// InitializeTextures();
+	UpdateStyle();
 	InitializeParticleSystems();
 
 	initialized = true;
@@ -435,33 +434,110 @@ void MIDIRendererSynthesia::CalculateKeyboardData()
 	int keyFirst = config->render.GetKeyFirst();
 	int keyLast = config->render.GetKeyLast() + 1;
 
+	if (renderSettings.style == SYNTHESIA_10 ||
+		renderSettings.style == SYNTHESIA_9 ||
+		renderSettings.style == GLOW)
+	{
+		initialKeyboardHeight = 0.158;
+		initialBarHeight = 0.0045;
+	}
+
+	if (renderSettings.style == SYNTHESIA_8)
+	{
+		initialKeyboardHeight = 0.16;
+		initialBarHeight = 0.007;
+	}
+
 	keyboardHeight = initialKeyboardHeight / (keyLast - keyFirst) * 128.0f;
 	keyboardHeight = keyboardHeight / (1920.0 / 1080.0) * ((float)this->width / (float)this->height);
 	if (keyboardHeight > 0.2468) keyboardHeight = 0.2468;
 }
 
-void MIDIRendererSynthesia::InitializeTextures()
+void MIDIRendererSynthesia::LoadKeyboardTextures(SynthesiaStyle style)
 {
 	const std::filesystem::path keyboardPath = "./assets/textures/synthesia/keyboards";
-	const std::filesystem::path notesPath = "./assets/textures/synthesia/notes";
 	const std::filesystem::path particlePath = "./assets/textures/synthesia/particles";
 
+	size_t numTextures = 0;
+	switch (style)
+	{
+		case SYNTHESIA_10:
+		case SYNTHESIA_9:
+		{
+			numTextures = S9_LAYER_COUNT;
+			break;
+		}
+		case SYNTHESIA_8:
+		{
+			numTextures = S8_LAYER_COUNT;
+			break;
+		}
+		case GLOW:
+		{
+			numTextures = GLOW_LAYER_COUNT;
+			break;
+		}
+	}
+
+	numTextures += PARTICLE_LAYER_COUNT;
+
 	// layer -> file path, in the same order as the TextureLayer enum.
-	const std::array<std::filesystem::path, NUM_TEXTURES> layerPaths = { {
-		keyboardPath / "bar.png",
-		keyboardPath / "blackKeys.png",
-		keyboardPath / "blackKeysPressed.png",
-		keyboardPath / "whiteKeys.png",
-		keyboardPath / "whiteKeysPressed.png",
-		keyboardPath / "whiteKeyWhole.png",
-		keyboardPath / "whiteKeyWholePressed.png",
-		keyboardPath / "shadowLarge.png",
-		keyboardPath / "shadowUnpressed.png",
-		keyboardPath / "shadowPressed.png",
-		particlePath / "keyDebris.png",
-		particlePath / "keySpark.png",
-		particlePath / "keyHaze.png"
-	} };
+	std::vector<std::filesystem::path> layerPaths;
+	switch (style)
+	{
+		case SYNTHESIA_10:
+		case SYNTHESIA_9:
+		{
+			layerPaths = {
+				keyboardPath / "s9/bar.png",
+				keyboardPath / "s9/blackKeys.png",
+				keyboardPath / "s9/blackKeysPressed.png",
+				keyboardPath / "s9/whiteKeys.png",
+				keyboardPath / "s9/whiteKeysPressed.png",
+				keyboardPath / "s9/whiteKeyWhole.png",
+				keyboardPath / "s9/whiteKeyWholePressed.png",
+				keyboardPath / "s9/shadowLarge.png",
+				keyboardPath / "s9/shadowUnpressed.png",
+				keyboardPath / "s9/shadowPressed.png",
+				particlePath / "keyDebris.png",
+				particlePath / "keySpark.png",
+				particlePath / "keyHaze.png"
+			};
+			break;
+		}
+		case SYNTHESIA_8:
+		{
+			layerPaths = {
+				keyboardPath / "s8/bar.png",
+				keyboardPath / "s7/blackKey.png",
+				keyboardPath / "s7/blackKeyPressed.png",
+				keyboardPath / "s8/whiteKeys.png",
+				keyboardPath / "s8/whiteKeysPressed.png",
+				keyboardPath / "s8/whiteKeyWhole.png",
+				keyboardPath / "s8/whiteKeyWholePressed.png",
+				particlePath / "keyDebris.png",
+				particlePath / "keySpark.png",
+				particlePath / "keyHaze.png"
+			};
+			break;
+		}
+		case GLOW:
+		{
+			layerPaths = {
+				keyboardPath / "glow/bar.png",
+				keyboardPath / "glow/blackKeys.png",
+				keyboardPath / "glow/blackKeysPressed.png",
+				keyboardPath / "glow/whiteKeys.png",
+				keyboardPath / "glow/whiteKeysPressed.png",
+				keyboardPath / "glow/whiteKeyWhole.png",
+				keyboardPath / "glow/whiteKeyWholePressed.png",
+				particlePath / "keyDebris.png",
+				particlePath / "keySpark.png",
+				particlePath / "keyHaze.png"
+			};
+			break;
+		}
+	}
 
 	// GL_TEXTURE_2D_ARRAY requires every layer to share one width/height, so
 	// probe every source image first and size the array to fit the largest.
@@ -477,52 +553,11 @@ void MIDIRendererSynthesia::InitializeTextures()
 		}
 	}
 
-	textures = std::make_unique<TextureArray>(maxWidth, maxHeight, NUM_TEXTURES);
+	textures = std::make_unique<TextureArray>(maxWidth, maxHeight, numTextures);
 
-	for (int layer = 0; layer < NUM_TEXTURES; layer++)
+	for (int layer = 0; layer < numTextures; layer++)
 	{
 		layerUV[layer] = textures->LoadLayer(layer, Utils::TryGetStream(layerPaths[layer]));
-	}
-
-	UpdateStyle();
-
-	{
-		ShaderBind bind(*notesProgram);
-
-		{
-			TextureBind tex(*noteWhiteBody, 0);
-			notesProgram->SetInt("noteWhiteBody", 0);
-		}
-
-		{
-			TextureBind tex(*noteWhiteTop, 1);
-			notesProgram->SetInt("noteWhiteTop", 1);
-		}
-
-		{
-			TextureBind tex(*noteWhiteBottom, 2);
-			notesProgram->SetInt("noteWhiteBottom", 2);
-		}
-
-		{
-			TextureBind tex(*noteBlackBody, 3);
-			notesProgram->SetInt("noteBlackBody", 3);
-		}
-
-		{
-			TextureBind tex(*noteBlackTop, 4);
-			notesProgram->SetInt("noteBlackTop", 4);
-		}
-
-		{
-			TextureBind tex(*noteBlackBottom, 5);
-			notesProgram->SetInt("noteBlackBottom", 5);
-		}
-
-		{
-			TextureBind tex(*noteOOB, 6);
-			notesProgram->SetInt("noteOOB", 6);
-		}
 	}
 }
 
@@ -549,8 +584,15 @@ void MIDIRendererSynthesia::GenerateKeyLayoutArrays()
 	int keyFirst = config->render.GetKeyFirst();
 	int keyLast = config->render.GetKeyLast() + 1;
 
-	const std::array<float, 5> additionalOffsets = { 0.02, -0.035, 0.0, -0.02, -0.03 };
-	const float blackKeyScale = 0.63f;
+	std::array<float, 5> additionalOffsets = { 0.0, 0.0, 0.0, 0.0, 0.0 };
+	float blackKeyScale = 0.6f;
+
+	if (renderSettings.style == SYNTHESIA_9 || renderSettings.style == SYNTHESIA_10 || renderSettings.style == GLOW)
+	{
+		additionalOffsets = { 0.02, -0.035, 0.0, -0.02, -0.03 };
+		blackKeyScale = 0.63f;
+	}
+	
 	const float blackKey2setOffset = 0.3f;
 	const float blackKey3setOffset = 0.5f;
 
@@ -626,44 +668,114 @@ void MIDIRendererSynthesia::UpdateRenderer()
 
 void MIDIRendererSynthesia::UpdateStyle()
 {
+	GenerateKeyLayoutArrays();
+	CalculateKeyboardData();
+
 	std::filesystem::path notesPath;
+	std::filesystem::path noteWhiteBodyPath;
+	std::filesystem::path noteWhiteTopPath;
+	std::filesystem::path noteWhiteBottomPath;
+	std::filesystem::path noteBlackBodyPath;
+	std::filesystem::path noteBlackTopPath;
+	std::filesystem::path noteBlackBottomPath;
+
+	float brightnessBoost = 1.0f;
 
 	switch (renderSettings.style)
 	{
 		case SYNTHESIA_10:
 		{
 			notesPath = "./assets/textures/synthesia/notes/s10";
-			noteWhiteBody = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "note.png"));
-			noteWhiteTop = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteTop.png"));
-			noteWhiteBottom = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteBottom.png"));
-			noteBlackBody = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "note.png"));
-			noteBlackTop = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteTop.png"));
-			noteBlackBottom = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteBottom.png"));
-			{
-				ShaderBind bind(*notesProgram);
-				notesProgram->SetFloat("brightnessBoost", 1.0f);
-			}
+			noteWhiteBodyPath = notesPath / "note.png";
+			noteWhiteTopPath = notesPath / "noteTop.png";
+			noteWhiteBottomPath = notesPath / "noteBottom.png";
+			noteBlackBodyPath = notesPath / "note.png";
+			noteBlackTopPath = notesPath / "noteTop.png";
+			noteBlackBottomPath = notesPath / "noteBottom.png";
+
 			break;
 		}
 		case SYNTHESIA_9:
+		case SYNTHESIA_8:
 		{
 			notesPath = "./assets/textures/synthesia/notes/s9";
-			noteWhiteBody = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteWhite.png"));
-			noteWhiteTop = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteTopWhite.png"));
-			noteWhiteBottom = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteBottomWhite.png"));
-			noteBlackBody = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteBlack.png"));
-			noteBlackTop = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteTopBlack.png"));
-			noteBlackBottom = std::make_unique<GPUImage>(Utils::TryGetStream(notesPath / "noteBottomBlack.png"));
-			{
-				ShaderBind bind(*notesProgram);
-				notesProgram->SetFloat("brightnessBoost", 2.0f);
-			}
+			noteWhiteBodyPath = notesPath / "noteWhite.png";
+			noteWhiteTopPath = notesPath / "noteTopWhite.png";
+			noteWhiteBottomPath = notesPath / "noteBottomWhite.png";
+			noteBlackBodyPath = notesPath / "noteBlack.png";
+			noteBlackTopPath = notesPath / "noteTopBlack.png";
+			noteBlackBottomPath = notesPath / "noteBottomBlack.png";
+
+			brightnessBoost = 2.0f;
+			break;
+		}
+		case GLOW:
+		{
+			notesPath = "./assets/textures/synthesia/notes/glow";
+			noteWhiteBodyPath = notesPath / "note.png";
+			noteWhiteTopPath = notesPath / "noteTop.png";
+			noteWhiteBottomPath = notesPath / "noteBottom.png";
+			noteBlackBodyPath = notesPath / "note.png";
+			noteBlackTopPath = notesPath / "noteTop.png";
+			noteBlackBottomPath = notesPath / "noteBottom.png";
+
 			break;
 		}
 	}
 
-	
+	noteWhiteBody = std::make_unique<GPUImage>(Utils::TryGetStream(noteWhiteBodyPath));
+	noteWhiteTop = std::make_unique<GPUImage>(Utils::TryGetStream(noteWhiteTopPath));
+	noteWhiteBottom = std::make_unique<GPUImage>(Utils::TryGetStream(noteWhiteBottomPath));
+	noteBlackBody = std::make_unique<GPUImage>(Utils::TryGetStream(noteBlackBodyPath));
+	noteBlackTop = std::make_unique<GPUImage>(Utils::TryGetStream(noteBlackTopPath));
+	noteBlackBottom = std::make_unique<GPUImage>(Utils::TryGetStream(noteBlackBottomPath));
 	noteOOB = std::make_unique<GPUImage>(Utils::TryGetStream("./assets/textures/synthesia/notes/noteOOB.png"));
+
+	{
+		ShaderBind bind(*notesProgram);
+		notesProgram->SetFloat("brightnessBoost", brightnessBoost);
+	}
+
+	LoadKeyboardTextures(renderSettings.style);
+
+	{
+		ShaderBind bind(*notesProgram);
+
+		{
+			TextureBind tex(*noteWhiteBody, 0);
+			notesProgram->SetInt("noteWhiteBody", 0);
+		}
+
+		{
+			TextureBind tex(*noteWhiteTop, 1);
+			notesProgram->SetInt("noteWhiteTop", 1);
+		}
+
+		{
+			TextureBind tex(*noteWhiteBottom, 2);
+			notesProgram->SetInt("noteWhiteBottom", 2);
+		}
+
+		{
+			TextureBind tex(*noteBlackBody, 3);
+			notesProgram->SetInt("noteBlackBody", 3);
+		}
+
+		{
+			TextureBind tex(*noteBlackTop, 4);
+			notesProgram->SetInt("noteBlackTop", 4);
+		}
+
+		{
+			TextureBind tex(*noteBlackBottom, 5);
+			notesProgram->SetInt("noteBlackBottom", 5);
+		}
+
+		{
+			TextureBind tex(*noteOOB, 6);
+			notesProgram->SetInt("noteOOB", 6);
+		}
+	}
 }
 
 void MIDIRendererSynthesia::Render(double deltaTime)
@@ -789,8 +901,8 @@ void MIDIRendererSynthesia::RenderMeasureLines()
 			measureTime += measureInc;
 			beat++;
 			if (beat >= timeSignature->numerator) beat = 0;
-			if (futureTimeSignature) measureTime = futureTimeSigTick;
 		}
+		if (futureTimeSignature) measureTime = futureTimeSigTick;
 	}
 }
 
@@ -833,152 +945,347 @@ void MIDIRendererSynthesia::RenderKeyboard()
 
 	float keyTop = keyboardHeight * (1.0f - initialBarHeight);
 
-	const float frac = 1.0f / 7.0f;
-	// render white keys first
-	for (int i = keyFirst; i <= keyLast; i++)
+#pragma region Synthesia 9/10 Keyboard
+	if (renderSettings.style == SYNTHESIA_9 || renderSettings.style == SYNTHESIA_10)
 	{
-		if (i >= MIDI_KEYS) continue;
-
-		if (IS_BLACK(i)) continue;
-		float creamR = 1.0f;
-		float creamG = 0.98f;
-		float creamB = 0.9f;
-
-		uint32_t creamColor = Utils::PackRGBA(creamR, creamG, creamB, 1.0f, Utils::ARGB);
-
-		size_t part = keyNum[i] % 7;
-
-		float split = 0.5f;
-		if (part == 3) split = 0.3f;
-		if (part == 6) split = 0.7f;
-
-		float uvLeft = part * frac;
-		float uvRight = (part + 1) * frac;
-		float uvMiddle = (part + split) * frac;
-
-		float left = keyPos[i];
-		float right = keyPos[i] + keyWidth[i];
-		float middle = left + (right - left) * split;
-
-		uint32_t color = 0x7F000000 | keyStates[i].color;
-
-		if (i == keyLast)
+		const float frac = 1.0f / 7.0f;
+		for (int i = keyFirst; i <= keyLast; i++)
 		{
-			if (keyStates[i].pressed)
-			{
-				PushQuad(left, 0, middle - left, keyTop, uvLeft, 0, uvMiddle, 1, TextureLayer::LAYER_KEY_WHITE_PRESSED, color);
-				PushQuad(middle, 0, right - middle, keyTop, split, 0, 1, 1, TextureLayer::LAYER_KEY_WHITE_WHOLE_PRESSED, color);
-			}
-			else
-			{
-				PushQuad(left, 0, middle - left, keyTop, uvLeft, 0, uvMiddle, 1, TextureLayer::LAYER_KEY_WHITE, creamColor);
-				PushQuad(middle, 0, right - middle, keyTop, split, 0, 1, 1, TextureLayer::LAYER_KEY_WHITE_WHOLE, creamColor);
-			}
-		}
-		else if (i == keyFirst)
-		{
-			if (keyStates[i].pressed)
-			{
-				PushQuad(left, 0, middle - left, keyTop, 0, 0, split, 1, TextureLayer::LAYER_KEY_WHITE_WHOLE_PRESSED, color);
-				PushQuad(middle, 0, right - middle, keyTop, uvMiddle, 0, uvRight, 1, TextureLayer::LAYER_KEY_WHITE_PRESSED, color);
-			}
-			else
-			{
-				PushQuad(left, 0, middle - left, keyTop, 0, 0, split, 1, TextureLayer::LAYER_KEY_WHITE_WHOLE, creamColor);
-				PushQuad(middle, 0, right - middle, keyTop, uvMiddle, 0, uvRight, 1, TextureLayer::LAYER_KEY_WHITE, creamColor);
-			}
-		}
-		else
-		{
-			if (keyStates[i].pressed)
-			{
-				PushQuad(left, 0, right - left, keyTop, uvLeft, 0, uvRight, 1, TextureLayer::LAYER_KEY_WHITE_PRESSED, color);
-			}
-			else
-			{
-				PushQuad(left, 0, right - left, keyTop, uvLeft, 0, uvRight, 1, TextureLayer::LAYER_KEY_WHITE, creamColor);
-			}
-		}
+			if (i >= MIDI_KEYS) continue;
 
-		#pragma region Shadows
-		float aspectRatio = (float)this->width / (float)this->height;
-		if (i != 0 && i != keyFirst)
-		{
-			const auto& RenderLarge = [this, left, keyTop, aspectRatio]()
-				{
-					float shadowRight = left + keyTop * textures->GetLayerAspectRatio(TextureLayer::LAYER_SHADOW_LARGE) / aspectRatio;
-					PushQuad(left, 0, shadowRight - left, keyTop, 0, 0, 1, 1, TextureLayer::LAYER_SHADOW_LARGE);
-				};
+			if (IS_BLACK(i)) continue;
+			float creamR = 1.0f;
+			float creamG = 0.98f;
+			float creamB = 0.9f;
 
-			const auto& RenderUnpressed = [this, left, keyTop, aspectRatio, i]()
-				{
-					float keyRight = keyPos[i - 1] + keyWidth[i - 1];
-					float shadowRight = keyRight + keyTop * textures->GetLayerAspectRatio(TextureLayer::LAYER_SHADOW_UNPRESSED) / aspectRatio;
-					PushQuad(keyRight, 0, shadowRight - keyRight, keyTop, 0, 0, 1, 1, TextureLayer::LAYER_SHADOW_UNPRESSED);
-				};
+			uint32_t creamColor = Utils::PackRGBA(creamR, creamG, creamB, 1.0f, Utils::ARGB);
 
-			const auto& RenderPressed = [this, left, keyTop, aspectRatio, i]()
-				{
-					float keyRight = keyPos[i - 1] + keyWidth[i - 1];
-					float shadowRight = keyRight + keyTop * textures->GetLayerAspectRatio(TextureLayer::LAYER_SHADOW_PRESSED) / aspectRatio;
-					PushQuad(keyRight, 0, shadowRight - keyRight, keyTop, 0, 0, 1, 1, TextureLayer::LAYER_SHADOW_PRESSED);
-				};
+			size_t part = keyNum[i] % 7;
 
-			if (keyStates[i].pressed)
+			float split = 0.5f;
+			if (part == 3) split = 0.3f;
+			if (part == 6) split = 0.7f;
+
+			float uvLeft = part * frac;
+			float uvRight = (part + 1) * frac;
+			float uvMiddle = (part + split) * frac;
+
+			float left = keyPos[i];
+			float right = keyPos[i] + keyWidth[i];
+			float middle = left + (right - left) * split;
+
+			uint32_t color = 0x7F000000 | keyStates[i].color;
+
+			if (i == keyLast)
 			{
-				if (IS_BLACK(i - 1))
+				if (keyStates[i].pressed)
 				{
-					if (!keyStates[i - 2].pressed) RenderLarge();
-					if (keyStates[i - 1].pressed) RenderPressed();
-					else RenderUnpressed();
+					PushQuad(left, 0, middle - left, keyTop, uvLeft, 0, uvMiddle, 1, S9_LAYER_KEY_WHITE_PRESSED, color);
+					PushQuad(middle, 0, right - middle, keyTop, split, 0, 1, 1, S9_LAYER_KEY_WHITE_WHOLE_PRESSED, color);
 				}
 				else
 				{
-					if (!keyStates[i - 1].pressed) RenderLarge();
+					PushQuad(left, 0, middle - left, keyTop, uvLeft, 0, uvMiddle, 1, S9_LAYER_KEY_WHITE, creamColor);
+					PushQuad(middle, 0, right - middle, keyTop, split, 0, 1, 1, S9_LAYER_KEY_WHITE_WHOLE, creamColor);
+				}
+			}
+			else if (i == keyFirst)
+			{
+				if (keyStates[i].pressed)
+				{
+					PushQuad(left, 0, middle - left, keyTop, 0, 0, split, 1, S9_LAYER_KEY_WHITE_WHOLE_PRESSED, color);
+					PushQuad(middle, 0, right - middle, keyTop, uvMiddle, 0, uvRight, 1, S9_LAYER_KEY_WHITE_PRESSED, color);
+				}
+				else
+				{
+					PushQuad(left, 0, middle - left, keyTop, 0, 0, split, 1, S9_LAYER_KEY_WHITE_WHOLE, creamColor);
+					PushQuad(middle, 0, right - middle, keyTop, uvMiddle, 0, uvRight, 1, S9_LAYER_KEY_WHITE, creamColor);
 				}
 			}
 			else
 			{
-				if (IS_BLACK(i - 1))
+				if (keyStates[i].pressed)
 				{
-					if (!keyStates[i - 1].pressed) RenderPressed();
+					PushQuad(left, 0, right - left, keyTop, uvLeft, 0, uvRight, 1, S9_LAYER_KEY_WHITE_PRESSED, color);
+				}
+				else
+				{
+					PushQuad(left, 0, right - left, keyTop, uvLeft, 0, uvRight, 1, S9_LAYER_KEY_WHITE, creamColor);
+				}
+			}
+
+#pragma region Shadows
+			float aspectRatio = (float)this->width / (float)this->height;
+			if (i != 0 && i != keyFirst)
+			{
+				const auto& RenderLarge = [this, left, keyTop, aspectRatio]()
+					{
+						float shadowRight = left + keyTop * textures->GetLayerAspectRatio(S9_LAYER_SHADOW_LARGE) / aspectRatio;
+						PushQuad(left, 0, shadowRight - left, keyTop, 0, 0, 1, 1, S9_LAYER_SHADOW_LARGE);
+					};
+
+				const auto& RenderUnpressed = [this, left, keyTop, aspectRatio, i]()
+					{
+						float keyRight = keyPos[i - 1] + keyWidth[i - 1];
+						float shadowRight = keyRight + keyTop * textures->GetLayerAspectRatio(S9_LAYER_SHADOW_UNPRESSED) / aspectRatio;
+						PushQuad(keyRight, 0, shadowRight - keyRight, keyTop, 0, 0, 1, 1, S9_LAYER_SHADOW_UNPRESSED);
+					};
+
+				const auto& RenderPressed = [this, left, keyTop, aspectRatio, i]()
+					{
+						float keyRight = keyPos[i - 1] + keyWidth[i - 1];
+						float shadowRight = keyRight + keyTop * textures->GetLayerAspectRatio(S9_LAYER_SHADOW_PRESSED) / aspectRatio;
+						PushQuad(keyRight, 0, shadowRight - keyRight, keyTop, 0, 0, 1, 1, S9_LAYER_SHADOW_PRESSED);
+					};
+
+				if (keyStates[i].pressed)
+				{
+					if (IS_BLACK(i - 1))
+					{
+						if (!keyStates[i - 2].pressed) RenderLarge();
+						if (keyStates[i - 1].pressed) RenderPressed();
+						else RenderUnpressed();
+					}
+					else
+					{
+						if (!keyStates[i - 1].pressed) RenderLarge();
+					}
+				}
+				else
+				{
+					if (IS_BLACK(i - 1))
+					{
+						if (!keyStates[i - 1].pressed) RenderPressed();
+					}
+				}
+			}
+
+#pragma endregion
+		}
+		// split in two to allow colored bar
+		const float barFrac = 3.0f / 11.0f;
+		const float barSplitHeight = barFrac * initialBarHeight;
+
+		ImVec4 barColor = config->render.GetBarColor();
+		uint32_t barColorPacked = Utils::PackRGBA(barColor.x, barColor.y, barColor.z, 1.0, Utils::ARGB);
+		PushQuad(0, keyTop, 1, barSplitHeight, 0, 0, 1, barFrac, S9_LAYER_BAR, barColorPacked); // colored bar ooOOO.. default is 0xFFA02020
+		PushQuad(0, keyTop + barSplitHeight, 1, initialBarHeight - barSplitHeight, 0, barFrac, 1, 1.0f - barFrac, S9_LAYER_BAR);
+
+		for (int i = keyFirst; i <= keyLast; i++)
+		{
+			if (!IS_BLACK(i)) continue;
+
+			size_t part = keyNum[i] % 5;
+
+			float bKeyBottom = keyboardHeight / 2.9f;
+			float bKeyTopPressed = keyTop + keyboardHeight * 0.006;
+			float bKeyTopUnpressed = keyTop + keyboardHeight * 0.015;
+
+			float uvLeft = part * (1.0f / 5.0f);
+			float uvRight = (part + 1) * (1.0f / 5.0f);
+
+			float left = keyPos[i];
+			float right = keyPos[i] + keyWidth[i];
+
+			if (keyStates[i].pressed)
+				PushQuad(left, bKeyBottom, right - left, bKeyTopPressed - bKeyBottom, uvLeft, 0, uvRight, 1, S9_LAYER_KEY_BLACK_PRESSED, 0x7F000000 | keyStates[i].color);
+			else
+				PushQuad(left, bKeyBottom, right - left, bKeyTopUnpressed - bKeyBottom, uvLeft, 0, uvRight, 1, S9_LAYER_KEY_BLACK);
+		}
+	}
+	
+#pragma endregion
+
+#pragma region Synthesia 8 Keyboard
+	if (renderSettings.style == SYNTHESIA_8)
+	{
+		const float frac = 1.0f / 7.0f;
+		for (int i = keyFirst; i <= keyLast; i++)
+		{
+			if (i >= MIDI_KEYS) continue;
+
+			if (IS_BLACK(i)) continue;
+			float creamR = 1.0f;
+			float creamG = 0.98f;
+			float creamB = 0.9f;
+
+			uint32_t creamColor = Utils::PackRGBA(creamR, creamG, creamB, 1.0f, Utils::ARGB);
+
+			size_t part = keyNum[i] % 7;
+
+			float split = 0.5f;
+			if (part == 3) split = 0.3f;
+			if (part == 6) split = 0.7f;
+
+			float uvLeft = part * frac;
+			float uvRight = (part + 1) * frac;
+			float uvMiddle = (part + split) * frac;
+
+			float left = keyPos[i];
+			float right = keyPos[i] + keyWidth[i];
+			float middle = left + (right - left) * split;
+
+			uint32_t color = 0x7F000000 | keyStates[i].color;
+
+			if (i == keyLast)
+			{
+				if (keyStates[i].pressed)
+				{
+					PushQuad(left, 0, middle - left, keyTop, uvLeft, 0, uvMiddle, 1, S8_LAYER_KEY_WHITE_PRESSED, color);
+					PushQuad(middle, 0, right - middle, keyTop, split, 0, 1, 1, S8_LAYER_KEY_WHITE_WHOLE_PRESSED, color);
+				}
+				else
+				{
+					PushQuad(left, 0, middle - left, keyTop, uvLeft, 0, uvMiddle, 1, S8_LAYER_KEY_WHITE, 0x7FFFFFFF);
+					PushQuad(middle, 0, right - middle, keyTop, split, 0, 1, 1, S8_LAYER_KEY_WHITE_WHOLE, 0x7FFFFFFF);
+				}
+			}
+			else if (i == keyFirst)
+			{
+				if (keyStates[i].pressed)
+				{
+					PushQuad(left, 0, middle - left, keyTop, 0, 0, split, 1, S8_LAYER_KEY_WHITE_WHOLE_PRESSED, color);
+					PushQuad(middle, 0, right - middle, keyTop, uvMiddle, 0, uvRight, 1, S8_LAYER_KEY_WHITE_PRESSED, color);
+				}
+				else
+				{
+					PushQuad(left, 0, middle - left, keyTop, 0, 0, split, 1, S8_LAYER_KEY_WHITE_WHOLE, 0x7FFFFFFF);
+					PushQuad(middle, 0, right - middle, keyTop, uvMiddle, 0, uvRight, 1, S8_LAYER_KEY_WHITE, 0x7FFFFFFF);
+				}
+			}
+			else
+			{
+				if (keyStates[i].pressed)
+				{
+					PushQuad(left, 0, right - left, keyTop, uvLeft, 0, uvRight, 1, S8_LAYER_KEY_WHITE_PRESSED, color);
+				}
+				else
+				{
+					PushQuad(left, 0, right - left, keyTop, uvLeft, 0, uvRight, 1, S8_LAYER_KEY_WHITE, 0x7FFFFFFF);
 				}
 			}
 		}
-		
-		#pragma endregion
+
+		const float barFrac = 1.0f / 3.0f;
+		const float barSplitHeight = barFrac * initialBarHeight;
+
+		ImVec4 barColor = config->render.GetBarColor();
+		uint32_t barColorPacked = Utils::PackRGBA(barColor.x, barColor.y, barColor.z, 1.0, Utils::ARGB);
+		PushQuad(0, keyTop, 1, barSplitHeight, 0, 0, 1, barFrac, S8_LAYER_BAR, barColorPacked);
+		PushQuad(0, keyTop + barSplitHeight, 1, initialBarHeight - barSplitHeight, 0, barFrac, 1, 1.0f - barFrac, S8_LAYER_BAR);
+
+		for (int i = keyFirst; i <= keyLast; i++)
+		{
+			if (!IS_BLACK(i)) continue;
+
+			float bKeyBottom = keyboardHeight / 2.65f;
+			float bKeyTop = keyTop + keyboardHeight * 0.023;
+
+			float left = keyPos[i];
+			float right = keyPos[i] + keyWidth[i];
+
+			if (keyStates[i].pressed)
+				PushQuad(left, bKeyBottom, right - left, bKeyTop - bKeyBottom, 0, 0, 1, 1, S8_LAYER_KEY_BLACK_PRESSED, 0x7F000000 | keyStates[i].color);
+			else
+				PushQuad(left, bKeyBottom, right - left, bKeyTop - bKeyBottom, 0, 0, 1, 1, S8_LAYER_KEY_BLACK);
+		}
 	}
+#pragma endregion
 
-	// split in two to allow colored bar
-	const float barFrac = 3.0f / 11.0f;
-	const float barSplitHeight = barFrac * initialBarHeight;
-
-	ImVec4 barColor = config->render.GetBarColor();
-	uint32_t barColorPacked = Utils::PackRGBA(barColor.x, barColor.y, barColor.z, 1.0, Utils::ARGB);
-	PushQuad(0, keyTop, 1, barSplitHeight, 0, 0, 1, barFrac, TextureLayer::LAYER_BAR, barColorPacked); // colored bar ooOOO.. default is 0xFFA02020
-	PushQuad(0, keyTop + barSplitHeight, 1, initialBarHeight - barSplitHeight, 0, barFrac, 1, 1.0f - barFrac, TextureLayer::LAYER_BAR);
-
-	for (int i = keyFirst; i <= keyLast; i++)
+#pragma region Glow keyboard
+	if (renderSettings.style == GLOW)
 	{
-		if (!IS_BLACK(i)) continue;
+		const float frac = 1.0f / 7.0f;
+		for (int i = keyFirst; i <= keyLast; i++)
+		{
+			if (i >= MIDI_KEYS) continue;
 
-		size_t part = keyNum[i] % 5;
+			if (IS_BLACK(i)) continue;
+			float creamR = 1.0f;
+			float creamG = 0.98f;
+			float creamB = 0.9f;
 
-		float bKeyBottom = keyboardHeight / 2.9f;
-		float bKeyTopPressed = keyTop + keyboardHeight * 0.006;
-		float bKeyTopUnpressed = keyTop + keyboardHeight * 0.015;
+			uint32_t creamColor = Utils::PackRGBA(creamR, creamG, creamB, 1.0f, Utils::ARGB);
 
-		float uvLeft = part * (1.0f / 5.0f);
-		float uvRight = (part + 1) * (1.0f / 5.0f);
+			size_t part = keyNum[i] % 7;
 
-		float left = keyPos[i];
-		float right = keyPos[i] + keyWidth[i];
+			float split = 0.5f;
+			if (part == 3) split = 0.3f;
+			if (part == 6) split = 0.7f;
 
-		if (keyStates[i].pressed)
-			PushQuad(left, bKeyBottom, right - left, bKeyTopPressed - bKeyBottom, uvLeft, 0, uvRight, 1, TextureLayer::LAYER_KEY_BLACK_PRESSED, 0x7F000000 | keyStates[i].color);
-		else
-			PushQuad(left, bKeyBottom, right - left, bKeyTopUnpressed - bKeyBottom, uvLeft, 0, uvRight, 1, TextureLayer::LAYER_KEY_BLACK);
+			float uvLeft = part * frac;
+			float uvRight = (part + 1) * frac;
+			float uvMiddle = (part + split) * frac;
+
+			float left = keyPos[i];
+			float right = keyPos[i] + keyWidth[i];
+			float middle = left + (right - left) * split;
+
+			uint32_t color = 0x7F000000 | keyStates[i].color;
+
+			if (i == keyLast)
+			{
+				if (keyStates[i].pressed)
+				{
+					PushQuad(left, 0, middle - left, keyTop, uvLeft, 0, uvMiddle, 1, GLOW_LAYER_KEY_WHITE_PRESSED, color);
+					PushQuad(middle, 0, right - middle, keyTop, split, 0, 1, 1, GLOW_LAYER_KEY_WHITE_WHOLE_PRESSED, color);
+				}
+				else
+				{
+					PushQuad(left, 0, middle - left, keyTop, uvLeft, 0, uvMiddle, 1, GLOW_LAYER_KEY_WHITE, 0x7FFFFFFF);
+					PushQuad(middle, 0, right - middle, keyTop, split, 0, 1, 1, GLOW_LAYER_KEY_WHITE_WHOLE, 0x7FFFFFFF);
+				}
+			}
+			else if (i == keyFirst)
+			{
+				if (keyStates[i].pressed)
+				{
+					PushQuad(left, 0, middle - left, keyTop, 0, 0, split, 1, GLOW_LAYER_KEY_WHITE_WHOLE_PRESSED, color);
+					PushQuad(middle, 0, right - middle, keyTop, uvMiddle, 0, uvRight, 1, GLOW_LAYER_KEY_WHITE_PRESSED, color);
+				}
+				else
+				{
+					PushQuad(left, 0, middle - left, keyTop, 0, 0, split, 1, GLOW_LAYER_KEY_WHITE_WHOLE, 0x7FFFFFFF);
+					PushQuad(middle, 0, right - middle, keyTop, uvMiddle, 0, uvRight, 1, GLOW_LAYER_KEY_WHITE, 0x7FFFFFFF);
+				}
+			}
+			else
+			{
+				if (keyStates[i].pressed)
+				{
+					PushQuad(left, 0, right - left, keyTop, uvLeft, 0, uvRight, 1, GLOW_LAYER_KEY_WHITE_PRESSED, color);
+				}
+				else
+				{
+					PushQuad(left, 0, right - left, keyTop, uvLeft, 0, uvRight, 1, GLOW_LAYER_KEY_WHITE, 0x7FFFFFFF);
+				}
+			}
+		}
+
+		PushQuad(0, keyTop, 1, initialBarHeight, 0, 0, 1, 1, GLOW_LAYER_BAR);
+		for (int i = keyFirst; i <= keyLast; i++)
+		{
+			if (!IS_BLACK(i)) continue;
+
+			size_t part = keyNum[i] % 5;
+
+			float bKeyBottom = keyboardHeight / 2.9f;
+			float bKeyTopPressed = keyTop + keyboardHeight * 0.006;
+			float bKeyTopUnpressed = keyTop + keyboardHeight * 0.015;
+
+			float uvLeft = part * (1.0f / 5.0f);
+			float uvRight = (part + 1) * (1.0f / 5.0f);
+
+			float left = keyPos[i];
+			float right = keyPos[i] + keyWidth[i];
+
+			if (keyStates[i].pressed)
+				PushQuad(left, bKeyBottom, right - left, bKeyTopPressed - bKeyBottom, uvLeft, 0, uvRight, 1, GLOW_LAYER_KEY_BLACK_PRESSED, 0x7F000000 | keyStates[i].color);
+			else
+				PushQuad(left, bKeyBottom, right - left, bKeyTopUnpressed - bKeyBottom, uvLeft, 0, uvRight, 1, GLOW_LAYER_KEY_BLACK);
+		}
 	}
+#pragma endregion
 }
 
 void MIDIRendererSynthesia::RenderQuads(size_t count)
@@ -1429,6 +1736,14 @@ void MIDIRendererSynthesia::GenerateParticles(double deltaTime)
 
 void MIDIRendererSynthesia::RenderParticles()
 {
+	int particleTexOffset = 0;
+	if (renderSettings.style == SYNTHESIA_9 || renderSettings.style == SYNTHESIA_10)
+		particleTexOffset = S9_LAYER_COUNT;
+	if (renderSettings.style == SYNTHESIA_8)
+		particleTexOffset = S8_LAYER_COUNT;
+	if (renderSettings.style == GLOW)
+		particleTexOffset = GLOW_LAYER_COUNT;
+
 	float aspect = (float)width / (float)height;
 	for (auto& particle : keyDebrisParticles)
 	{
@@ -1444,7 +1759,7 @@ void MIDIRendererSynthesia::RenderParticles()
 		float sizeX = whiteKeyWidth * p->size;
 		float sizeY = sizeX * aspect;
 
-		PushRotatedQuad(pos.x - sizeX * 0.5f, pos.y - sizeY * 0.5f, sizeX, sizeY, p->rotation, 0, 0, 1, 1, LAYER_PARTICLE_DEBRIS);
+		PushRotatedQuad(pos.x - sizeX * 0.5f, pos.y - sizeY * 0.5f, sizeX, sizeY, p->rotation, 0, 0, 1, 1, particleTexOffset+LAYER_PARTICLE_DEBRIS);
 	}
 
 	for (auto& particleArr : keySparkParticles)
@@ -1469,11 +1784,11 @@ void MIDIRendererSynthesia::RenderParticles()
 
 			if (p->flipped)
 			{
-				PushRotatedQuad(pos.x - sizeX * 0.5, pos.y - sizeY * 0.5, sizeX, sizeY, ang, 0, 0, 1, 1, LAYER_PARTICLE_SPARKLE, blendCol);
+				PushRotatedQuad(pos.x - sizeX * 0.5, pos.y - sizeY * 0.5, sizeX, sizeY, ang, 0, 0, 1, 1, particleTexOffset+LAYER_PARTICLE_SPARKLE, blendCol);
 			}
 			else
 			{
-				PushRotatedQuad(pos.x - sizeX * 0.5, pos.y - sizeY * 0.5, sizeX, sizeY, ang, 1, 0, 0, 1, LAYER_PARTICLE_SPARKLE, blendCol);
+				PushRotatedQuad(pos.x - sizeX * 0.5, pos.y - sizeY * 0.5, sizeX, sizeY, ang, 1, 0, 0, 1, particleTexOffset+LAYER_PARTICLE_SPARKLE, blendCol);
 			}
 		}
 	}
@@ -1496,7 +1811,7 @@ void MIDIRendererSynthesia::RenderParticles()
 			float sizeY = sizeX * aspect;
 
 			uint32_t alpha = (uint32_t)(std::clamp(p->brightness, 0.0f, 1.0f) * 0.2f * 127.0f) << 24;
-			PushQuad(pos.x - sizeX, pos.y - sizeY, sizeX * 2.0f, sizeY * 2.0f, 0, 0, 1, 1, LAYER_PARTICLE_HAZE, alpha | 0xFFFFFF);
+			PushQuad(pos.x - sizeX, pos.y - sizeY, sizeX * 2.0f, sizeY * 2.0f, 0, 0, 1, 1, particleTexOffset+LAYER_PARTICLE_HAZE, alpha | 0xFFFFFF);
 		}
 	}
 }
@@ -1620,16 +1935,27 @@ void MIDIRendererSynthesia::RenderSettings()
 
 						switch (style)
 						{
+							case SYNTHESIA_8:
+								previewText = "Synthesia 8";
+								break;
 							case SYNTHESIA_9:
 								previewText = "Synthesia 9";
 								break;
 							case SYNTHESIA_10:
 								previewText = "Synthesia 10";
 								break;
+							case GLOW:
+								previewText = "Glow";
+								break;
 						}
 
 						if (ImGui::BeginCombo("##synthesiaStyle", previewText.c_str()))
 						{
+							if (ImGui::Selectable("Synthesia 8", style == SYNTHESIA_8))
+							{
+								renderSettings.style = SYNTHESIA_8;
+								UpdateStyle();
+							}
 							if (ImGui::Selectable("Synthesia 9", style == SYNTHESIA_9))
 							{
 								renderSettings.style = SYNTHESIA_9;
@@ -1639,6 +1965,12 @@ void MIDIRendererSynthesia::RenderSettings()
 							if (ImGui::Selectable("Synthesia 10", style == SYNTHESIA_10))
 							{
 								renderSettings.style = SYNTHESIA_10;
+								UpdateStyle();
+							}
+
+							if (ImGui::Selectable("Glow", style == GLOW))
+							{
+								renderSettings.style = GLOW;
 								UpdateStyle();
 							}
 

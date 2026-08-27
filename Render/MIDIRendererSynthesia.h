@@ -22,7 +22,9 @@
 enum SynthesiaStyle
 {
 	SYNTHESIA_10,
-	SYNTHESIA_9
+	SYNTHESIA_9,
+	SYNTHESIA_8,
+	GLOW
 };
 
 struct SynthesiaRenderSettings
@@ -136,28 +138,70 @@ public:
 
 // Index of each source image within the shared texture array. Order must
 // match the LoadLayer() calls in Initialize().
-enum TextureLayer : int
+enum S9TextureLayer : int
 {
-	LAYER_BAR = 0,
-	LAYER_KEY_BLACK,
-	LAYER_KEY_BLACK_PRESSED,
-	LAYER_KEY_WHITE,
-	LAYER_KEY_WHITE_PRESSED,
-	LAYER_KEY_WHITE_WHOLE,
-	LAYER_KEY_WHITE_WHOLE_PRESSED,
-	LAYER_SHADOW_LARGE,
-	LAYER_SHADOW_UNPRESSED,
-	LAYER_SHADOW_PRESSED,
+	S9_LAYER_BAR = 0,
+	S9_LAYER_KEY_BLACK,
+	S9_LAYER_KEY_BLACK_PRESSED,
+	S9_LAYER_KEY_WHITE,
+	S9_LAYER_KEY_WHITE_PRESSED,
+	S9_LAYER_KEY_WHITE_WHOLE,
+	S9_LAYER_KEY_WHITE_WHOLE_PRESSED,
+	S9_LAYER_SHADOW_LARGE,
+	S9_LAYER_SHADOW_UNPRESSED,
+	S9_LAYER_SHADOW_PRESSED,
 
-	// ---- PARTICLE TEXTURES ----
-
-	LAYER_PARTICLE_DEBRIS,
-	LAYER_PARTICLE_SPARKLE,
-	LAYER_PARTICLE_HAZE,
-	LAYER_COUNT // must equal NUM_TEXTURES
+	S9_LAYER_COUNT
 };
 
-static_assert(LAYER_COUNT == NUM_TEXTURES, "TextureLayer enum must match NUM_TEXTURES");
+enum S8TextureLayer : int
+{
+	S8_LAYER_BAR = 0,
+	S8_LAYER_KEY_BLACK,
+	S8_LAYER_KEY_BLACK_PRESSED,
+	S8_LAYER_KEY_WHITE,
+	S8_LAYER_KEY_WHITE_PRESSED,
+	S8_LAYER_KEY_WHITE_WHOLE,
+	S8_LAYER_KEY_WHITE_WHOLE_PRESSED,
+
+	S8_LAYER_COUNT
+};
+
+enum S7TextureLayer : int
+{
+	S7_LAYER_BAR = 0,
+	S7_LAYER_KEY_BLACK,
+	S7_LAYER_KEY_BLACK_PRESSED,
+	S7_LAYER_KEY_WHITE,
+	S7_LAYER_KEY_WHITE_PRESSED,
+	S7_LAYER_KEY_WHITE_WHOLE,
+	S7_LAYER_KEY_WHITE_WHOLE_PRESSED,
+	 
+	S7_LAYER_COUNT
+};
+
+enum GlowTextureLayer : int
+{
+	GLOW_LAYER_BAR = 0,
+	GLOW_LAYER_KEY_BLACK,
+	GLOW_LAYER_KEY_BLACK_PRESSED,
+	GLOW_LAYER_KEY_WHITE,
+	GLOW_LAYER_KEY_WHITE_PRESSED,
+	GLOW_LAYER_KEY_WHITE_WHOLE,
+	GLOW_LAYER_KEY_WHITE_WHOLE_PRESSED,
+
+	GLOW_LAYER_COUNT
+};
+
+enum ParticleTextureLayer : int
+{
+	LAYER_PARTICLE_DEBRIS = 0,
+	LAYER_PARTICLE_SPARKLE,
+	LAYER_PARTICLE_HAZE,
+	PARTICLE_LAYER_COUNT
+};
+
+// static_assert(LAYER_COUNT == NUM_TEXTURES, "TextureLayer enum must match NUM_TEXTURES");
 
 class MIDIRendererSynthesia : public AbstractMIDIRenderer
 {
@@ -248,7 +292,7 @@ private:
 	std::mt19937 random{ std::random_device{}() };
 #pragma endregion
 
-	void InitializeTextures();
+	void LoadKeyboardTextures(SynthesiaStyle style);
 	void InitializeParticleSystems();
 	void CalculateKeyboardData();
 	void GenerateKeyLayoutArrays();
