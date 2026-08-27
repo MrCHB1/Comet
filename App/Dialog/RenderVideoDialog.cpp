@@ -2,6 +2,8 @@
 #include "FFmpeg/FFmpegCommandBuilder.h"
 #include "Utils.h"
 #include <filesystem>
+#include "MIDI/MIDISequence.h"
+#include "App/UI/Widgets/TimeRange.h"
 
 #if defined(_WIN32)
 #include <Windows.h>
@@ -417,6 +419,28 @@ void RenderVideoDialog::DrawContent()
                     if (renderSettings.maskOutputPath.empty())
                     {
                         ImGui::TextColored(ImVec4(0.5f, 0.0f, 0.0f, 1.0f), "Please specify the transparency mask's output path.");
+                        canRender = false;
+                    }
+                }
+            });
+
+        SECTION_ENTRY(TABLE_LABEL_TOOLTIP("Render range", "Renders the MIDI at a specified time interval. Useful for sharing short previews of an entire MIDI."),
+            {
+                ImGui::Checkbox("##renderRange", &renderSettings.renderRange);
+                if (renderSettings.renderRange)
+                {
+                    MIDISequence* seq = app->GetRendererSequence();
+                    double seqDuration = seq ? (double)seq->GetLength() / 1000.0 : 60.0;
+
+                    TimeRange::Draw("##renderRange",
+                        &renderSettings.rangeStart,
+                        &renderSettings.rangeEnd,
+                        -renderSettings.midiStartDelay,
+                        seqDuration + 5.0);
+
+                    if (renderSettings.rangeStart > renderSettings.rangeEnd)
+                    {
+                        ImGui::TextColored(ImVec4(0.5f, 0.0f, 0.0f, 1.0f), "Invalid render range.");
                         canRender = false;
                     }
                 }

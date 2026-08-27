@@ -9,6 +9,8 @@
 #include <iomanip>
 #include <cmath>
 #include "imgui.h"
+#include <string_view>
+#include <charconv>
 
 #if defined(_WIN32)
     #include <windows.h>
@@ -129,6 +131,49 @@ namespace Utils
         }
 
         return out.str();
+    }
+
+    std::optional<double> ParseTimeString(std::string timeString)
+    {
+        double values[3]{};
+        int count = 0;
+
+        size_t start = 0;
+
+        while (start < timeString.size() && count < 3)
+        {
+            size_t end = timeString.find(':', start);
+            if (end == std::string_view::npos)
+                end = timeString.size();
+
+            std::string part = timeString.substr(start, end - start);
+
+            double value{};
+            auto [ptr, ec] = std::from_chars(part.data(), part.data() + part.size(), value);
+
+            if (ec != std::errc{} || ptr != part.data() + part.size())
+                return std::nullopt;
+
+            values[count++] = value;
+
+            if (end == timeString.size()) break;
+            start = end + 1;
+        }
+
+        if (count == 3)
+        {
+            return std::optional(values[0] * 3600.0 + values[1] * 60.0 + values[2]);
+        }
+        else if (count == 2)
+        {
+            return std::optional(values[0] * 60.0 + values[1]);
+        }
+        else if (count == 1)
+        {
+            return std::optional(values[0]);
+        }
+
+        return std::nullopt;
     }
 
     bool ChooseFile(std::string& outPath, const char* extension)

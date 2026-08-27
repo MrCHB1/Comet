@@ -58,6 +58,7 @@ public:
 	void RenderMIDIVideo(const RenderSettings& renderSettings);
 	void RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt);
 
+	MIDISequence* GetRendererSequence();
 	MIDIAudio* GetMIDIAudio() { return midiAudio.get(); }
 	ThemesList* GetThemeList() { return themesList.get(); }
 	FontList* GetFontList() { return fontList.get(); }

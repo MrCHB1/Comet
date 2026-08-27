@@ -51,6 +51,10 @@ struct RenderSettings
 	bool renderTransparencyMask = false;
 	std::filesystem::path maskOutputPath = "";
 
+	bool renderRange = false;
+	double rangeStart = 0;
+	double rangeEnd = 60.0;
+
 	RenderOutputFormat outputFormat = RenderOutputFormat::MP4;
 	RenderCodec codec = RenderCodec::H264;
 	bool useGPUEncoding = false;
