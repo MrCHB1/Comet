@@ -24,6 +24,11 @@ public:
 	void ToggleFullscreen();
 	void SetTitleInfo(std::string midiName = "");
 	GLFWwindow* GetInternalWindow() { return window; }
+
+	bool IsGLReady() const
+	{
+		return isGLReady;
+	}
 private:
 	// called before glfw initialization
 	void InitializeApp();
@@ -47,4 +52,5 @@ private:
 	std::string title = "Window";
 	std::string titleInfo = "No MIDI Loaded";
 	bool fullscreen = false;
+	bool isGLReady = false;
 };

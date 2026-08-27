@@ -203,6 +203,7 @@ void MainWindow::PostInit()
 {
 	glfwSwapInterval(midiApp->GetConfig()->render.GetVSync() ? 1 : 0);
 	SetTitleInfo();
+	isGLReady = true;
 }
 
 void MainWindow::SetTitleInfo(std::string midiName)
@@ -290,7 +291,8 @@ bool MainWindow::CanShowNavigationBar()
 
 	// me
 	bool isMenuOpen = ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId);
-	if (mouseY < 60.0 || isMenuOpen) return true;
+	auto* navBar = midiApp->GetNavigationBar();
+	if (mouseY < navBar->GetPosition().y + navBar->GetResolution().y + 5.0 || isMenuOpen) return true;
 
 	return false;
 }
