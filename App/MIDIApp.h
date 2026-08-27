@@ -50,6 +50,7 @@ public:
 	template <typename T>
 	void SetRenderer();
 
+	bool IsGLReady() const;
 	void LoadResources();
 	void LoadColorPalettes();
 	void LoadMIDI(const char* path);
@@ -69,6 +70,7 @@ public:
 	std::shared_ptr<Progress> GetProgress() { return prog; }
 	ResourcePackList* GetPackList() { return packList.get(); }
 	ColorPaletteList* GetColorList() { return colorList.get(); }
+	NavigationBar* GetNavigationBar() { return navigationBar.get(); }
 
 	const RenderSettings& GetCurrentRenderSettings() const { return currentRenderSettings; }
 	

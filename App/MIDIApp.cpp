@@ -47,7 +47,7 @@ MIDIApp::MIDIApp(MainWindow* mainWindow)
 
 	renderView = std::make_shared<RenderView>();
 	timer = std::make_shared<MIDITimer>();
-	navigationBar = std::make_unique<NavigationBar>(timer, renderView.get());
+	navigationBar = std::make_unique<NavigationBar>(this, renderView.get());
 
 	noteCounterInfo = std::make_shared<NoteCounterInfo>();
 	// initialize overlays
@@ -70,6 +70,12 @@ MIDIApp::~MIDIApp()
 	}
 	config.SaveConfig();
 	Models::UnloadModels();
+}
+
+bool MIDIApp::IsGLReady() const
+{
+	if (!mainWindow) return false;
+	return mainWindow->IsGLReady();
 }
 
 std::shared_ptr<AbstractMIDILoader> MIDIApp::CreateLoader(const char* path)
@@ -366,7 +372,7 @@ void MIDIApp::Update()
 		if (!overlay->IsShown()) continue;
 
 		glm::vec2 counterResolution = overlay->GetOverlaySize();
-		float heightOffset = rendering || !mainWindow->CanShowNavigationBar() ? 0.0 : 56.0;
+		float heightOffset = rendering || !mainWindow->CanShowNavigationBar() ? 0.0 : navigationBar->GetPosition().y + navigationBar->GetResolution().y;
 		glm::vec2 counterPos = overlay->GetOverlayPosition();
 
 		if (config.overlayInfo.blurBehind)
@@ -395,7 +401,26 @@ void MIDIApp::Update()
 
 	if (!rendering)
 	{
-		if (mainWindow->CanShowNavigationBar()) navigationBar->Draw();
+		if (mainWindow->CanShowNavigationBar())
+		{
+			// frosted glass effect thingy
+			auto size = navigationBar->GetResolution();
+			auto pos = navigationBar->GetPosition();
+
+			blurredQuadRenderer->Render({
+				glm::vec3(
+					pos.x / width,
+					1.0f - (pos.y + size.y) / height,
+					0.0f
+				),
+				glm::vec2(
+					size.x / width,
+					size.y / height
+				)
+				});
+
+			navigationBar->Draw();
+		}
 
 		if (hasSequence && timer->Elapsed() >= seqLength + 3.0 && !timer->IsPaused())
 		{

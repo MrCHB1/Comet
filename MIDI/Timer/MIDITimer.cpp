@@ -13,10 +13,8 @@ void MIDITimer::Start(double startTime)
 
 void MIDITimer::Stop()
 {
-	running = false;
-	paused = false;
-	baseTime = 0.0;
-	lastTime = 0.0;
+	Pause();
+	NavigateTo(-3.0);
 }
 
 void MIDITimer::Pause()
