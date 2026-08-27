@@ -34,6 +34,7 @@ namespace Utils
 	std::string FormatFilesize(long long bytes, int decimal);
 	std::string FormatDuration(double ms);
 	std::string FormatDuration2(double ms);
+	std::optional<double> ParseTimeString(std::string timeString);
 	bool ChooseFile(std::string& outPath, const char* extension = nullptr);
 	bool SaveFile(std::string& outPath, const char* extension = nullptr);
 	bool EqualsIgnoreCase(const std::string& a, const std::string& b);

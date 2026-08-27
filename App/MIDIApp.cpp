@@ -307,6 +307,13 @@ void MIDIApp::LoadColorPalettes()
 		colorList = std::make_shared<ColorPaletteList>();
 }
 
+MIDISequence* MIDIApp::GetRendererSequence()
+{
+	AbstractMIDIRenderer* renderer = GetRenderer();
+	if (!renderer) return nullptr;
+	return renderer->GetSequence().get();
+}
+
 void MIDIApp::Update()
 {
 	UpdatePendingSequence();
@@ -511,12 +518,20 @@ void MIDIApp::RunFrame()
 			rendering.store(false);
 		}
 
-		double midiTime = (double)currentFrame / (double)currentRenderSettings.fps - currentRenderSettings.midiStartDelay;
+		double effectiveStart = currentRenderSettings.renderRange
+			? currentRenderSettings.rangeStart
+			: -currentRenderSettings.midiStartDelay;
+
+		double midiTime = effectiveStart + (double)currentFrame / (double)currentRenderSettings.fps;
 		this->timer->NavigateTo(midiTime);
 
 		Update();
 
-		if (!this->rendering || midiTime >= seqLength + 5.0)
+		double stopTime = currentRenderSettings.renderRange
+			? std::min(seqLength + 5.0, currentRenderSettings.rangeEnd)
+			: seqLength + 5.0;
+
+		if (!this->rendering || midiTime >= stopTime)
 		{
 			std::cout << "Rendering complete or stopped!" << std::endl;
 			ffmpegPipe->Close();

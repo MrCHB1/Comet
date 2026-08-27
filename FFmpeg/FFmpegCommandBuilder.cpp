@@ -14,6 +14,9 @@ std::string FFmpegCommandBuilder::BuildFFmpegCommand(const RenderSettings& setti
 	cmd << "-r " << settings.fps << " ";
 	cmd << "-i - "; // read from stdin
 
+	double startOffset = settings.renderRange ? settings.rangeStart : 0.0;
+	double duration = settings.renderRange ? (settings.rangeEnd - settings.rangeStart) : 0.0;
+
 	// attach audio, if possible
 	if (settings.includeAudio)
 	{
@@ -23,8 +26,22 @@ std::string FFmpegCommandBuilder::BuildFFmpegCommand(const RenderSettings& setti
 #else
 		std::string audioPath = settings.audioPath.string();
 #endif
-		cmd << "-itsoffset " << settings.midiStartDelay << " "
-			<< "-i \"" << audioPath << "\" ";
+		if (settings.renderRange)
+		{
+			cmd << "-ss " << settings.rangeStart << " "
+				<< "-i \"" << audioPath << "\" ";
+		}
+		else
+		{
+			cmd << "-itsoffset " << settings.midiStartDelay << " "
+				<< "-i \"" << audioPath << "\" ";
+		}
+	}
+
+	if (settings.renderRange)
+	{
+		double duration = settings.rangeEnd - settings.rangeStart;
+		cmd << "-t " << duration << " ";
 	}
 
 	// determine encoder profiles
