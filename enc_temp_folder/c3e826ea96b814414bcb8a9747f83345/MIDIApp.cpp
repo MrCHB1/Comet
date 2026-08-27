@@ -415,35 +415,35 @@ void MIDIApp::RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt)
 
 	switch (key)
 	{
-		case ImGuiKey_Space:
-		{
-			if (IsRendering()) return;
-			// TODO: ignore when no sequence is loaded
-			timer->TogglePause();
-			break;
-		}
-		case ImGuiKey_LeftArrow:
-		{
-			if (IsRendering()) return;
-			double currTime = timer->Elapsed();
-			double seekTime = std::max(-3.0, currTime - config->navigation.seekBackwardSeconds);
-			timer->NavigateTo(seekTime);
-			break;
-		}
-		case ImGuiKey_RightArrow:
-		{
-			if (IsRendering()) return;
-			double currTime = timer->Elapsed();
-			double seekTime = std::min(seqLength + 5.0, currTime + config->navigation.seekForwardSeconds);
-			timer->NavigateTo(seekTime);
-			break;
-		}
-		case ImGuiKey_Enter:
-		{
-			if (!alt) return;
-			mainWindow->ToggleFullscreen();
-			break;
-		}
+	case ImGuiKey_Space:
+	{
+		if (IsRendering()) return;
+		// TODO: ignore when no sequence is loaded
+		timer->TogglePause();
+		break;
+	}
+	case ImGuiKey_LeftArrow:
+	{
+		if (IsRendering()) return;
+		double currTime = timer->Elapsed();
+		double seekTime = std::max(-3.0, currTime - config->navigation.seekBackwardSeconds);
+		timer->NavigateTo(seekTime);
+		break;
+	}
+	case ImGuiKey_RightArrow:
+	{
+		if (IsRendering()) return;
+		double currTime = timer->Elapsed();
+		double seekTime = std::min(seqLength + 5.0, currTime + config->navigation.seekForwardSeconds);
+		timer->NavigateTo(seekTime);
+		break;
+	}
+	case ImGuiKey_Enter:
+	{
+		if (!alt) return;
+		mainWindow->ToggleFullscreen();
+		break;
+	}
 	default:
 		break;
 	}

@@ -447,13 +447,15 @@ void SettingsDialog::DrawVisualTab()
 
 				ImGui::EndTabItem();
 			}
-			if (ImGui::BeginTabItem("Note Counter"))
+			if (ImGui::BeginTabItem("Note Counter / Stats"))
 			{
 				MIDIPlayerConfig* config = app->GetConfig();
-				NoteCounterRenderer* counterRenderer = app->GetNoteCounterRenderer();
 				NoteCounterInfo* counter = app->GetNoteCounterInfo();
 				FontList* fontList = app->GetFontList();
 				std::vector<FontEntry>& fonts = fontList->GetFonts();
+
+				const NoteCounterAlignment alignment = config->overlayInfo.overlayAlignment;
+				const NoteCounterStyle style = config->overlayInfo.overlayStyle;
 
 				SECTION_HEADER("Appearance");
 
@@ -464,6 +466,11 @@ void SettingsDialog::DrawVisualTab()
 					SECTION_ENTRY(
 						SECTION_LABEL("Show note counter"),
 						ImGui::Checkbox("##showNoteCounter", &config->render.showCounter);
+					);
+
+					SECTION_ENTRY(
+						SECTION_LABEL("Show statistics"),
+						ImGui::Checkbox("##showStats", &config->render.showStats);
 					);
 
 					SECTION_ENTRY(
@@ -481,19 +488,16 @@ void SettingsDialog::DrawVisualTab()
 					SECTION_ENTRY(
 						SECTION_LABEL("Alignment"),
 						{
-							const auto alignment = counterRenderer->GetCounterAlignment();
 
 							if (ImGui::RadioButton(
 								"Top Left",
 								alignment == NoteCounterAlignment::TopLeft))
 							{
-								counterRenderer->SetCounterAlignment(
-									NoteCounterAlignment::TopLeft
-								);
+								config->overlayInfo.overlayAlignment = NoteCounterAlignment::TopLeft;
 							}
 
 							ImGui::BeginDisabled(
-								counterRenderer->GetCounterStyle() != NoteCounterStyle::MIDITrail
+								style != NoteCounterStyle::MIDITrail
 							);
 
 							ImGui::SameLine();
@@ -502,9 +506,7 @@ void SettingsDialog::DrawVisualTab()
 								"Top Center",
 								alignment == NoteCounterAlignment::TopCenter))
 							{
-								counterRenderer->SetCounterAlignment(
-									NoteCounterAlignment::TopCenter
-								);
+								config->overlayInfo.overlayAlignment = NoteCounterAlignment::TopCenter;
 							}
 
 							ImGui::EndDisabled();
@@ -515,9 +517,7 @@ void SettingsDialog::DrawVisualTab()
 								"Top Right",
 								alignment == NoteCounterAlignment::TopRight))
 							{
-								counterRenderer->SetCounterAlignment(
-									NoteCounterAlignment::TopRight
-								);
+								config->overlayInfo.overlayAlignment = NoteCounterAlignment::TopRight;
 							}
 						}
 					);
@@ -595,20 +595,15 @@ void SettingsDialog::DrawVisualTab()
 					SECTION_ENTRY(
 						SECTION_LABEL("Style"),
 						{
-							const auto style = counterRenderer->GetCounterStyle();
-
 							if (ImGui::RadioButton(
 								"Ultralight MIDI Player",
 								style == NoteCounterStyle::UMP))
 							{
-								counterRenderer->SetCounterStyle(NoteCounterStyle::UMP);
+								config->overlayInfo.overlayStyle = NoteCounterStyle::UMP;
 
-								if (counterRenderer->GetCounterAlignment() ==
-									NoteCounterAlignment::TopCenter)
+								if (config->overlayInfo.overlayAlignment == NoteCounterAlignment::TopCenter)
 								{
-									counterRenderer->SetCounterAlignment(
-										NoteCounterAlignment::TopLeft
-									);
+									config->overlayInfo.overlayAlignment = NoteCounterAlignment::TopRight;
 								}
 							}
 
@@ -618,9 +613,7 @@ void SettingsDialog::DrawVisualTab()
 								"MIDITrail",
 								style == NoteCounterStyle::MIDITrail))
 							{
-								counterRenderer->SetCounterStyle(
-									NoteCounterStyle::MIDITrail
-								);
+								config->overlayInfo.overlayStyle = NoteCounterStyle::MIDITrail;
 							}
 						}
 					);
@@ -628,20 +621,10 @@ void SettingsDialog::DrawVisualTab()
 					SECTION_ENTRY(
 						SECTION_LABEL("Background color"),
 						{
-							std::array<float, 4> bgCol =
-								counterRenderer->GetCounterBackground();
-
-							if (ImGui::ColorEdit4(
-								"##ncBg",
-								bgCol.data(),
-								ImGuiColorEditFlags_AlphaBar))
+							ImVec4 backgroundColor = config->overlayInfo.backgroundCol;
+							if (ImGui::ColorEdit4("##ncBg", &backgroundColor.x, ImGuiColorEditFlags_AlphaBar))
 							{
-								counterRenderer->SetCounterBackground(
-									bgCol[0],
-									bgCol[1],
-									bgCol[2],
-									bgCol[3]
-								);
+								config->overlayInfo.backgroundCol = backgroundColor;
 							}
 						}
 					);
@@ -649,18 +632,10 @@ void SettingsDialog::DrawVisualTab()
 					SECTION_ENTRY(
 						SECTION_LABEL("Text color"),
 						{
-							std::array<float, 3> txtCol =
-								counterRenderer->GetCounterTextColor();
-
-							if (ImGui::ColorEdit3(
-								"##ncTxtCol",
-								txtCol.data()))
+							ImVec4 textColor = config->overlayInfo.textCol;
+							if (ImGui::ColorEdit3("##ncTxtCol", &textColor.x))
 							{
-								counterRenderer->SetCounterTextColor(
-									txtCol[0],
-									txtCol[1],
-									txtCol[2]
-								);
+								config->overlayInfo.textCol = textColor;
 							}
 						}
 					);
@@ -669,7 +644,7 @@ void SettingsDialog::DrawVisualTab()
 				}
 
 				SECTION_HEADER("Fields");
-				ImGui::TextDisabled("Fields marked with an asterisk (*) are omitted from renders.");
+				ImGui::TextDisabled("Fields marked with an asterisk (*) are omitted from video renders.");
 				ImGui::Spacing();
 
 				BEGIN_SECTION("##nc_fields")
@@ -685,10 +660,6 @@ void SettingsDialog::DrawVisualTab()
 					ImGui::TableNextRow();
 					ImGui::TableSetColumnIndex(0); ImGui::Checkbox("NPS", &counter->notesPerSecond.shown);
 					ImGui::TableSetColumnIndex(1); ImGui::Checkbox("Polyphony", &counter->polyphony.shown);
-
-					ImGui::TableNextRow();
-					ImGui::TableSetColumnIndex(0); ImGui::Checkbox("FPS*", &counter->fps.shown);
-					ImGui::TableSetColumnIndex(1); ImGui::TextDisabled("");
 
 					END_SECTION;
 				}

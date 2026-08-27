@@ -18,6 +18,23 @@ enum class RendererType
 	CounterOnly
 };
 
+enum class NoteCounterStyle
+{
+	UMP,
+	MIDITrail
+};
+
+enum class NoteCounterAlignment
+{
+	TopLeft,
+	TopCenter, // only available for MIDITrail-style counter
+	TopRight
+};
+
+static const NoteCounterStyle DEFAULT_NOTE_COUNTER_STYLE = NoteCounterStyle::UMP;
+static const NoteCounterAlignment DEFAULT_NOTE_COUNTER_ALIGNMENT = NoteCounterAlignment::TopRight;
+static const int DEFAULT_NOTE_COUNTER_WIDTH = 200;
+
 inline const std::string ToString(RendererType type)
 {
 	switch (type)
@@ -51,12 +68,17 @@ struct MIDIPlayerConfig
 		std::string selectedFontPath = "";
 		bool showDuration = false;
 		bool blurBehind = true;
+
+		ImVec4 backgroundCol = ImVec4(0.f, 0.f, 0.f, 0.6f);
+		ImVec4 textCol = ImVec4(1.f, 1.f, 1.f, 1.f);
+
+		NoteCounterStyle overlayStyle = DEFAULT_NOTE_COUNTER_STYLE;
+		NoteCounterAlignment overlayAlignment = DEFAULT_NOTE_COUNTER_ALIGNMENT;
 	};
 
 	struct ConfigOverlay
 	{
 		bool opaque;
-
 	};
 
 	struct ConfigMIDI
@@ -181,6 +203,7 @@ struct MIDIPlayerConfig
 		}
 
 		bool showCounter = true;
+		bool showStats = true;
 		bool loopColors = true;
 		int paletteID = 0;
 	private:
