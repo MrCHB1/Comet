@@ -5,6 +5,7 @@
 #include <iostream>
 #include <algorithm>
 #include "../MIDI/AbstractMIDILoader.h"
+#include "Render/NoteCounter/AbstractOverlayRenderer.h"
 #include <thread>
 #include <memory>
 #include "imgui.h"
@@ -29,6 +30,7 @@
 #include "App/UI/NavigationBar.h"
 #include "../Render/RenderView.h"
 #include "Render/NoteCounter/NoteCounterRenderer.h"
+#include "Render/NoteCounter/StatsOverlayRenderer.h"
 #include "Render/NoteCounter/NoteCounterInfo.h"
 #include "Render/BlurredQuadRenderer.h"
 #include "FFmpeg/FFmpegPipe.h"
@@ -48,7 +50,9 @@ MIDIApp::MIDIApp(MainWindow* mainWindow)
 	navigationBar = std::make_unique<NavigationBar>(timer, renderView.get());
 
 	noteCounterInfo = std::make_shared<NoteCounterInfo>();
-	noteCounterRenderer = std::make_unique<NoteCounterRenderer>(noteCounterInfo, this);
+	// initialize overlays
+	overlays.emplace_back(std::make_unique<NoteCounterRenderer>(noteCounterInfo, this));
+	overlays.emplace_back(std::make_unique<StatsOverlayRenderer>(this));
 	Models::LoadModels();
 
 	this->mainWindow = mainWindow;
@@ -161,7 +165,11 @@ void MIDIApp::SetRenderer()
 
 	int width = config.render.GetWidth();
 	int height = config.render.GetHeight();
-	noteCounterRenderer->OnResize(width, height); // hacky but oh well
+	// hacky but oh well
+	for (auto& overlay : overlays)
+	{
+		overlay->OnResize(width, height);
+	}
 
 	// save current renderer settings before destroying it
 	if (this->renderer)
@@ -346,17 +354,18 @@ void MIDIApp::Update()
 		fullscreenQuad->Draw();
 	}
 
-	if (config.render.showCounter)
+	for (auto& overlay : overlays)
 	{
-		glm::vec2 counterResolution = noteCounterRenderer->GetCounterResolution();
-		float heightOffset = rendering || !mainWindow->CanShowNavigationBar() ? 0.0 : 56.0;
-		glm::vec2 counterPos = noteCounterRenderer->GetCounterPosition();
+		if (!overlay->IsShown()) continue;
 
-		// the (now optional) frosted glass effect, yay!
+		glm::vec2 counterResolution = overlay->GetOverlaySize();
+		float heightOffset = rendering || !mainWindow->CanShowNavigationBar() ? 0.0 : 56.0;
+		glm::vec2 counterPos = overlay->GetOverlayPosition();
+
 		if (config.overlayInfo.blurBehind)
 			blurredQuadRenderer->Render({ glm::vec3(counterPos.x, counterPos.y, 0.0f), glm::vec2(counterResolution.x, counterResolution.y) });
 
-		noteCounterRenderer->Render(heightOffset);
+		overlay->Render(heightOffset);
 	}
 
 	renderFramebuffer->Unbind();
@@ -391,12 +400,12 @@ void MIDIApp::Update()
 void MIDIApp::UpdateNoteCounterInfo()
 {
 	double time = Utils::GetCurrTime<std::chrono::microseconds>() / 1000000.0;
-	noteCounterInfo->fps = 1.0 / (time - lastFrameTime);
-	noteCounterInfo->audioBuffer = -1.0;
+	fps = 1.0 / (time - lastFrameTime);
+	audioBuffer = -1.0;
 	auto* prAudio = dynamic_cast<PrerenderedEngine*>(GetMIDIAudio()->GetCurrentEngine());
 	if (prAudio)
 	{
-		noteCounterInfo->audioBuffer = prAudio->GetBufferSeconds();
+		audioBuffer = prAudio->GetBufferSeconds();
 	}
 }
 
@@ -406,35 +415,35 @@ void MIDIApp::RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt)
 
 	switch (key)
 	{
-	case ImGuiKey_Space:
-	{
-		if (IsRendering()) return;
-		// TODO: ignore when no sequence is loaded
-		timer->TogglePause();
-		break;
-	}
-	case ImGuiKey_LeftArrow:
-	{
-		if (IsRendering()) return;
-		double currTime = timer->Elapsed();
-		double seekTime = std::max(-3.0, currTime - config->navigation.seekBackwardSeconds);
-		timer->NavigateTo(seekTime);
-		break;
-	}
-	case ImGuiKey_RightArrow:
-	{
-		if (IsRendering()) return;
-		double currTime = timer->Elapsed();
-		double seekTime = std::min(seqLength + 5.0, currTime + config->navigation.seekForwardSeconds);
-		timer->NavigateTo(seekTime);
-		break;
-	}
-	case ImGuiKey_Enter:
-	{
-		if (!alt) return;
-		mainWindow->ToggleFullscreen();
-		break;
-	}
+		case ImGuiKey_Space:
+		{
+			if (IsRendering()) return;
+			// TODO: ignore when no sequence is loaded
+			timer->TogglePause();
+			break;
+		}
+		case ImGuiKey_LeftArrow:
+		{
+			if (IsRendering()) return;
+			double currTime = timer->Elapsed();
+			double seekTime = std::max(-3.0, currTime - config->navigation.seekBackwardSeconds);
+			timer->NavigateTo(seekTime);
+			break;
+		}
+		case ImGuiKey_RightArrow:
+		{
+			if (IsRendering()) return;
+			double currTime = timer->Elapsed();
+			double seekTime = std::min(seqLength + 5.0, currTime + config->navigation.seekForwardSeconds);
+			timer->NavigateTo(seekTime);
+			break;
+		}
+		case ImGuiKey_Enter:
+		{
+			if (!alt) return;
+			mainWindow->ToggleFullscreen();
+			break;
+		}
 	default:
 		break;
 	}
@@ -453,7 +462,10 @@ void MIDIApp::OnResize(int width, int height)
 		return;
 	}
 	renderer->OnResize(width, height);
-	noteCounterRenderer->OnResize(width, height);
+	for (auto& overlay : overlays)
+	{
+		overlay->OnResize(width, height);
+	}
 	renderFramebuffer->Resize(width, height);
 }
 
@@ -556,7 +568,10 @@ void MIDIApp::PrepareRendering()
 	glfwGetWindowSize(window, &previewWidth, &previewHeight);
 
 	renderer->OnResize(currentRenderSettings.width, currentRenderSettings.height);
-	noteCounterRenderer->OnResize(currentRenderSettings.width, currentRenderSettings.height);
+	for (auto& overlay : overlays)
+	{
+		overlay->OnResize(currentRenderSettings.width, currentRenderSettings.height);
+	}
 	renderFramebuffer->Resize(currentRenderSettings.width, currentRenderSettings.height);
 
 	lastRenderStartTimeMs = (double)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
@@ -577,7 +592,10 @@ void MIDIApp::FinalizeRendering()
 	config.render.SetHeight(winH);
 
 	renderer->OnResize(winW, winH);
-	noteCounterRenderer->OnResize(winW, winH);
+	for (auto& overlay : overlays)
+	{
+		overlay->OnResize(winW, winH);
+	}
 	renderFramebuffer->Resize(winW, winH);
 
 	double endRenderTime = (double)(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());

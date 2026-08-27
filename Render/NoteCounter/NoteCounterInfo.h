@@ -29,8 +29,6 @@ struct NoteCounterInfo
 	NoteCounterField<double> bpm{ 120 };
 	NoteCounterField<uint64_t> tick{ 0 };
 	NoteCounterField<uint16_t> ppq{ 960 };
-	NoteCounterField<float> fps{ 0 };
-	NoteCounterField<double> audioBuffer{ -1 };
 	
 	std::deque<NoteHistoryPoint> npsHistory;
 	void ResetCounter();

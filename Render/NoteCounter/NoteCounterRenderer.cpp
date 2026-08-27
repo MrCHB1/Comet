@@ -6,31 +6,6 @@
 #include "Utils.h"
 #include "App/MIDIApp.h"
 
-static void RightAlignedTableText(const char* text)
-{
-	float textWidth = ImGui::CalcTextSize(text).x;
-	float avail = ImGui::GetContentRegionAvail().x;
-
-	if (avail > textWidth)
-	{
-		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avail - textWidth);
-	}
-
-	ImGui::TextUnformatted(text);
-}
-
-template <size_t N, typename... Args>
-static void FormatText(char (&buf)[N],
-	const char* format, Args&&... args)
-{
-	std::snprintf(
-		buf,
-		N,
-		format,
-		std::forward<Args>(args)...
-	);
-}
-
 static void BeginNextCounterRow(const char* label)
 {
 	ImGui::TableNextRow();
@@ -39,9 +14,20 @@ static void BeginNextCounterRow(const char* label)
 	ImGui::TableSetColumnIndex(1);
 }
 
+bool NoteCounterRenderer::IsShown()
+{
+	MIDIPlayerConfig* config = app->GetConfig();
+	return config->render.showCounter;
+}
+
 void NoteCounterRenderer::Render(float heightOffset)
 {
 	MIDIPlayerConfig* config = app->GetConfig();
+	ImVec4 bgColor = config->overlayInfo.backgroundCol;
+	ImVec4 txtColor = config->overlayInfo.textCol;
+
+	NoteCounterAlignment counterAlignment = config->overlayInfo.overlayAlignment;
+	NoteCounterStyle counterStyle = config->overlayInfo.overlayStyle;
 
 	// font magic
 	ImFont* fontToUse = nullptr;
@@ -81,8 +67,8 @@ void NoteCounterRenderer::Render(float heightOffset)
 	float minCounterWidth = this->counterWidth * counterScale;
 
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(5.0f * counterScale, 5.0f * counterScale));
-	ImGui::PushStyleColor(ImGuiCol_WindowBg, noteCounterBackgroundCol);
-	ImGui::PushStyleColor(ImGuiCol_Text, noteCounterTextCol);
+	ImGui::PushStyleColor(ImGuiCol_WindowBg, bgColor);
+	ImGui::PushStyleColor(ImGuiCol_Text, txtColor);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 	ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(-10.0f, 2.0f));
 
@@ -118,51 +104,52 @@ void NoteCounterRenderer::RenderUMP(float counterScale)
 		// hence why it was wider than usual when the scake is 1.0 :/
 
 		struct CounterRow { const char* label; char value[64]; };
-		CounterRow rows[8];
+		CounterRow rows[6];
 		int rowCount = 0;
 
 		if (noteCounterInfo->tick.shown)
 		{
 			auto ticks = noteCounterInfo->tick.value;
-			FormatText(rows[rowCount].value, "%s/%u", Utils::FormatWithCommas(ticks > 0 ? ticks : 0).c_str(), noteCounterInfo->ppq.value);
+			OverlayUtils::FormatText(rows[rowCount].value, "%s/%u", Utils::FormatWithCommas(ticks > 0 ? ticks : 0).c_str(), noteCounterInfo->ppq.value);
 			rows[rowCount].label = "Tick";
 			rowCount++;
 		}
 		if (noteCounterInfo->timeSeconds.shown)
 		{
-			FormatText(rows[rowCount].value, "%s", Utils::FormatDuration2(noteCounterInfo->timeSeconds.value * 1000).c_str());
+			OverlayUtils::FormatText(rows[rowCount].value, "%s", Utils::FormatDuration2(noteCounterInfo->timeSeconds.value * 1000).c_str());
 			rows[rowCount].label = "Time";
 			rowCount++;
 		}
 		if (noteCounterInfo->bpm.shown)
 		{
-			FormatText(rows[rowCount].value, "%.1f", noteCounterInfo->bpm.value);
+			OverlayUtils::FormatText(rows[rowCount].value, "%.1f", noteCounterInfo->bpm.value);
 			rows[rowCount].label = "BPM";
 			rowCount++;
 		}
 		if (noteCounterInfo->notesPassed.shown)
 		{
-			FormatText(rows[rowCount].value, "%s", Utils::FormatWithCommas(noteCounterInfo->notesPassed.value).c_str());
+			OverlayUtils::FormatText(rows[rowCount].value, "%s", Utils::FormatWithCommas(noteCounterInfo->notesPassed.value).c_str());
 			rows[rowCount].label = "Notes";
 			rowCount++;
 		}
 		if (noteCounterInfo->notesPerSecond.shown)
 		{
-			FormatText(rows[rowCount].value, "%s", Utils::FormatWithCommas(noteCounterInfo->notesPerSecond.value).c_str());
+			OverlayUtils::FormatText(rows[rowCount].value, "%s", Utils::FormatWithCommas(noteCounterInfo->notesPerSecond.value).c_str());
 			rows[rowCount].label = "NPS";
 			rowCount++;
 		}
 		if (noteCounterInfo->polyphony.shown)
 		{
-			FormatText(rows[rowCount].value, "%s", Utils::FormatWithCommas(noteCounterInfo->polyphony.value).c_str());
+			OverlayUtils::FormatText(rows[rowCount].value, "%s", Utils::FormatWithCommas(noteCounterInfo->polyphony.value).c_str());
 			rows[rowCount].label = "Polyphony";
 			rowCount++;
 		}
-		if (!app->IsRendering())
+
+		/*if (!app->IsRendering())
 		{
 			if (noteCounterInfo->fps.shown)
 			{
-				FormatText(rows[rowCount].value, "%.1f", noteCounterInfo->fps.value);
+				OverlayUtils::FormatText(rows[rowCount].value, "%.1f", noteCounterInfo->fps.value);
 				rows[rowCount].label = "FPS";
 				rowCount++;
 			}
@@ -170,11 +157,11 @@ void NoteCounterRenderer::RenderUMP(float counterScale)
 			if (noteCounterInfo->audioBuffer.shown)
 			{
 				double buffer = noteCounterInfo->audioBuffer.value;
-				FormatText(rows[rowCount].value, buffer < -0.5 ? "N/A" : Utils::FormatDuration2(buffer * 1000).c_str(), buffer);
+				OverlayUtils::FormatText(rows[rowCount].value, buffer < -0.5 ? "N/A" : Utils::FormatDuration2(buffer * 1000).c_str(), buffer);
 				rows[rowCount].label = "Buffer";
 				rowCount++;
 			}
-		}
+		}*/
 		
 
 		float labelColWidth = 0.0f, valueColWidth = 0.0f;
@@ -198,7 +185,7 @@ void NoteCounterRenderer::RenderUMP(float counterScale)
 			for (int i = 0; i < rowCount; i++)
 			{
 				BeginNextCounterRow(rows[i].label);
-				RightAlignedTableText(rows[i].value);
+				OverlayUtils::RightAlignedTableText(rows[i].value);
 			}
 
 			lastCounterWidth = ImGui::GetWindowWidth();
@@ -259,13 +246,6 @@ void NoteCounterRenderer::RenderMIDITrail(float counterScale)
 		{
 			if (hasFirstField) stats << "  ";
 			stats << "POLY:" << Utils::FormatWithCommas(noteCounterInfo->polyphony.value);
-			hasFirstField = true;
-		}
-
-		if (noteCounterInfo->fps.shown && !app->IsRendering())
-		{
-			if (hasFirstField) stats << "  ";
-			stats << "FPS:" << std::fixed << std::setprecision(1) << noteCounterInfo->fps.value;
 		}
 
 		ImGui::Text(stats.str().c_str());
@@ -289,8 +269,11 @@ float NoteCounterRenderer::GetCounterHeight() const
 	return lastCounterHeight;
 }
 
-glm::vec2 NoteCounterRenderer::GetCounterPosition() const
+glm::vec2 NoteCounterRenderer::GetOverlayPosition() const
 {
+	MIDIPlayerConfig* config = app->GetConfig();
+	NoteCounterAlignment counterAlignment = config->overlayInfo.overlayAlignment;
+
 	float width = (float)lastCounterWidth / (float)this->width;
 	float height = GetCounterHeight() / (float)this->height;
 
@@ -314,7 +297,7 @@ glm::vec2 NoteCounterRenderer::GetCounterPosition() const
 	}
 }
 
-glm::vec2 NoteCounterRenderer::GetCounterResolution() const
+glm::vec2 NoteCounterRenderer::GetOverlaySize() const
 {
 	float width = lastCounterWidth / (float)this->width;
 	float height = GetCounterHeight() / (float)this->height;

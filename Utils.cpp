@@ -193,7 +193,7 @@ namespace Utils
         {
             std::string str = std::get<std::string>(strOrInt);
             
-            if (!str.empty() && str[0] == '#')
+            if (!str.empty() && (str[0] == '#' || str[0] == 'x' || str[0] == 'X'))
                 str.erase(0, 1);
             else if (str.size() >= 2 && (str.starts_with("0x") || str.starts_with("0X")))
                 str.erase(0, 2);
@@ -211,10 +211,10 @@ namespace Utils
             if (str.size() == 4)
             {
                 return ImVec4(
-                    hex(str[0]),
                     hex(str[1]),
                     hex(str[2]),
-                    hex(str[3])
+                    hex(str[3]),
+                    hex(str[0])
                 );
             }
 
@@ -234,7 +234,7 @@ namespace Utils
                 return ImVec4(parseByte(0), parseByte(2), parseByte(4), 1.0f);
 
             if (str.size() == 8)
-                return ImVec4(parseByte(0), parseByte(2), parseByte(4), parseByte(6));
+                return ImVec4(parseByte(2), parseByte(4), parseByte(6), parseByte(0));
 
             return def;
         }
@@ -245,7 +245,7 @@ namespace Utils
                 static_cast<float>((val & 0xFF0000) >> 16) / 255.0f,
                 static_cast<float>((val & 0xFF00) >> 8) / 255.0f,
                 static_cast<float>(val & 0xFF) / 255.0f,
-                1.0
+                static_cast<float>((val & 0xFF000000) >> 24) / 255.0f
             );
         }
         return def;
@@ -254,8 +254,8 @@ namespace Utils
     std::string EncodeColor(ImVec4 color)
     {
         std::stringstream enc;
+
         enc << "0x";
-        
         uint32_t red = static_cast<uint32_t>(std::round(color.x * 255));
         uint32_t green = static_cast<uint32_t>(std::round(color.y * 255));
         uint32_t blue = static_cast<uint32_t>(std::round(color.z * 255));
@@ -266,16 +266,8 @@ namespace Utils
         blue = std::clamp(blue, 0u, 255u);
         alpha = std::clamp(alpha, 0u, 255u);
 
-        uint32_t col = (red << 16u) | (green << 8u) | blue;
-        if (alpha == 255u)
-        {
-            enc << std::hex << std::uppercase << std::setw(6) << std::setfill('0') << col;
-        }
-        else
-        {
-            col = (col << 8u) | alpha;
-            enc << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << col;
-        }
+        uint32_t col = (alpha << 24u) | (red << 16u) | (green << 8u) | blue;
+        enc << std::hex << std::uppercase << std::setw(8) << std::setfill('0') << col;
 
         return enc.str();
     }

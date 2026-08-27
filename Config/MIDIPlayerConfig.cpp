@@ -7,6 +7,14 @@
 #include "Utils.h"
 #include <filesystem>
 
+#define LOAD_VAL(n, key, target) \
+        if (n && n[key]) { target = n[key].as<std::decay_t<decltype(target)>>(); }
+
+#define LOAD_COLOR(n, key, var, def) \
+		uint32_t col = Utils::PackRGBA(def.x, def.y, def.z, def.w, Utils::ARGB); \
+		LOAD_VAL(n, key, col); \
+		auto var = Utils::UnpackRGBA(col, Utils::ARGB);
+
 void MIDIPlayerConfig::LoadConfigOrDefault()
 {
 	std::optional<ConfigSection> config;
@@ -38,6 +46,19 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 			overlay.scale = overlaySec->GetFloat("scale", 1.0f);
 			overlay.blurBehind = overlaySec->GetBoolean("blurBehind", true);
 			overlay.selectedFontPath = overlaySec->GetString("fontPath", "");
+
+			{
+				LOAD_COLOR(root["overlay"], "background", bgColRgba, overlay.backgroundCol);
+				overlay.backgroundCol = ImVec4(bgColRgba[0], bgColRgba[1], bgColRgba[2], bgColRgba[3]);
+			}
+
+			{
+				LOAD_COLOR(root["overlay"], "text", txtColRgba, overlay.textCol);
+				overlay.textCol = ImVec4(txtColRgba[0], txtColRgba[1], txtColRgba[2], 1.0);
+			}
+
+			overlay.overlayStyle = static_cast<NoteCounterStyle>(overlaySec->GetInt("style", static_cast<int>(DEFAULT_NOTE_COUNTER_STYLE)));
+			overlay.overlayAlignment = static_cast<NoteCounterAlignment>(overlaySec->GetInt("alignment", static_cast<int>(DEFAULT_NOTE_COUNTER_ALIGNMENT)));
 
 			this->overlayInfo = overlay;
 		}
@@ -73,11 +94,15 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 			render.SetFPSLimit(renderSec->GetInt("fpsLimit", 120));
 			render.SetVSync(renderSec->GetBoolean("vsync", true));
 
-			auto bgCol = renderSec->GetColor("background");
-			if (bgCol) render.SetBackground(bgCol->x, bgCol->y, bgCol->z);
+			{
+				LOAD_COLOR(root["render"], "background", bgColRgba, render.GetBackground());
+				render.SetBackground(bgColRgba[0], bgColRgba[1], bgColRgba[2]);
+			}
 
-			auto barCol = renderSec->GetColor("bar");
-			if (barCol) render.SetBarColor(barCol->x, barCol->y, barCol->z);
+			{
+				LOAD_COLOR(root["render"], "bar", barColRgba, render.GetBarColor());
+				render.SetBarColor(barColRgba[0], barColRgba[1], barColRgba[2]);
+			}
 
 			render.SetUseColorsFromImage(renderSec->GetBoolean("useImageColors", false));
 			render.loopColors = renderSec->GetBoolean("loopColors", true);
@@ -91,6 +116,9 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 				render.SetKeyFirst(keyRangeSec->GetInt("min", 0));
 				render.SetKeyLast(keyRangeSec->GetInt("max", 127));
 			}
+
+			render.showCounter = renderSec->GetBoolean("showCounter", true);
+			render.showStats = renderSec->GetBoolean("showStats", true);
 
 			this->render = render;
 		}
@@ -121,6 +149,10 @@ void MIDIPlayerConfig::SaveConfig()
 	config["overlay"]["scale"] = overlayInfo.scale;
 	config["overlay"]["blurBehind"] = overlayInfo.blurBehind;
 	config["overlay"]["fontPath"] = overlayInfo.selectedFontPath;
+	config["overlay"]["background"] = Utils::EncodeColor(overlayInfo.backgroundCol);
+	config["overlay"]["text"] = Utils::EncodeColor(overlayInfo.textCol);
+	config["overlay"]["style"] = static_cast<int>(overlayInfo.overlayStyle);
+	config["overlay"]["alignment"] = static_cast<int>(overlayInfo.overlayAlignment);
 
 	config["midi"]["multithreaded"] = midi.multithreadedLoading;
 	config["midi"]["timeBased"] = midi.timeBasedLoading;
@@ -141,6 +173,9 @@ void MIDIPlayerConfig::SaveConfig()
 	config["render"]["rendererType"] = static_cast<int>(render.GetCurrentRenderer());
 	config["render"]["keyRange"]["min"] = render.GetKeyFirst();
 	config["render"]["keyRange"]["max"] = render.GetKeyLast();
+
+	config["render"]["showCounter"] = render.showCounter;
+	config["render"]["showStats"] = render.showStats;
 
 	if (audioSettings.IsDefined())
 	{

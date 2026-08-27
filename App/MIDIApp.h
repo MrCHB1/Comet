@@ -14,6 +14,7 @@ class MainWindow;
 class ThemesList;
 class FontList;
 class AbstractMIDIRenderer;
+class AbstractOverlayRenderer;
 class NavigationBar;
 class NoteCounterInfo;
 class NoteCounterRenderer;
@@ -50,7 +51,6 @@ public:
 	void SetRenderer();
 
 	void LoadResources();
-
 	void LoadColorPalettes();
 	void LoadMIDI(const char* path);
 	void UnloadMIDI();
@@ -62,7 +62,6 @@ public:
 	ThemesList* GetThemeList() { return themesList.get(); }
 	FontList* GetFontList() { return fontList.get(); }
 	NoteCounterInfo* GetNoteCounterInfo() { return noteCounterInfo.get(); }
-	NoteCounterRenderer* GetNoteCounterRenderer() { return noteCounterRenderer.get(); }
 	MIDIPlayerConfig* GetConfig() { return &config; }
 	RenderView* GetRenderView() { return renderView.get(); }
 	std::shared_ptr<MIDITimer> GetTimer() { return timer; }
@@ -71,6 +70,15 @@ public:
 	ColorPaletteList* GetColorList() { return colorList.get(); }
 
 	const RenderSettings& GetCurrentRenderSettings() const { return currentRenderSettings; }
+	
+	const double GetFPS() const
+	{
+		return fps;
+	}
+	const double GetAudioBufferSeconds() const
+	{
+		return audioBuffer;
+	}
 
 	bool IsLoading() const { return loading.load(); }
 	bool IsRendering() const { return rendering.load(); }
@@ -97,9 +105,10 @@ private:
 	std::unique_ptr<ThemesList> themesList;
 	std::unique_ptr<FontList> fontList;
 	std::unique_ptr<AbstractMIDIRenderer> renderer;
+	std::vector<std::unique_ptr<AbstractOverlayRenderer>> overlays;
 	std::unique_ptr<NavigationBar> navigationBar;
 	std::shared_ptr<NoteCounterInfo> noteCounterInfo;
-	std::unique_ptr<NoteCounterRenderer> noteCounterRenderer;
+	// std::unique_ptr<NoteCounterRenderer> noteCounterRenderer;
 	std::unique_ptr<BlurredQuadRenderer> blurredQuadRenderer; // for everything including note counter background, etc.
 	std::unique_ptr<ResourcePackList> packList;
 	std::shared_ptr<ColorPaletteList> colorList;
@@ -108,6 +117,11 @@ private:
 	std::shared_ptr<MIDITimer> timer;
 	std::unique_ptr<MIDIAudio> midiAudio;
 	std::atomic_bool loading = false;
+	
+#pragma region Stats
+	double fps = 0.0;
+	double audioBuffer = -1.0;
+#pragma endregion
 
 #pragma region Framebuffer for rendering
 	std::unique_ptr<Framebuffer> renderFramebuffer;
