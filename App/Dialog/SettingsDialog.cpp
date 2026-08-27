@@ -6,6 +6,7 @@
 #include "Render/MIDIRendererMIDITrail.h"
 #include "Render/MIDIRendererChannels.h"
 #include "Render/MIDIRendererVelocities.h"
+#include "Render/MIDIRendererCounter.h"
 #include "Render/NoteCounter/NoteCounterRenderer.h"
 #include "DialogMacros.h"
 #include "App/UI/Themes/Themes.h"
@@ -263,6 +264,7 @@ void SettingsDialog::DrawVisualTab()
 								RENDERER_COMBO_ENTRY(RendererType::MIDITrail, MIDIRendererMIDITrail);
 								RENDERER_COMBO_ENTRY(RendererType::Channels, MIDIRendererChannels);
 								RENDERER_COMBO_ENTRY(RendererType::Velocities, MIDIRendererVelocities);
+								RENDERER_COMBO_ENTRY(RendererType::CounterOnly, MIDIRendererCounter);
 
 								ImGui::EndCombo();
 							}
@@ -467,7 +469,6 @@ void SettingsDialog::DrawVisualTab()
 					SECTION_ENTRY(
 						SECTION_LABEL("Scale"),
 						{
-							ImGui::SetNextItemWidth(-FLT_MIN);
 							ImGui::SliderFloat(
 								"##counterScale",
 								&config->overlayInfo.scale,

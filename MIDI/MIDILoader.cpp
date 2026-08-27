@@ -196,6 +196,23 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 	// NEW: apply note bounds
 	ClearBars();
 
+#pragma region Time-based loading if enabled
+	if (timeBasedLoading)
+	{
+		std::cout << "Applying tempo events..." << std::endl;
+		std::cout << "  Processing notes" << std::endl;
+		TempoMap* tempoMap = seq->GetTempoMap();
+		for (auto& notes : seq->mergedNotes)
+		{
+			SequenceFuncs::ApplyTempoEvents(seq->resolution, tempoMap, notes);
+		}
+		std::cout << "  Processing events" << std::endl;
+		SequenceFuncs::ApplyTempoEvents(seq->resolution, tempoMap, seq->mergedEvents);
+		SequenceFuncs::ApplyTempoEvents(seq->resolution, tempoMap, seq->timeSignatures);
+	}
+	seq->timeBased = timeBasedLoading;
+#pragma endregion
+
 	SetName("Finalizing (2/2)...\nIndexing note blocks...");
 	size_t blockProgress = 0;
 	AddBar([this, &blockProgress]() { return (double)blockProgress / (double)seq->notes; });
@@ -241,25 +258,6 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 	ClearBars();
 
 	#pragma endregion
-
-	#pragma region Time-based loading if enabled
-	if (timeBasedLoading)
-	{
-		SetName("Applying tempo events...");
-		std::cout << "Applying tempo events..." << std::endl;
-		std::cout << "  Processing notes" << std::endl;
-		TempoMap* tempoMap = seq->GetTempoMap();
-		for (auto& notes : seq->mergedNotes)
-		{
-			SequenceFuncs::ApplyTempoEvents(seq->resolution, tempoMap, notes);
-		}
-		std::cout << "  Processing events" << std::endl;
-		SequenceFuncs::ApplyTempoEvents(seq->resolution, tempoMap, seq->mergedEvents);
-		SequenceFuncs::ApplyTempoEvents(seq->resolution, tempoMap, seq->timeSignatures);
-	}
-	#pragma endregion
-
-	seq->timeBased = timeBasedLoading;
 
 	std::cout << "MIDI has successfully loaded." << std::endl;
 	std::cout << "  " << seq->tempos.size() << " Tempo events" << std::endl;

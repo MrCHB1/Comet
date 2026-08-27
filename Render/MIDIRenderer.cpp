@@ -981,9 +981,9 @@ void MIDIRenderer::RenderNotes()
 			{
 				uint32_t nTick = notesNote.tick[i];
 				uint32_t nGate = notesNote.gate[i];
-				uint8_t nNote = notesNote.note[i];
-				uint16_t nTrack = notesNote.track[i];
-				uint8_t nChannel = notesNote.channel[i];
+				uint8_t nNote = notesNote.GetKey(i);
+				uint16_t nTrack = notesNote.GetTrack(i);
+				uint8_t nChannel = notesNote.GetChannel(i);
 
 				double noteStart = (double)nTick;
 				double noteEnd = (double)(nTick + nGate);

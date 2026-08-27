@@ -190,10 +190,10 @@ void MIDIRendererVelocities::RenderChannelKeys()
 		{
 			uint32_t nTick = notesNote.tick[i];
 			uint32_t nGate = notesNote.gate[i];
-			uint8_t nNote = notesNote.note[i];
-			uint8_t nVel = notesNote.vel[i];
-			uint16_t nTrack = notesNote.track[i];
-			uint8_t nChannel = notesNote.channel[i];
+			uint8_t nNote = notesNote.GetKey(i);
+			uint8_t nVel = notesNote.GetVelocity(i);
+			uint16_t nTrack = notesNote.GetTrack(i);
+			uint8_t nChannel = notesNote.GetChannel(i);
 
 			double noteStart = isTimeBased ? (double)nTick * invTimeMultiplier : (double)nTick;
 			double noteEnd = isTimeBased
