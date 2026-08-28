@@ -131,7 +131,7 @@ void NavigationBar::Draw()
 			}
 
 			ImGui::SameLine();
-			VerticalSeparator();
+			VerticalSeparator(0.0f, true);
 			ImGui::SameLine();
 
 			{
@@ -169,7 +169,7 @@ void NavigationBar::Draw()
 			}
 
 			ImGui::SameLine();
-			VerticalSeparator();
+			VerticalSeparator(0.0f, true);
 			ImGui::SameLine();
 
 			ImGui::SetNextItemWidth(170);
