@@ -74,7 +74,7 @@ public:
 		if (title == nullptr || title[0] == '\0') return false;
 		return ImGui::IsPopupOpen(title);
 	}
-private:
+protected:
 	bool openRequest = false;
 	const std::string dlgId;
 };

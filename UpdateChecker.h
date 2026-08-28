@@ -21,6 +21,7 @@ struct Version
 	auto operator<=>(const Version& other) const = default;
 
 	static Version Parse(std::string_view str);
+	const std::string ToString() const;
 };
 
 class UpdateChecker
@@ -37,6 +38,7 @@ public:
 	{
 		UpdateStatus status;
 		Version retrievedVersion;
+		std::string githubUrl;
 	};
 
 	UpdateChecker() = default;

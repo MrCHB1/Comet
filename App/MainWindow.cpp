@@ -4,6 +4,7 @@
 #include "Dialog/LoadingDialog.h"
 #include "Dialog/RenderVideoDialog.h"
 #include "Dialog/SettingsDialog.h"
+#include "Dialog/MessageDialog.h"
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
@@ -77,6 +78,7 @@ void MainWindow::InitializeDialogs()
 	dialogManager.RegisterDialog<LoadingDialog>(midiApp.get());
 	dialogManager.RegisterDialog<RenderVideoDialog>(midiApp.get());
 	dialogManager.RegisterDialog<SettingsDialog>(midiApp.get());
+	dialogManager.RegisterDialog<MessageDialog>();
 }
 
 void MainWindow::InitializeUI()
@@ -124,7 +126,37 @@ void MainWindow::InitializeUI()
 		Utils::OpenURL("https://ko-fi.com/ponluxime");
 	}));
 	helpMenu.AddItem(new MenuButton("Check for Updates", [this]() {
-		if (this->updateChecker) this->updateChecker->CheckForUpdate();
+		if (!this->updateChecker) return;
+		
+		auto result = this->updateChecker->CheckForUpdate();
+		auto* msgDlg = this->dialogManager.GetDialog<MessageDialog>();
+		if (!msgDlg) return;
+
+		switch (result.status)
+		{
+			case UpdateChecker::UPDATE_AVAILABLE:
+			{
+				std::string msg = "A new update (" + result.retrievedVersion.ToString() + ") is available! Open github?";
+				msgDlg->Open("Update Available", msg, MessageDialog::ButtonType::YesNo, [result](MessageDialog::Result res)
+					{
+						if (res == MessageDialog::Result::Yes)
+						{
+							Utils::OpenURL(result.githubUrl);
+						}
+					});
+				break;
+			}
+			case UpdateChecker::UP_TO_DATE:
+			{
+				msgDlg->Open("Update Check", "Comet is already up-to-date.", MessageDialog::ButtonType::OK);
+				break;
+			}
+			case UpdateChecker::CHECK_ERROR:
+			{
+				msgDlg->Open("Update Error", "An error occurred while checking for an update.", MessageDialog::ButtonType::OK);
+				break;
+			}
+		}
 	}));
 }
 
