@@ -2,6 +2,7 @@
 #include <string_view>
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
+#include <sstream>
 
 Version Version::Parse(std::string_view str)
 {
@@ -24,6 +25,15 @@ Version Version::Parse(std::string_view str)
 	v.stage = stage;
 
 	return v;
+}
+
+const std::string Version::ToString() const
+{
+	std::ostringstream result;
+	result << "v" << major << "." << minor << "." << patch;
+	if (stage == ALPHA) result << "-Alpha";
+	if (stage == BETA) result << "-Beta";
+	return result.str();
 }
 
 UpdateChecker::UpdateCheckResult UpdateChecker::CheckForUpdate()
@@ -87,6 +97,7 @@ UpdateChecker::UpdateCheckResult UpdateChecker::CheckForUpdate()
 		}
 
 		std::string latestVersionStr = json.value("tag_name", "");
+		std::string latestVersionURL = json.value("html_url", "");
 
 		if (latestVersionStr.empty())
 		{
@@ -101,7 +112,7 @@ UpdateChecker::UpdateCheckResult UpdateChecker::CheckForUpdate()
 			std::cout << "  Update available: "
 				<< latestVersionStr << std::endl;
 
-			return { UpdateStatus::UPDATE_AVAILABLE, latestVersion };
+			return { UpdateStatus::UPDATE_AVAILABLE, latestVersion, latestVersionURL };
 		}
 
 		if (latestVersion < currVersion)
@@ -116,7 +127,7 @@ UpdateChecker::UpdateCheckResult UpdateChecker::CheckForUpdate()
 		std::cout << "  Retrieved version: " << latestVersionStr << std::endl;
 		std::cout << "  Build (current) version: " << COMET_VERSION << std::endl;
 
-		return { UpdateStatus::UP_TO_DATE, latestVersion };
+		return { UpdateStatus::UP_TO_DATE, latestVersion, latestVersionURL };
 	}
 	catch (const std::exception& e)
 	{
