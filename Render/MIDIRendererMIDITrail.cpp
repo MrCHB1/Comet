@@ -1019,7 +1019,7 @@ void MIDIRendererMIDITrail::RenderSettings()
 				SECTION_ENTRY(SECTION_LABEL("Front render cutoff"),
 					{
 						float frontRenderCutuff = settings.frontRenderCutoff;
-						if (ImGui::SliderFloat("##frontRenderCutoff", &settings.frontRenderCutoff, 1.0f, 40.0f))
+						if (ImGui::SliderFloat("##frontRenderCutoff", &frontRenderCutuff, 1.0f, 40.0f))
 						{
 							settings.frontRenderCutoff = std::clamp(frontRenderCutuff, 1.0f, 40.0f);
 							updateSeparatorLines = true;
