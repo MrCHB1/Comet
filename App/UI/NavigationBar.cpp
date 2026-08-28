@@ -4,6 +4,7 @@
 #include "Utils.h"
 #include "App/MIDIApp.h"
 #include "MIDI/Timer/MIDITimer.h"
+#include "App/UI/Widgets/ThinSlider.h"
 
 #define NAVIGATION_ROWS 2
 #define MIN_MIDI_TIME_SECS -3.0f
@@ -37,7 +38,7 @@ void NavigationBar::TryLoadUITextures()
 	texturesLoaded = true;
 }
 
-void NavigationBar::VerticalSeparator(float height)
+void NavigationBar::VerticalSeparator(float height, bool altColor)
 {
 	if (height <= 0.0f) height = ImGui::GetFrameHeight();
 	ImVec2 pos = ImGui::GetCursorScreenPos();
@@ -45,7 +46,7 @@ void NavigationBar::VerticalSeparator(float height)
 	ImGui::GetWindowDrawList()->AddLine(
 		ImVec2(pos.x, pos.y),
 		ImVec2(pos.x, pos.y + height),
-		ImGui::GetColorU32(ImGuiCol_Separator)
+		ImGui::GetColorU32(altColor ? ImGuiCol_Text : ImGuiCol_Separator)
 	);
 
 	ImGui::Dummy(ImVec2(1.0f, height));
@@ -83,14 +84,14 @@ void NavigationBar::Draw()
 
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
 
-	auto& c = ImGui::GetStyle().Colors;
+	auto& style = ImGui::GetStyle();
+	auto& c = style.Colors;
 	ImVec4 textCol = c[ImGuiCol_Text];
 	ImVec4 bgCol = c[ImGuiCol_WindowBg];
 	ImVec4 frameCol = c[ImGuiCol_FrameBg];
 
 	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(bgCol.x, bgCol.y, bgCol.z, 0.8f));
-	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(frameCol.x, frameCol.y, frameCol.z, 0.5f));
-
+	
 	if (ImGui::Begin("MainDockWindow", nullptr, flags))
 	{
 		float imageSize = frameHeight - framePadding * 2.0f;
@@ -173,9 +174,15 @@ void NavigationBar::Draw()
 
 			ImGui::SetNextItemWidth(170);
 			int viewTicks = static_cast<int>(renderView->viewTicks);
-			if (ImGui::SliderInt("##navNoteSize", &viewTicks, 48, 7680, "", ImGuiSliderFlags_Logarithmic))
+
+			if (ThinSlider::Draw<int>("##navNoteSize", &viewTicks, 48, 7680, "", ImGuiSliderFlags_Logarithmic))
 			{
 				renderView->viewTicks = std::clamp(viewTicks, 48, 7680);
+			}
+
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Note size (in ticks)");
 			}
 		}
 
@@ -183,7 +190,8 @@ void NavigationBar::Draw()
 		{
 			ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 			float currTimeSecs = timer->Elapsed();
-			if (ImGui::SliderFloat("##navMIDITime", &currTimeSecs, MIN_MIDI_TIME_SECS, midiLength, "", ImGuiSliderFlags_NoInput))
+
+			if (ThinSlider::Draw<float>("##navMIDITime", &currTimeSecs, MIN_MIDI_TIME_SECS, midiLength, "", ImGuiSliderFlags_NoInput))
 			{
 				if (currTimeSecs != timer->Elapsed())
 				{
@@ -194,7 +202,7 @@ void NavigationBar::Draw()
 	}
 	ImGui::End();
 	ImGui::PopStyleVar(2);
-	ImGui::PopStyleColor(2);
+	ImGui::PopStyleColor();
 
 	Update();
 }
