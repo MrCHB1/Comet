@@ -43,5 +43,5 @@ private:
 	glm::vec2 lastPosition;
 
 	void TryLoadUITextures();
-	void VerticalSeparator(float height = 0.0f);
+	void VerticalSeparator(float height = 0.0f, bool altColor = false);
 };
