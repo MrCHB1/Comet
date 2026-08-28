@@ -14,6 +14,7 @@
 #include "Comet.h"
 #include "UI/Themes/Themes.h"
 #include "Config/MIDIPlayerConfig.h"
+#include "UpdateChecker.h"
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -24,6 +25,8 @@
 
 MainWindow::MainWindow(const char* title)
 {
+	this->updateChecker = std::make_unique<UpdateChecker>();
+
 	this->title = std::string(title);
 	InitializeApp();
 	InitializeDialogs();
@@ -119,6 +122,9 @@ void MainWindow::InitializeUI()
 	SubMenu& helpMenu = menuBuilder.CreateMenu("Help");
 	helpMenu.AddItem(new MenuButton("Buy ponluxime a coffee", [this]() {
 		Utils::OpenURL("https://ko-fi.com/ponluxime");
+	}));
+	helpMenu.AddItem(new MenuButton("Check for Updates", [this]() {
+		if (this->updateChecker) this->updateChecker->CheckForUpdate();
 	}));
 }
 

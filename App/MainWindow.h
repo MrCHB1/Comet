@@ -6,6 +6,7 @@
 #include <string>
 
 class MIDIApp;
+class UpdateChecker;
 
 struct WindowRect
 {
@@ -44,6 +45,7 @@ private:
 	void RenderUI();
 
 	std::unique_ptr<MIDIApp> midiApp;
+	std::unique_ptr<UpdateChecker> updateChecker;
 
 	MenuBuilder menuBuilder;
 	DialogManager dialogManager;
