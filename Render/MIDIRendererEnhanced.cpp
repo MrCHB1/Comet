@@ -630,7 +630,7 @@ void MIDIRendererEnhanced::RenderNotes()
     const double invTimeMultiplier = 1.0 / (double)TIME_BASED_MULTIPLIER;
     double targetTick = accTime; if (isTimeBased) targetTick *= TIME_BASED_MULTIPLIER;
 
-    notesProgram->SetFloat("kbHeight", keyboardHeight);
+    notesProgram->SetFloat("kbHeight", keyboardHeight * ((float)width / (float)height) / (16.0 / 9.0));
     notesProgram->SetFloat("animTime", static_cast<float>(playbackSeconds));
 
     MIDIPlayerConfig* config = app->GetConfig();
@@ -898,7 +898,7 @@ void MIDIRendererEnhanced::EmitNoteExplosion(uint8_t keyID, uint32_t hexColor)
     {
         if (liveParticleCount >= PARTICLE_BUFFER_SIZE) break;
         Particle3D& p = particlePool[liveParticleCount++];
-        p.position = glm::vec3(spawnX + ((rand() / (float)RAND_MAX)) * keyWidth[keyID], keyboardHeight, 0.0f);
+        p.position = glm::vec3(spawnX + ((rand() / (float)RAND_MAX)) * keyWidth[keyID], keyboardHeight * ((float)width / (float)height) / (16.0 / 9.0), 0.0f);
 
         float angle = glm::radians(minAngle + ((rand() / (float)RAND_MAX) * (maxAngle - minAngle)));
         float speed = RandRange(0.05f, 0.15f) * pSettings.initialSpeed;
@@ -1093,7 +1093,7 @@ void MIDIRendererEnhanced::RenderFlares(double deltaTime)
     BufferBind vboBind(*flaresVBO);
     BufferBind eboBind(*flaresEBO);
 
-    flaresProgram->SetFloat("kbHeight", keyboardHeight);
+    flaresProgram->SetFloat("kbHeight", keyboardHeight * ((float)width / (float)height) / (16.0 / 9.0));
     flaresProgram->SetFloat("flareHeight", rendererSettings.flareHeight);
     flaresProgram->SetFloat("flareBrightness", rendererSettings.flareBrightness);
     glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, flaresToRender);
