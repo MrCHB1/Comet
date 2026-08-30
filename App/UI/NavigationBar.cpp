@@ -46,7 +46,7 @@ void NavigationBar::VerticalSeparator(float height, bool altColor)
 	ImGui::GetWindowDrawList()->AddLine(
 		ImVec2(pos.x, pos.y),
 		ImVec2(pos.x, pos.y + height),
-		ImGui::GetColorU32(altColor ? ImGuiCol_Text : ImGuiCol_Separator)
+		ImGui::GetColorU32(altColor ? ImGuiCol_Text : ImGuiCol_Separator, altColor ? 0.75f : 1.0f)
 	);
 
 	ImGui::Dummy(ImVec2(1.0f, height));

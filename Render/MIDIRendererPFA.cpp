@@ -39,6 +39,7 @@ static const float SharpRatio = 0.65f;
 static const float KBPercent = 0.25f;
 static const float KeyRatio = 0.1775f;
 
+#pragma region Shader code
 static const char* rectVert = R"(#version 330 core
 layout (location = 0) in vec2 aPos;
 layout (location = 1) in uint aColor;
@@ -128,6 +129,93 @@ void main()
 	fragColor = vec4(noteColor, 1.0);
 })";
 
+static const char* notesCompute = R"(#version 430 core
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+struct GPUInputNote {
+    uint tick;
+    uint gate;
+    uint key;
+    uint color;
+};
+
+struct RenderPFANote {
+    float x;
+    float y;
+    float cx;
+    float cy;
+    uint meta;
+};
+
+layout(std430, binding = 0) readonly buffer InputNotes {
+    GPUInputNote inputs[];
+};
+
+layout(std430, binding = 1) writeonly buffer OutputNotes {
+    RenderPFANote outputs[];
+};
+
+uniform float currentTime;
+uniform float viewRegion;
+uniform float notesX;
+uniform float notesY;
+uniform float notesCY;
+uniform float whiteCX;
+uniform bool isTimeBased;
+uniform float timeMultiplier;
+uniform float noteXTable[128];
+uniform bool blackKeys[128];
+uniform float sharpRatio;
+uniform bool roundedNoteLengths;
+
+void main()
+{
+    uint id = gl_GlobalInvocationID.x;
+    if (id >= inputs.length()) return;
+
+    GPUInputNote note = inputs[id];
+
+    double noteStart = double(note.tick);
+    double noteEnd = double(note.tick + note.gate);
+
+    if (isTimeBased) {
+        noteStart *= timeMultiplier;
+        noteEnd *= timeMultiplier;
+    }
+
+    // Skip notes outside visible timeframe
+    if (noteEnd <= currentTime || noteStart > currentTime + viewRegion) {
+        // Mark invalid by zeroing scale so vertex shader discards
+        outputs[id].cy = 0.0;
+        return;
+    }
+
+    float invViewRegion = 1.0 / viewRegion;
+    float yDistStart = float((noteStart - currentTime) * invViewRegion) * notesCY;
+    float yDistEnd   = float((noteEnd - currentTime) * invViewRegion) * notesCY;
+
+    float noteBottom = notesY + notesCY - yDistStart;
+    float noteTop    = notesY + notesCY - yDistEnd;
+    float noteCY     = noteBottom - noteTop;
+
+	if (roundedNoteLengths)
+	{
+		noteTop = round(noteTop);
+		noteCY = round(noteCY);
+	}
+
+    bool isBlack = blackKeys[note.key];
+    float cx = isBlack ? (whiteCX * sharpRatio) : whiteCX;
+    float x = noteXTable[note.key];
+
+    outputs[id].x = x;
+    outputs[id].y = noteTop;
+    outputs[id].cx = cx;
+    outputs[id].cy = noteCY;
+    outputs[id].meta = note.color;
+})";
+#pragma endregion
+
 void MIDIRendererPFA::PushRect(float x, float y, float cx, float cy, uint32_t color)
 {
 	PushRect(x, y, cx, cy, color, color, color, color);
@@ -161,6 +249,10 @@ void MIDIRendererPFA::PushSkew(float x1, float y1, float x2, float y2, float x3,
 void MIDIRendererPFA::Initialize()
 {
 	AbstractMIDIRenderer::Initialize();
+
+	supportsCompute = (GLAD_GL_VERSION_4_3 != 0);
+	if (supportsCompute)
+		std::cout << "Renderer can use compute shaders!" << std::endl;
 
 	#pragma region Rect data
 	rectProgram = ShaderProgram::Create(rectVert, rectFrag);
@@ -239,6 +331,19 @@ void MIDIRendererPFA::Initialize()
 		glVertexAttribDivisor(3, 1);
 		glVertexAttribDivisor(4, 1);
 		glVertexAttribDivisor(5, 1);
+	}
+
+	if (supportsCompute)
+	{
+		notesComputeProgram = ShaderProgram::CreateCompute(notesCompute);
+
+		glGenBuffers(1, &rawNotesSSBO);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, rawNotesSSBO);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, NOTE_BUFFER_SIZE * sizeof(GPUInputPFANote), nullptr, GL_DYNAMIC_DRAW);
+
+		// black magic: tell compute shader to output DIRECTLY into Notes IBO
+		outputNotesSSBO = notesIBO->GetID();
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 	}
 	#pragma endregion
 
@@ -330,6 +435,24 @@ void MIDIRendererPFA::GenNoteXTable()
 			else if (key12 == 10 || key12 == 3) startX += SharpRatio / 5.0f;
 		}
 		noteXTable[i] = notesX + whiteCX * (whiteKeys + startX);
+	}
+
+	if (supportsCompute)
+	{
+		ShaderBind computeBind(*notesComputeProgram);
+		notesComputeProgram->SetFloat("notesX", notesX);
+		notesComputeProgram->SetFloat("notesY", notesY);
+		notesComputeProgram->SetFloat("notesCY", notesCY);
+		notesComputeProgram->SetFloat("whiteCX", whiteCX);
+		notesComputeProgram->SetFloat("sharpRatio", SharpRatio);
+		for (int k = 0; k < MIDI_KEYS; k++)
+		{
+			std::string xName = "noteXTable[" + std::to_string(k) + "]";
+			notesComputeProgram->SetFloat(xName.c_str(), noteXTable[k]);
+
+			std::string bName = "blackKeys[" + std::to_string(k) + "]";
+			notesComputeProgram->SetInt(bName.c_str(), blackArr[k] ? 1 : 0);
+		}
 	}
 
 	noteXTableDirty = false;
@@ -735,6 +858,20 @@ void MIDIRendererPFA::RenderNotes()
 	int startRender = (blackArr[keyFirst] ? keyFirst - 1 : keyFirst);
 	int endRender = (blackArr[keyLast] ? keyLast + 1 : keyLast);
 
+	if (supportsCompute)
+	{
+		ShaderBind computeBind(*notesComputeProgram);
+		notesComputeProgram->SetFloat("currentTime", accTime);
+		notesComputeProgram->SetFloat("viewRegion", viewRegion);
+		notesComputeProgram->SetFloat("notesX", notesX);
+		notesComputeProgram->SetFloat("notesY", notesY);
+		notesComputeProgram->SetFloat("notesCY", notesCY);
+		notesComputeProgram->SetFloat("whiteCX", whiteCX);
+		notesComputeProgram->SetInt("isTimeBased", isTimeBased ? 1 : 0);
+		notesComputeProgram->SetFloat("timeMultiplier", invTimeMultiplier);
+		notesComputeProgram->SetInt("roundedNoteLengths", settings.roundedNoteLengths);
+	}
+
 	for (uint8_t id : kbIDs)
 	{
 		uint16_t lastTrack = 0;
@@ -876,26 +1013,33 @@ void MIDIRendererPFA::RenderNotes()
 				lastTrack = nTrack;
 				lastGate = nGate;
 
-				float yDistStart = (float)((noteStart - accTime) * invViewRegion) * notesCY;
-				float yDistEnd = (float)((noteEnd - accTime) * invViewRegion) * notesCY;
-
-				float noteBottom = notesY + notesCY - yDistStart;
-				float noteTop = notesY + notesCY - yDistEnd;
-
-				float noteCY = noteBottom - noteTop;
-				if (settings.roundedNoteLengths)
+				if (supportsCompute)
 				{
-					noteTop = std::round(noteTop);
-					noteCY = std::round(noteCY);
+					gpuInputNotes[noteID++] = { nTick, nGate, nNote, colors.GetColor(nTrack, nChannel) };
 				}
+				else
+				{
+					float yDistStart = (float)((noteStart - accTime) * invViewRegion) * notesCY;
+					float yDistEnd = (float)((noteEnd - accTime) * invViewRegion) * notesCY;
 
-				renderNotes[noteID++] = {
-					x,
-					noteTop,
-					isBlack ? cx : whiteCX,
-					noteCY,
-					colors.GetColor(nTrack, nChannel)
-				};
+					float noteBottom = notesY + notesCY - yDistStart;
+					float noteTop = notesY + notesCY - yDistEnd;
+
+					float noteCY = noteBottom - noteTop;
+					if (settings.roundedNoteLengths)
+					{
+						noteTop = std::round(noteTop);
+						noteCY = std::round(noteCY);
+					}
+
+					renderNotes[noteID++] = {
+						x,
+						noteTop,
+						isBlack ? cx : whiteCX,
+						noteCY,
+						colors.GetColor(nTrack, nChannel)
+					};
+				}
 
 				if (noteID >= NOTE_BUFFER_SIZE)
 				{
@@ -962,12 +1106,30 @@ void MIDIRendererPFA::UploadNoteBuffer(size_t count)
 {
 	if (!notesIBO) return;
 
-	GLbitfield mapFlags = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT;
-	void* ptr = glMapBufferRange(GL_ARRAY_BUFFER, 0, count * sizeof(RenderPFANote), mapFlags);
-	if (ptr)
+	if (supportsCompute)
 	{
-		memcpy(ptr, renderNotes.data(), count * sizeof(RenderPFANote));
-		glUnmapBuffer(GL_ARRAY_BUFFER);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, rawNotesSSBO);
+		glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, count * sizeof(GPUInputPFANote), gpuInputNotes.data());
+	
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, rawNotesSSBO);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, outputNotesSSBO);
+
+		notesComputeProgram->Bind();
+		GLuint numGroups = (count + 255) / 256;
+		glDispatchCompute(numGroups, 1, 1);
+
+		glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
+		notesProgram->Bind();
+	}
+	else
+	{
+		GLbitfield mapFlags = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT;
+		void* ptr = glMapBufferRange(GL_ARRAY_BUFFER, 0, count * sizeof(RenderPFANote), mapFlags);
+		if (ptr)
+		{
+			memcpy(ptr, renderNotes.data(), count * sizeof(RenderPFANote));
+			glUnmapBuffer(GL_ARRAY_BUFFER);
+		}
 	}
 
 	glDrawElementsInstanced(

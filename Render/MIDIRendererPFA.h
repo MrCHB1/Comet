@@ -52,6 +52,16 @@ struct RenderPFANote
 };
 #pragma pack(pop)
 
+#pragma pack(push, 1)
+struct GPUInputPFANote
+{
+	uint32_t tick;
+	uint32_t gate;
+	uint32_t key;
+	uint32_t color;
+};
+#pragma pack(pop)
+
 class NoteCuller;
 
 class MIDIRendererPFA : public AbstractMIDIRenderer
@@ -75,14 +85,14 @@ private:
 	std::vector<RectVertex> immediateRects;
 	PFARenderSettings settings{};
 
-	#pragma region Rect data
+#pragma region Rect data
 	std::unique_ptr<ShaderProgram> rectProgram;
 	std::unique_ptr<VertexArray> rectVAO;
 	std::unique_ptr<Buffer> rectVBO;
 	std::unique_ptr<Buffer> rectIBO;
-	#pragma endregion
+#pragma endregion
 
-	#pragma region Note data
+#pragma region Note data
 	std::unique_ptr<ShaderProgram> notesProgram;
 	std::unique_ptr<VertexArray> notesVAO;
 	std::unique_ptr<Buffer> notesVBO;
@@ -90,11 +100,20 @@ private:
 	std::unique_ptr<Buffer> notesEBO;
 
 	std::array<RenderPFANote, NOTE_BUFFER_SIZE> renderNotes{};
+	std::array<GPUInputPFANote, NOTE_BUFFER_SIZE> gpuInputNotes{};
 	// colors for notes
 	std::vector<RenderColor> noteColors;
-	#pragma endregion
+#pragma endregion
 
-	#pragma region PFA "Globals"
+#pragma region Computer shaders
+	bool supportsCompute = false;
+
+	std::unique_ptr<ShaderProgram> notesComputeProgram;
+	GLuint rawNotesSSBO = 0;
+	GLuint outputNotesSSBO = 0;
+#pragma endregion
+
+#pragma region PFA "Globals"
 	float notesX = 0.0f;
 	float notesCX = 0.0f;
 	float notesY = 0.0f;
@@ -102,15 +121,15 @@ private:
 
 	size_t allWhiteKeys = 0;
 	float whiteCX = 0.0f;
-	#pragma endregion
+#pragma endregion
 
-	#pragma region Render Colors
+#pragma region Render Colors
 	RenderColor backgroundColor;
 	RenderColor kbBackground;
 	RenderColor kbRed;
 	RenderColor kbWhite;
 	RenderColor kbSharp;
-	#pragma endregion
+#pragma endregion
 
 	bool noteXTableDirty = true;
 	std::array<float, MIDI_KEYS> noteXTable{};

@@ -72,6 +72,10 @@ public:
 	void Bind() const;
 	void Unbind() const;
 
+	GLuint GetID() const
+	{
+		return buffer;
+	}
 private:
 	GLuint buffer = 0;
 	GLenum target;

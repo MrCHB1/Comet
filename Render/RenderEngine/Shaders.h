@@ -14,6 +14,9 @@ public:
 	static std::unique_ptr<ShaderProgram> CreateFromFiles(const std::string& filePath);
 	static std::unique_ptr<ShaderProgram> CreateFromFiles(const std::string& vertPath, const std::string& fragPath);
 	static std::unique_ptr<ShaderProgram> Create(const char* vertSrc, const char* fragSrc);
+	static std::unique_ptr<ShaderProgram> CreateComputeFromFile(const std::string& filePath);
+	static std::unique_ptr<ShaderProgram> CreateCompute(const char* computeSrc);
+	
 	ShaderProgram(GLuint program) : program(program) {}
 
 	// only allow shader programs to move around
@@ -87,16 +90,15 @@ public:
 		return program;
 	}
 
+	void Bind();
+	void Unbind();
+
 private:
 	GLuint program;
 	bool IsValidProgram()
 	{
 		return program != 0 && glIsProgram(program);
 	}
-
-	// bind/unbind defined here to enforce RAII.
-	void Bind();
-	void Unbind();
 
 	friend class ShaderBind;
 };

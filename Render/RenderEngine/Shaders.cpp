@@ -150,6 +150,49 @@ std::unique_ptr<ShaderProgram> ShaderProgram::Create(const char* vertSrc, const 
 	return std::make_unique<ShaderProgram>(program);
 }
 
+std::unique_ptr<ShaderProgram> ShaderProgram::CreateComputeFromFile(const std::string& path)
+{
+	std::optional<std::string> computeSource = ReadFile(path + ".comp");
+	if (!computeSource.has_value())
+	{
+#ifdef COMET_DEBUG
+		std::cout << "Failed to open file. Returning nullptr" << std::endl;
+#endif
+		return nullptr;
+	}
+
+	return CreateCompute(computeSource->c_str());
+}
+
+std::unique_ptr<ShaderProgram> ShaderProgram::CreateCompute(const char* computeSrc)
+{
+	std::cout << "---- Compiling Compute Shader ----" << std::endl;
+
+	GLuint computeShader = glCreateShader(GL_COMPUTE_SHADER);
+	glShaderSource(computeShader, 1, &computeSrc, nullptr);
+	glCompileShader(computeShader);
+	if (!CheckShaderCompile(computeShader))
+	{
+		glDeleteShader(computeShader);
+		return nullptr;
+	}
+	std::cout << "Success!" << std::endl;
+
+	std::cout << "---- Linking Compute Shader ----" << std::endl;
+	GLuint program = glCreateProgram();
+	glAttachShader(program, computeShader);
+	glLinkProgram(program);
+	glDeleteShader(computeShader);
+
+	if (!CheckShaderLinkStatus(program))
+	{
+		return nullptr;
+	}
+
+	std::cout << "Success!" << std::endl;
+	return std::make_unique<ShaderProgram>(program);
+}
+
 void ShaderProgram::Bind()
 {
 	if (!IsValidProgram()) return;
