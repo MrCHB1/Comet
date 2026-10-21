@@ -1425,7 +1425,7 @@ void MIDIRendererMIDITrail::RenderNotes()
 					? (double)(notesNote.tick[prev] + notesNote.gate[prev]) * invTimeMultiplier
 					: (double)(notesNote.tick[prev] + notesNote.gate[prev]);
 
-				if (noteEnd <= accTime) break;
+				if (noteEnd <= backCutoffTime) break;
 				--noteBegin;
 			}
 		}

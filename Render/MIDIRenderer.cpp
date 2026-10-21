@@ -927,15 +927,17 @@ void MIDIRenderer::RenderNotes()
 
 		if (lastTime < time)
 		{
-			while (blockIndex < blocks.size() && blocks[blockIndex].maxBound <= targetTick)
+			while (blockIndex < blocks.size())
 			{
+				if (blocks[blockIndex].maxBound > targetTick) break;
 				++blockIndex;
 			}
 		}
 		else if (lastTime > time)
 		{
-			while (blockIndex > 0 && blocks[blockIndex - 1].maxBound > targetTick)
+			while (blockIndex > 0)
 			{
+				if (blocks[blockIndex - 1].maxBound <= targetTick) break;
 				--blockIndex;
 			}
 		}

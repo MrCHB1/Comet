@@ -90,6 +90,7 @@ struct ParticleSettings
     float drag = 0.05f;
     float initialSpeed = 0.7f;
     float lifetime = 2.0f;
+    float lifetimeVariance = 0.5f;   // factor of lifetime randomness. 0 = same lifetime for all particles, 1 = random lifetime between 0 and lifetime
     float turbulence = 0.0f;
     float turbulenceVariance = 0.5f; // how much the wobble amplitude/speed differs between particles; 0 = uniform, 1 = wide spread
     float swirlStrength = 0.0f;      // strength of the ambient swirl force field

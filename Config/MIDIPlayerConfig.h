@@ -205,6 +205,8 @@ struct MIDIPlayerConfig
 		bool showCounter = true;
 		bool showStats = true;
 		bool loopColors = true;
+		bool shuffleColors = false;
+		int shuffleSeed = 0;
 		int paletteID = 0;
 	private:
 		int width = 1280;

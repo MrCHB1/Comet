@@ -440,6 +440,31 @@ void SettingsDialog::DrawVisualTab()
 							}
 						);
 
+						SECTION_ENTRY(
+							SECTION_LABEL("Shuffle colors"),
+							if (ImGui::Checkbox("##shuffleColors", &config->render.shuffleColors))
+							{
+								ColorAsset& colorAsset = app->GetRenderer()->GetColorAsset();
+								if (config->render.shuffleColors)
+									colorAsset.ShuffleColors((uint32_t)config->render.shuffleSeed);
+								else
+									colorAsset.RestoreColors();
+							}
+						);
+
+						if (config->render.shuffleColors)
+						{
+							SECTION_ENTRY(
+								SECTION_LABEL("Seed"),
+								if (ImGui::InputInt("##shuffleSeed", &config->render.shuffleSeed))
+								{
+									if (config->render.shuffleSeed < 0) config->render.shuffleSeed = 0;
+									ColorAsset& colorAsset = app->GetRenderer()->GetColorAsset();
+									if (config->render.shuffleColors) colorAsset.ShuffleColors((uint32_t)config->render.shuffleSeed);
+								}
+							);
+						}
+
 						END_SECTION;
 					}
 					ImGui::EndDisabled();

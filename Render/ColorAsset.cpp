@@ -5,6 +5,8 @@
 void ColorAsset::ResetColors()
 {
 	colors.clear();
+	colorIDs.clear();
+
 	loopColors = false;
 	numLoadedColors = 0;
 	hasColors = false;
@@ -30,6 +32,8 @@ uint32_t ColorAsset::GetColor(uint16_t track, uint8_t channel)
 	else if (loopColors)
 	{
 		// loop only the predefined colors
+		if (!colorIDs.empty()) index = colorIDs[index % colorIDs.size()];
+
 		index %= loadedCount;
 	}
 	else
@@ -50,6 +54,8 @@ uint32_t ColorAsset::GetColor(uint16_t track, uint8_t channel)
 				index %= loadedCount;
 			}
 		}
+
+		if (!colorIDs.empty()) index = colorIDs[index % colorIDs.size()];
 	}
 
 	const ImVec4& color = colors[index];
@@ -70,6 +76,7 @@ void ColorAsset::LoadColors(uint16_t trackCount)
 		if (loopColors)
 		{
 			colors.resize(std::min((size_t)numLoadedColors, colors.size()));
+			UpdateColorIDs(requiredColors);
 			return;
 		}
 
@@ -80,6 +87,8 @@ void ColorAsset::LoadColors(uint16_t trackCount)
 		{
 			colors.push_back(CreateRandomColor());
 		}
+
+		UpdateColorIDs(colors.size());
 		return;
 	}
 
@@ -88,6 +97,8 @@ void ColorAsset::LoadColors(uint16_t trackCount)
 	{
 		colors.push_back(CreateRandomColor());
 	}
+
+	UpdateColorIDs(colors.size());
 }
 
 void ColorAsset::LoadColors(const std::vector<std::array<float, 3>>& colors, bool loopColors, size_t requiredCount)
@@ -107,6 +118,8 @@ void ColorAsset::LoadColors(const std::vector<std::array<float, 3>>& colors, boo
 		while (this->colors.size() < requiredCount)
 			this->colors.push_back(CreateRandomColor());
 	}
+
+	UpdateColorIDs(loopColors ? requiredCount : this->colors.size());
 }
 
 void ColorAsset::LoadColors(std::shared_ptr<std::istream> paletteFile, bool loopColors)
@@ -161,4 +174,36 @@ ImVec4 ColorAsset::CreateRandomColor()
 {
 	ImColor col = ImColor::HSV(random(mt), 1.0f, 0.7f + random(mt) * 0.3f);
 	return col.Value;
+}
+
+void ColorAsset::UpdateColorIDs(size_t count)
+{
+	colorIDs.resize(count);
+	
+	for (size_t i = 0; i < count; i++)
+		colorIDs[i] = i;
+
+	if (!shuffleColors) return;
+
+	std::mt19937 rng(shuffleSeed == 0 ? rd() : shuffleSeed);
+	std::shuffle(colorIDs.begin(), colorIDs.end(), rng);
+}
+
+void ColorAsset::ShuffleColors(uint32_t seed)
+{
+	// prevent unnecessary reshuffles
+	if (shuffleColors && shuffleSeed == seed && seed != 0) return;
+
+	shuffleColors = true;
+	shuffleSeed = seed;
+	UpdateColorIDs(colorIDs.size());
+}
+
+void ColorAsset::RestoreColors()
+{
+	if (!shuffleColors) return;
+
+	shuffleColors = false;
+	shuffleSeed = 0;
+	UpdateColorIDs(colorIDs.size());
 }

@@ -20,10 +20,6 @@ const float keyPosDiff[] = {
 
 const GradientNoise g_vortexNoise;
 
-// Derives a divergence-free 2D velocity from the noise's gradient (curl noise):
-// treating the noise as a scalar potential and taking its perpendicular gradient
-// guarantees the resulting field has no "sources" or "sinks" -- particles get
-// swept around in swirling eddies instead of drifting toward/away from points.
 glm::vec2 SampleCurlNoise(float x, float y, float t)
 {
     const float eps = 0.05f;
@@ -919,7 +915,15 @@ void MIDIRendererEnhanced::EmitNoteExplosion(uint8_t keyID, uint32_t hexColor)
         p.curveAmp = (ampCenter + RandRange(-ampHalfRange, ampHalfRange) * variance) * pSettings.turbulence;
 
         p.color = glm::vec4(hdrColor, 1.0f);
-        p.maxLife = RandRange(0.5f, 1.5f) * pSettings.lifetime;
+
+        // lifetime
+        float lifetimeVar = pSettings.lifetimeVariance;
+
+        float minLife = lifetimeVar * pSettings.lifetime;
+        float maxLife = pSettings.lifetime;
+
+        p.maxLife = RandRange(minLife, maxLife);
+
         p.life = p.maxLife;
         p.scale = 0.002f;
     }
@@ -1597,6 +1601,20 @@ void MIDIRendererEnhanced::RenderSettings()
                                 pSettings.lifetime = std::clamp(value, 0.2f, 5.0f);
                             }
                         });
+
+                    SECTION_ENTRY(
+                        TABLE_LABEL_TOOLTIP(
+                            "Lifetime Variance",
+                            "Controls the variance of particle lifetimes. Default is 0.5. 0 = Same lifetime for all particles, 1 = random lifetime between 0 and current lifetime"
+                        ),
+                        {
+                            float value = pSettings.lifetimeVariance;
+                            if (ImGui::SliderFloat("##particleLifetimeVar", &value, 0.0f, 1.0f))
+                            {
+                                pSettings.lifetimeVariance = std::clamp(value, 0.0f, 1.0f);
+                            }
+                        }
+                    );
 
                     END_SECTION;
                 }

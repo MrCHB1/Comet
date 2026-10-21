@@ -207,12 +207,17 @@ void MIDIApp::SetRenderer()
 
 	// ensure the colors are properly loaded if using images for colors
 	auto* colorList = GetColorList();
+	ColorAsset& colorAsset = this->renderer->GetColorAsset();
 	if (config.render.GetUseColorsFromImage())
 	{
 		colorList->SetPalette(config.render.paletteID);
 		auto& palette = colorList->GetCurrentPalette();
-		this->renderer->GetColorAsset().LoadColors(palette.palette, config.render.loopColors);
+		colorAsset.LoadColors(palette.palette, config.render.loopColors);
 	}
+
+	// shuffle colors!
+	if (config.render.shuffleColors) colorAsset.ShuffleColors(config.render.shuffleSeed);
+	else colorAsset.RestoreColors();
 }
 
 template void MIDIApp::SetRenderer<MIDIRendererPFA>();

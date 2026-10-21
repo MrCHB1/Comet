@@ -106,6 +106,8 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 
 			render.SetUseColorsFromImage(renderSec->GetBoolean("useImageColors", false));
 			render.loopColors = renderSec->GetBoolean("loopColors", true);
+			render.shuffleColors = renderSec->GetBoolean("shuffleColors", false);
+			render.shuffleSeed = renderSec->GetInt("shuffleSeed", 0);
 			render.paletteID = renderSec->GetInt("paletteID", 0);
 
 			render.SetCurrentRenderer(static_cast<RendererType>(renderSec->GetInt("rendererType", 0)));
@@ -169,6 +171,8 @@ void MIDIPlayerConfig::SaveConfig()
 	config["render"]["bar"] = Utils::EncodeColor(render.GetBarColor());
 	config["render"]["useImageColors"] = render.GetUseColorsFromImage();
 	config["render"]["loopColors"] = render.loopColors;
+	config["render"]["shuffleColors"] = render.shuffleColors;
+	config["render"]["shuffleSeed"] = render.shuffleSeed;
 	config["render"]["paletteID"] = render.paletteID;
 	config["render"]["rendererType"] = static_cast<int>(render.GetCurrentRenderer());
 	config["render"]["keyRange"]["min"] = render.GetKeyFirst();

@@ -41,7 +41,7 @@ public:
 		}
 		else
 		{
-			ImGui::SetWindowSize(GetInitialSize(), ImGuiCond_Once);
+			ImGui::SetNextWindowSize(GetInitialSize(), ImGuiCond_Once);
 		}
 
 		if (ImGui::BeginPopupModal(title, NULL, windowFlags))
