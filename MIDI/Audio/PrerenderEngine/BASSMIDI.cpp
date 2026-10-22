@@ -57,7 +57,7 @@ void BASSMIDI::FreeSoundfonts()
 	{
 		for (int i = 0; i < fontCount; i++)
 		{
-			BASS_MIDI_FontFree((*fontArray).font);
+			BASS_MIDI_FontFree(fontArray[i].font);
 		}
 		free(fontArray);
 		fontArray = NULL;
@@ -86,12 +86,12 @@ void BASSMIDI::LoadSoundfonts(const std::vector<std::wstring>& paths)
 		HSOUNDFONT font = BASS_MIDI_FontInit((void*)paths[i].c_str(), BASS_UNICODE);
 		if (font != 0)
 		{
-			fonts[0].font = font;
-			fonts[0].spreset = -1;
-			fonts[0].sbank = -1;
-			fonts[0].dpreset = -1;
-			fonts[0].dbank = 0;
-			fonts[0].dbanklsb = 0;
+			fonts[i].font = font;
+			fonts[i].spreset = -1;
+			fonts[i].sbank = -1;
+			fonts[i].dpreset = -1;
+			fonts[i].dbank = 0;
+			fonts[i].dbanklsb = 0;
 
 			BASS_MIDI_FontLoad(font, -1, -1);
 		}

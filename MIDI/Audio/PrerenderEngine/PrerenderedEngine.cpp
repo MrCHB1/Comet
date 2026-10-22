@@ -92,6 +92,7 @@ void PrerenderedEngine::Destroy()
         BASS_StreamFree(playbackStream);
         playbackStream = 0;
     }
+    bassMidi->FreeSoundfonts();
     bassMidi.reset();
     BASS_Free();
 

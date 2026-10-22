@@ -227,20 +227,48 @@ void SettingsDialog::DrawVisualTab()
 	ImGui::Text("These settings will also apply when rendering videos!");
 	ImGui::Separator();
 
-	if (ImGui::BeginChild("##scrollArea", ImVec2(0, 400), true, ImGuiWindowFlags_HorizontalScrollbar))
+	enum VisualSubTab {
+		Renderer,
+		NoteColors,
+		CounterAndStats
+	};
+
+	static VisualSubTab visualSubTab = Renderer;
+	const float sidebarWidth = 160.0f;
+
+	// TODO: add to helper function
+	// draw sub tabs to the left
+
+	ImGui::BeginChild("SettingsSidebar", ImVec2(sidebarWidth, 0), ImGuiChildFlags_Borders);
 	{
-		if (ImGui::BeginTabBar("VisualTabs"))
+		ImVec4 col = ImVec4(ImGui::GetStyleColorVec4(ImGuiCol_Text));
+		col.w *= 0.5;
+		ImGui::TextColored(col, "VISUAL SETTINGS");
+		ImGui::Spacing();
+		if (ImGui::Selectable("Renderer", visualSubTab == Renderer))
+			visualSubTab = Renderer;
+		if (ImGui::Selectable("Note Colors", visualSubTab == NoteColors))
+			visualSubTab = NoteColors;
+		if (ImGui::Selectable("Counter & Stats", visualSubTab == CounterAndStats))
+			visualSubTab = CounterAndStats;
+	}
+
+	ImGui::EndChild();
+	ImGui::SameLine();
+	ImGui::BeginChild("SettingsContent", ImVec2(0, 0), ImGuiChildFlags_Borders);
+	{
+		switch (visualSubTab)
 		{
-			if (ImGui::BeginTabItem("Renderer"))
+		case Renderer:
+		{
+			MIDIPlayerConfig* config = app->GetConfig();
+			RendererType currRenderer = config->render.GetCurrentRenderer();
+
+			BEGIN_SECTION("##renderer")
 			{
-				MIDIPlayerConfig* config = app->GetConfig();
-				RendererType currRenderer = config->render.GetCurrentRenderer();
+				SETUP_SECTION;
 
-				BEGIN_SECTION("##renderer")
-				{
-					SETUP_SECTION;
-
-					#define RENDERER_COMBO_ENTRY(enumTarget, target) \
+#define RENDERER_COMBO_ENTRY(enumTarget, target) \
 						if (ImGui::Selectable(ToString(enumTarget).c_str(), currRenderer == enumTarget)) \
 						{ \
 							if (currRenderer != enumTarget) \
@@ -250,451 +278,448 @@ void SettingsDialog::DrawVisualTab()
 							} \
 						}
 
-					SECTION_ENTRY(
-						SECTION_LABEL("Renderer"),
+				SECTION_ENTRY(
+					SECTION_LABEL("Renderer"),
+					{
+						std::string currentRenderer = ToString(currRenderer);
+						if (ImGui::BeginCombo("##rendererCombo", currentRenderer.c_str()))
 						{
-							std::string currentRenderer = ToString(currRenderer);
-							if (ImGui::BeginCombo("##rendererCombo", currentRenderer.c_str()))
-							{
-								
-								RENDERER_COMBO_ENTRY(RendererType::PFA, MIDIRendererPFA);
-								RENDERER_COMBO_ENTRY(RendererType::Synthesia, MIDIRendererSynthesia);
-								RENDERER_COMBO_ENTRY(RendererType::Textured, MIDIRenderer);
-								RENDERER_COMBO_ENTRY(RendererType::Enhanced, MIDIRendererEnhanced);
-								RENDERER_COMBO_ENTRY(RendererType::MIDITrail, MIDIRendererMIDITrail);
-								RENDERER_COMBO_ENTRY(RendererType::Channels, MIDIRendererChannels);
-								RENDERER_COMBO_ENTRY(RendererType::Velocities, MIDIRendererVelocities);
-								RENDERER_COMBO_ENTRY(RendererType::CounterOnly, MIDIRendererCounter);
 
-								ImGui::EndCombo();
-							}
+							RENDERER_COMBO_ENTRY(RendererType::PFA, MIDIRendererPFA);
+							RENDERER_COMBO_ENTRY(RendererType::Synthesia, MIDIRendererSynthesia);
+							RENDERER_COMBO_ENTRY(RendererType::Textured, MIDIRenderer);
+							RENDERER_COMBO_ENTRY(RendererType::Enhanced, MIDIRendererEnhanced);
+							RENDERER_COMBO_ENTRY(RendererType::MIDITrail, MIDIRendererMIDITrail);
+							RENDERER_COMBO_ENTRY(RendererType::Channels, MIDIRendererChannels);
+							RENDERER_COMBO_ENTRY(RendererType::Velocities, MIDIRendererVelocities);
+							RENDERER_COMBO_ENTRY(RendererType::CounterOnly, MIDIRendererCounter);
+
+							ImGui::EndCombo();
 						}
-					);
+					}
+				);
 
-					#undef RENDERER_COMBO_ENTRY
+#undef RENDERER_COMBO_ENTRY
 
-					END_SECTION;
-				}
-
-
-				ImGui::Spacing();
-
-				if (ImGui::CollapsingHeader("Renderer Settings", ImGuiTreeNodeFlags_DefaultOpen))
-				{
-					app->GetRenderer()->RenderSettings();
-				}
-
-				ImGui::EndTabItem();
+				END_SECTION;
 			}
-			if (ImGui::BeginTabItem("Note Colors"))
+
+			ImGui::Spacing();
+
+			if (ImGui::CollapsingHeader("Renderer Settings", ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				ColorPaletteList* colorList = app->GetColorList();
-				auto* config = app->GetConfig();
-
-				if (colorList != nullptr)
-				{
-					bool setColorsFromPack = false;
-					bool setColorsFromList = false;
-
-					BEGIN_SECTION("##noteColors")
-					{
-						SETUP_SECTION;
-
-						SECTION_ENTRY(
-							SECTION_LABEL("Use colors from"),
-							if (ImGui::RadioButton("Resource pack", !config->render.GetUseColorsFromImage()))
-							{
-								config->render.SetUseColorsFromImage(false);
-								setColorsFromPack = true;
-							}
-
-							if (ImGui::RadioButton("Color list", config->render.GetUseColorsFromImage()))
-							{
-								config->render.SetUseColorsFromImage(true);
-								setColorsFromList = true;
-							}
-						);
-
-						if (setColorsFromList)
-						{
-							auto& entry = colorList->GetCurrentPalette();
-							app->GetRenderer()->LoadColors(entry.palette);
-						}
-						else if (setColorsFromPack)
-						{
-							ResourcePackList* packList = app->GetPackList();
-							auto currPack = packList->GetActivePack();
-							auto noteColors = currPack->GetStream("noteColors.png");
-
-							auto& colorAsset = app->GetRenderer()->GetColorAsset();
-							if (noteColors != nullptr)
-							{
-								colorAsset.LoadColors(noteColors, currPack->GetNoteInfo()->loopColors);
-							}
-							else
-							{
-								colorAsset.ResetColors();
-								colorAsset.LoadColors();
-							}
-						}
-
-						END_SECTION;
-					}
-
-					SECTION_HEADER("Palette list");
-
-					ImGui::BeginDisabled(!config->render.GetUseColorsFromImage());
-					if (ImGui::Button("Refresh palette list"))
-					{
-						colorList->ReloadList();
-						auto& entry = colorList->GetCurrentPalette();
-						app->GetRenderer()->LoadColors(entry.palette);
-					}
-					ImGui::SameLine();
-					if (ImGui::Button("Open palette folder"))
-					{
-						Utils::OpenFolder("./colors");
-					}
-
-					ImGui::Spacing();
-
-					auto& palettes = colorList->GetPalettes();
-					const ColorPaletteEntry& currPalette = colorList->GetCurrentPalette();
-
-					ImGui::BeginChild("PaletteScroll", ImVec2(0, 260), true, ImGuiWindowFlags_HorizontalScrollbar);
-					ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 8));
-					
-					for (size_t i = 0; i < palettes.size(); ++i)
-					{
-						const auto& palette = palettes[i];
-						bool isActivePalette = (&palette == &currPalette);
-
-						ImGui::PushID((int)i);
-						ImGui::BeginGroup();
-
-						ImVec2 cardSize(ImGui::GetContentRegionAvail().x, 62.0f);
-						if (ImGui::Selectable("##palette_card", isActivePalette,
-							0, cardSize))
-						{
-							colorList->SetPalette(i);
-							config->render.paletteID = i;
-							app->GetRenderer()->GetColorAsset().LoadColors(palette.palette, true);
-						}
-
-						ImDrawList* dl = ImGui::GetWindowDrawList();
-						ImVec2 min = ImGui::GetItemRectMin();
-						ImVec2 max = ImGui::GetItemRectMax();
-
-						ImU32 bg = isActivePalette
-							? ImGui::GetColorU32(ImGuiCol_FrameBgActive)
-							: ImGui::GetColorU32(ImGuiCol_FrameBg);
-
-						dl->AddRect(min, max, ImGui::GetColorU32(isActivePalette ? ImGuiCol_CheckMark : ImGuiCol_Border), 4.0f, 0, 2.0f);
-
-						// Palette name
-						ImVec2 textPos(min.x + 12.0f, min.y + 10.0f);
-						dl->AddText(textPos, ImGui::GetColorU32(ImGuiCol_Text), palette.name.c_str());
-
-						// Small color preview strip
-						float swatchY = min.y + 34.0f;
-						float swatchW = 26.0f;
-						float swatchH = 14.0f;
-						float swatchX = min.x + 12.0f;
-						const int previewCount = (int)std::min<size_t>(10, palette.palette.size());
-
-						for (int s = 0; s < previewCount; ++s)
-						{
-							const auto& c = palette.palette[s];
-							ImU32 col = IM_COL32(c[0] * 255, c[1] * 255, c[2] * 255, 255);
-
-							ImVec2 a(swatchX + s * (swatchW + 4.0f), swatchY);
-							ImVec2 b(a.x + swatchW, a.y + swatchH);
-							dl->AddRectFilled(a, b, col, 4.0f);
-							dl->AddRect(a, b, IM_COL32(0, 0, 0, 60), 4.0f);
-						}
-
-						if (isActivePalette)
-						{
-							ImVec2 badgePos(max.x - 72.0f, min.y + 10.0f);
-							dl->AddText(badgePos, ImGui::GetColorU32(ImGuiCol_CheckMark), "In use");
-						}
-
-						ImGui::EndGroup();
-						ImGui::PopID();
-					}
-
-					ImGui::PopStyleVar();
-					ImGui::EndChild();
-
-					BEGIN_SECTION("##noteColorsEnd")
-					{
-						SETUP_SECTION;
-
-						SECTION_ENTRY(
-							SECTION_LABEL("Loop colors"),
-							if (ImGui::Checkbox("##loopColors", &config->render.loopColors))
-							{
-								auto& currPalette = colorList->GetCurrentPalette();
-								ColorAsset& colorAsset = app->GetRenderer()->GetColorAsset();
-								colorAsset.LoadColors(currPalette.palette, config->render.loopColors);
-							}
-						);
-
-						SECTION_ENTRY(
-							SECTION_LABEL("Shuffle colors"),
-							if (ImGui::Checkbox("##shuffleColors", &config->render.shuffleColors))
-							{
-								ColorAsset& colorAsset = app->GetRenderer()->GetColorAsset();
-								if (config->render.shuffleColors)
-									colorAsset.ShuffleColors((uint32_t)config->render.shuffleSeed);
-								else
-									colorAsset.RestoreColors();
-							}
-						);
-
-						if (config->render.shuffleColors)
-						{
-							SECTION_ENTRY(
-								SECTION_LABEL("Seed"),
-								if (ImGui::InputInt("##shuffleSeed", &config->render.shuffleSeed))
-								{
-									if (config->render.shuffleSeed < 0) config->render.shuffleSeed = 0;
-									ColorAsset& colorAsset = app->GetRenderer()->GetColorAsset();
-									if (config->render.shuffleColors) colorAsset.ShuffleColors((uint32_t)config->render.shuffleSeed);
-								}
-							);
-						}
-
-						END_SECTION;
-					}
-					ImGui::EndDisabled();
-				}
-
-				ImGui::EndTabItem();
+				app->GetRenderer()->RenderSettings();
 			}
-			if (ImGui::BeginTabItem("Note Counter / Stats"))
+
+			break;
+		}
+		case NoteColors:
+		{
+			ColorPaletteList* colorList = app->GetColorList();
+			auto* config = app->GetConfig();
+
+			if (colorList != nullptr)
 			{
-				MIDIPlayerConfig* config = app->GetConfig();
-				NoteCounterInfo* counter = app->GetNoteCounterInfo();
-				FontList* fontList = app->GetFontList();
-				std::vector<FontEntry>& fonts = fontList->GetFonts();
+				bool setColorsFromPack = false;
+				bool setColorsFromList = false;
 
-				const NoteCounterAlignment alignment = config->overlayInfo.overlayAlignment;
-				const NoteCounterStyle style = config->overlayInfo.overlayStyle;
-
-				SECTION_HEADER("Appearance");
-
-				BEGIN_SECTION("##nc_appearance")
+				BEGIN_SECTION("##noteColors")
 				{
 					SETUP_SECTION;
 
 					SECTION_ENTRY(
-						SECTION_LABEL("Show note counter"),
-						ImGui::Checkbox("##showNoteCounter", &config->render.showCounter);
-					);
-
-					SECTION_ENTRY(
-						SECTION_LABEL("Show statistics"),
-						ImGui::Checkbox("##showStats", &config->render.showStats);
-					);
-
-					SECTION_ENTRY(
-						SECTION_LABEL("Scale"),
+						SECTION_LABEL("Use colors from"),
+						if (ImGui::RadioButton("Resource pack", !config->render.GetUseColorsFromImage()))
 						{
-							ImGui::SliderFloat(
-								"##counterScale",
-								&config->overlayInfo.scale,
-								config->overlayInfo.MIN_SCALE,
-								config->overlayInfo.MAX_SCALE
-							);
+							config->render.SetUseColorsFromImage(false);
+							setColorsFromPack = true;
 						}
-					);
+
+					if (ImGui::RadioButton("Color list", config->render.GetUseColorsFromImage()))
+					{
+						config->render.SetUseColorsFromImage(true);
+						setColorsFromList = true;
+					}
+						);
+
+					if (setColorsFromList)
+					{
+						auto& entry = colorList->GetCurrentPalette();
+						app->GetRenderer()->LoadColors(entry.palette);
+					}
+					else if (setColorsFromPack)
+					{
+						ResourcePackList* packList = app->GetPackList();
+						auto currPack = packList->GetActivePack();
+						auto noteColors = currPack->GetStream("noteColors.png");
+
+						auto& colorAsset = app->GetRenderer()->GetColorAsset();
+						if (noteColors != nullptr)
+						{
+							colorAsset.LoadColors(noteColors, currPack->GetNoteInfo()->loopColors);
+						}
+						else
+						{
+							colorAsset.ResetColors();
+							colorAsset.LoadColors();
+						}
+					}
+
+					END_SECTION;
+				}
+
+				SECTION_HEADER("Palette list");
+
+				ImGui::BeginDisabled(!config->render.GetUseColorsFromImage());
+				if (ImGui::Button("Refresh palette list"))
+				{
+					colorList->ReloadList();
+					auto& entry = colorList->GetCurrentPalette();
+					app->GetRenderer()->LoadColors(entry.palette);
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Open palette folder"))
+				{
+					Utils::OpenFolder("./colors");
+				}
+
+				ImGui::Spacing();
+
+				auto& palettes = colorList->GetPalettes();
+				const ColorPaletteEntry& currPalette = colorList->GetCurrentPalette();
+
+				ImGui::BeginChild("PaletteScroll", ImVec2(0, 260), true, ImGuiWindowFlags_HorizontalScrollbar);
+				ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 8));
+
+				for (size_t i = 0; i < palettes.size(); ++i)
+				{
+					const auto& palette = palettes[i];
+					bool isActivePalette = (&palette == &currPalette);
+
+					ImGui::PushID((int)i);
+					ImGui::BeginGroup();
+
+					ImVec2 cardSize(ImGui::GetContentRegionAvail().x, 62.0f);
+					if (ImGui::Selectable("##palette_card", isActivePalette,
+						0, cardSize))
+					{
+						colorList->SetPalette(i);
+						config->render.paletteID = i;
+						app->GetRenderer()->GetColorAsset().LoadColors(palette.palette, true);
+					}
+
+					ImDrawList* dl = ImGui::GetWindowDrawList();
+					ImVec2 min = ImGui::GetItemRectMin();
+					ImVec2 max = ImGui::GetItemRectMax();
+
+					ImU32 bg = isActivePalette
+						? ImGui::GetColorU32(ImGuiCol_FrameBgActive)
+						: ImGui::GetColorU32(ImGuiCol_FrameBg);
+
+					dl->AddRect(min, max, ImGui::GetColorU32(isActivePalette ? ImGuiCol_CheckMark : ImGuiCol_Border), 4.0f, 0, 2.0f);
+
+					// Palette name
+					ImVec2 textPos(min.x + 12.0f, min.y + 10.0f);
+					dl->AddText(textPos, ImGui::GetColorU32(ImGuiCol_Text), palette.name.c_str());
+
+					// Small color preview strip
+					float swatchY = min.y + 34.0f;
+					float swatchW = 26.0f;
+					float swatchH = 14.0f;
+					float swatchX = min.x + 12.0f;
+					const int previewCount = (int)std::min<size_t>(10, palette.palette.size());
+
+					for (int s = 0; s < previewCount; ++s)
+					{
+						const auto& c = palette.palette[s];
+						ImU32 col = IM_COL32(c[0] * 255, c[1] * 255, c[2] * 255, 255);
+
+						ImVec2 a(swatchX + s * (swatchW + 4.0f), swatchY);
+						ImVec2 b(a.x + swatchW, a.y + swatchH);
+						dl->AddRectFilled(a, b, col, 4.0f);
+						dl->AddRect(a, b, IM_COL32(0, 0, 0, 60), 4.0f);
+					}
+
+					if (isActivePalette)
+					{
+						ImVec2 badgePos(max.x - 72.0f, min.y + 10.0f);
+						dl->AddText(badgePos, ImGui::GetColorU32(ImGuiCol_CheckMark), "In use");
+					}
+
+					ImGui::EndGroup();
+					ImGui::PopID();
+				}
+
+				ImGui::PopStyleVar();
+				ImGui::EndChild();
+
+				BEGIN_SECTION("##noteColorsEnd")
+				{
+					SETUP_SECTION;
 
 					SECTION_ENTRY(
-						SECTION_LABEL("Alignment"),
+						SECTION_LABEL("Loop colors"),
+						if (ImGui::Checkbox("##loopColors", &config->render.loopColors))
 						{
-
-							if (ImGui::RadioButton(
-								"Top Left",
-								alignment == NoteCounterAlignment::TopLeft))
-							{
-								config->overlayInfo.overlayAlignment = NoteCounterAlignment::TopLeft;
-							}
-
-							ImGui::BeginDisabled(
-								style != NoteCounterStyle::MIDITrail
+							auto& currPalette = colorList->GetCurrentPalette();
+							ColorAsset& colorAsset = app->GetRenderer()->GetColorAsset();
+							colorAsset.LoadColors(currPalette.palette, config->render.loopColors);
+						}
 							);
 
-							ImGui::SameLine();
+					SECTION_ENTRY(
+						SECTION_LABEL("Shuffle colors"),
+						if (ImGui::Checkbox("##shuffleColors", &config->render.shuffleColors))
+						{
+							ColorAsset& colorAsset = app->GetRenderer()->GetColorAsset();
+							if (config->render.shuffleColors)
+								colorAsset.ShuffleColors((uint32_t)config->render.shuffleSeed);
+							else
+								colorAsset.RestoreColors();
+						}
+							);
 
-							if (ImGui::RadioButton(
-								"Top Center",
-								alignment == NoteCounterAlignment::TopCenter))
+					if (config->render.shuffleColors)
+					{
+						SECTION_ENTRY(
+							SECTION_LABEL("Seed"),
+							if (ImGui::InputInt("##shuffleSeed", &config->render.shuffleSeed))
 							{
-								config->overlayInfo.overlayAlignment = NoteCounterAlignment::TopCenter;
+								if (config->render.shuffleSeed < 0) config->render.shuffleSeed = 0;
+								ColorAsset& colorAsset = app->GetRenderer()->GetColorAsset();
+								if (config->render.shuffleColors) colorAsset.ShuffleColors((uint32_t)config->render.shuffleSeed);
+							}
+								);
+					}
+
+					END_SECTION;
+				}
+				ImGui::EndDisabled();
+			}
+
+			break;
+		}
+		case CounterAndStats:
+		{
+			MIDIPlayerConfig* config = app->GetConfig();
+			NoteCounterInfo* counter = app->GetNoteCounterInfo();
+			FontList* fontList = app->GetFontList();
+			std::vector<FontEntry>& fonts = fontList->GetFonts();
+
+			const NoteCounterAlignment alignment = config->overlayInfo.overlayAlignment;
+			const NoteCounterStyle style = config->overlayInfo.overlayStyle;
+
+			SECTION_HEADER("Appearance");
+
+			BEGIN_SECTION("##nc_appearance")
+			{
+				SETUP_SECTION;
+
+				SECTION_ENTRY(
+					SECTION_LABEL("Show note counter"),
+					ImGui::Checkbox("##showNoteCounter", &config->render.showCounter);
+				);
+
+				SECTION_ENTRY(
+					SECTION_LABEL("Show statistics"),
+					ImGui::Checkbox("##showStats", &config->render.showStats);
+				);
+
+				SECTION_ENTRY(
+					SECTION_LABEL("Scale"),
+					{
+						ImGui::SliderFloat(
+							"##counterScale",
+							&config->overlayInfo.scale,
+							config->overlayInfo.MIN_SCALE,
+							config->overlayInfo.MAX_SCALE
+						);
+					}
+				);
+
+				SECTION_ENTRY(
+					SECTION_LABEL("Alignment"),
+					{
+
+						if (ImGui::RadioButton(
+							"Top Left",
+							alignment == NoteCounterAlignment::TopLeft))
+						{
+							config->overlayInfo.overlayAlignment = NoteCounterAlignment::TopLeft;
+						}
+
+						ImGui::BeginDisabled(
+							style != NoteCounterStyle::MIDITrail
+						);
+
+						ImGui::SameLine();
+
+						if (ImGui::RadioButton(
+							"Top Center",
+							alignment == NoteCounterAlignment::TopCenter))
+						{
+							config->overlayInfo.overlayAlignment = NoteCounterAlignment::TopCenter;
+						}
+
+						ImGui::EndDisabled();
+
+						ImGui::SameLine();
+
+						if (ImGui::RadioButton(
+							"Top Right",
+							alignment == NoteCounterAlignment::TopRight))
+						{
+							config->overlayInfo.overlayAlignment = NoteCounterAlignment::TopRight;
+						}
+					}
+				);
+
+				SECTION_ENTRY(
+					SECTION_LABEL("Blur behind"),
+					ImGui::Checkbox(
+						"##blurBehind",
+						&config->overlayInfo.blurBehind
+					);
+				);
+
+				SECTION_ENTRY(SECTION_LABEL("Font"),
+					{
+						std::string currentFontName = "Default";
+
+						for (const auto& f : fonts)
+						{
+							if (f.path == config->overlayInfo.selectedFontPath)
+							{
+								currentFontName = f.name;
+								break;
+							}
+						}
+
+						if (ImGui::BeginCombo(
+							"##counterFontCombo",
+							currentFontName.c_str()))
+						{
+							if (ImGui::Selectable(
+								"Default",
+								config->overlayInfo.selectedFontPath.empty()))
+							{
+								config->overlayInfo.selectedFontPath.clear();
 							}
 
-							ImGui::EndDisabled();
+							for (const auto& f : fonts)
+							{
+								const bool isSelected =
+									config->overlayInfo.selectedFontPath == f.path;
 
-							ImGui::SameLine();
+								if (ImGui::Selectable(
+									f.name.c_str(),
+									isSelected))
+								{
+									config->overlayInfo.selectedFontPath = f.path;
+								}
 
-							if (ImGui::RadioButton(
-								"Top Right",
-								alignment == NoteCounterAlignment::TopRight))
+								if (isSelected)
+									ImGui::SetItemDefaultFocus();
+							}
+
+							ImGui::EndCombo();
+						}
+					});
+
+				SECTION_ENTRY(SECTION_LABEL("Font directory"),
+					{
+						if (ImGui::Button("Open"))
+						{
+							Utils::OpenFolder("./assets/fonts/");
+						}
+					});
+
+				END_SECTION;
+			}
+
+
+			SECTION_HEADER("Style");
+
+			BEGIN_SECTION("##nc_style")
+			{
+				SETUP_SECTION;
+
+				SECTION_ENTRY(
+					SECTION_LABEL("Style"),
+					{
+						if (ImGui::RadioButton(
+							"Ultralight MIDI Player",
+							style == NoteCounterStyle::UMP))
+						{
+							config->overlayInfo.overlayStyle = NoteCounterStyle::UMP;
+
+							if (config->overlayInfo.overlayAlignment == NoteCounterAlignment::TopCenter)
 							{
 								config->overlayInfo.overlayAlignment = NoteCounterAlignment::TopRight;
 							}
 						}
-					);
 
-					SECTION_ENTRY(
-						SECTION_LABEL("Blur behind"),
-						ImGui::Checkbox(
-							"##blurBehind",
-							&config->overlayInfo.blurBehind
-						);
-					);
+						ImGui::SameLine();
 
-					SECTION_ENTRY(SECTION_LABEL("Font"),
+						if (ImGui::RadioButton(
+							"MIDITrail",
+							style == NoteCounterStyle::MIDITrail))
 						{
-							std::string currentFontName = "Default";
-
-							for (const auto& f : fonts)
-							{
-								if (f.path == config->overlayInfo.selectedFontPath)
-								{
-									currentFontName = f.name;
-									break;
-								}
-							}
-
-							if (ImGui::BeginCombo(
-								"##counterFontCombo",
-								currentFontName.c_str()))
-							{
-								if (ImGui::Selectable(
-									"Default",
-									config->overlayInfo.selectedFontPath.empty()))
-								{
-									config->overlayInfo.selectedFontPath.clear();
-								}
-
-								for (const auto& f : fonts)
-								{
-									const bool isSelected =
-										config->overlayInfo.selectedFontPath == f.path;
-
-									if (ImGui::Selectable(
-										f.name.c_str(),
-										isSelected))
-									{
-										config->overlayInfo.selectedFontPath = f.path;
-									}
-
-									if (isSelected)
-										ImGui::SetItemDefaultFocus();
-								}
-
-								ImGui::EndCombo();
-							}
-						});
-
-					SECTION_ENTRY(SECTION_LABEL("Font directory"),
-						{
-							if (ImGui::Button("Open"))
-							{
-								Utils::OpenFolder("./assets/fonts/");
-							}
-						});
-
-					END_SECTION;
-				}
-
-
-				SECTION_HEADER("Style");
-
-				BEGIN_SECTION("##nc_style")
-				{
-					SETUP_SECTION;
-
-					SECTION_ENTRY(
-						SECTION_LABEL("Style"),
-						{
-							if (ImGui::RadioButton(
-								"Ultralight MIDI Player",
-								style == NoteCounterStyle::UMP))
-							{
-								config->overlayInfo.overlayStyle = NoteCounterStyle::UMP;
-
-								if (config->overlayInfo.overlayAlignment == NoteCounterAlignment::TopCenter)
-								{
-									config->overlayInfo.overlayAlignment = NoteCounterAlignment::TopRight;
-								}
-							}
-
-							ImGui::SameLine();
-
-							if (ImGui::RadioButton(
-								"MIDITrail",
-								style == NoteCounterStyle::MIDITrail))
-							{
-								config->overlayInfo.overlayStyle = NoteCounterStyle::MIDITrail;
-							}
+							config->overlayInfo.overlayStyle = NoteCounterStyle::MIDITrail;
 						}
-					);
+					}
+				);
 
-					SECTION_ENTRY(
-						SECTION_LABEL("Background color"),
+				SECTION_ENTRY(
+					SECTION_LABEL("Background color"),
+					{
+						ImVec4 backgroundColor = config->overlayInfo.backgroundCol;
+						if (ImGui::ColorEdit4("##ncBg", &backgroundColor.x, ImGuiColorEditFlags_AlphaBar))
 						{
-							ImVec4 backgroundColor = config->overlayInfo.backgroundCol;
-							if (ImGui::ColorEdit4("##ncBg", &backgroundColor.x, ImGuiColorEditFlags_AlphaBar))
-							{
-								config->overlayInfo.backgroundCol = backgroundColor;
-							}
+							config->overlayInfo.backgroundCol = backgroundColor;
 						}
-					);
+					}
+				);
 
-					SECTION_ENTRY(
-						SECTION_LABEL("Text color"),
+				SECTION_ENTRY(
+					SECTION_LABEL("Text color"),
+					{
+						ImVec4 textColor = config->overlayInfo.textCol;
+						if (ImGui::ColorEdit3("##ncTxtCol", &textColor.x))
 						{
-							ImVec4 textColor = config->overlayInfo.textCol;
-							if (ImGui::ColorEdit3("##ncTxtCol", &textColor.x))
-							{
-								config->overlayInfo.textCol = textColor;
-							}
+							config->overlayInfo.textCol = textColor;
 						}
-					);
+					}
+				);
 
-					END_SECTION;
-				}
-
-				SECTION_HEADER("Fields");
-				ImGui::TextDisabled("Fields marked with an asterisk (*) are omitted from video renders.");
-				ImGui::Spacing();
-
-				BEGIN_SECTION("##nc_fields")
-				{
-					ImGui::TableNextRow();
-					ImGui::TableSetColumnIndex(0); ImGui::Checkbox("Tick", &counter->tick.shown);
-					ImGui::TableSetColumnIndex(1); ImGui::Checkbox("Time", &counter->timeSeconds.shown);
-
-					ImGui::TableNextRow();
-					ImGui::TableSetColumnIndex(0); ImGui::Checkbox("BPM", &counter->bpm.shown);
-					ImGui::TableSetColumnIndex(1); ImGui::Checkbox("Notes", &counter->notesPassed.shown);
-
-					ImGui::TableNextRow();
-					ImGui::TableSetColumnIndex(0); ImGui::Checkbox("NPS", &counter->notesPerSecond.shown);
-					ImGui::TableSetColumnIndex(1); ImGui::Checkbox("Polyphony", &counter->polyphony.shown);
-
-					END_SECTION;
-				}
-
-				ImGui::EndTabItem();
+				END_SECTION;
 			}
-		}
-		ImGui::EndTabBar();
-	}
 
+			SECTION_HEADER("Fields");
+			ImGui::TextDisabled("Fields marked with an asterisk (*) are omitted from video renders.");
+			ImGui::Spacing();
+
+			BEGIN_SECTION("##nc_fields")
+			{
+				ImGui::TableNextRow();
+				ImGui::TableSetColumnIndex(0); ImGui::Checkbox("Tick", &counter->tick.shown);
+				ImGui::TableSetColumnIndex(1); ImGui::Checkbox("Time", &counter->timeSeconds.shown);
+
+				ImGui::TableNextRow();
+				ImGui::TableSetColumnIndex(0); ImGui::Checkbox("BPM", &counter->bpm.shown);
+				ImGui::TableSetColumnIndex(1); ImGui::Checkbox("Notes", &counter->notesPassed.shown);
+
+				ImGui::TableNextRow();
+				ImGui::TableSetColumnIndex(0); ImGui::Checkbox("NPS", &counter->notesPerSecond.shown);
+				ImGui::TableSetColumnIndex(1); ImGui::Checkbox("Polyphony", &counter->polyphony.shown);
+
+				END_SECTION;
+			}
+
+			break;
+		}
+		}
+	}
 	ImGui::EndChild();
 }
 
@@ -710,7 +735,7 @@ void SettingsDialog::DrawAudioTab()
 		SECTION_ENTRY(
 			SECTION_LABEL("Audio engine"),
 			{
-				AudioEngineList & engineList = midiAudio->GetEngineList();
+				AudioEngineList& engineList = midiAudio->GetEngineList();
 				size_t engineIndex = 0;
 				for (auto& engine : engineList)
 				{

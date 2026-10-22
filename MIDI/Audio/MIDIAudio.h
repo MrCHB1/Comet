@@ -44,6 +44,7 @@ enum class AudioEngineType
 {
 	Realtime,
 	Prerendered,
+	Maestro,
 	Count
 };
 
