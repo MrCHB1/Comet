@@ -14,7 +14,7 @@ CMakeUserPresets.json
 out
 build
 installer
-diagnostics
+*.diagsession
 
 # CLion
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
