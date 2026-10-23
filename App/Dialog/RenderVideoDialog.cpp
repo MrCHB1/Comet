@@ -17,28 +17,6 @@
 
 #include "DialogMacros.h"
 
-std::filesystem::path GetBinaryDirectory()
-{
-#if defined(_WIN32)
-	wchar_t buffer[MAX_PATH];
-	GetModuleFileNameW(NULL, buffer, MAX_PATH);
-	return std::filesystem::path(buffer).parent_path();
-#elif defined(__APPLE__)
-	char buffer[PATH_MAX];
-	uint32_t size = sizeof(buffer);
-	if (_NSGetExecutablePath(buffer, &size) == 0)
-		return std::filesystem::path(buffer).parent_path();
-#else
-	char buffer[PATH_MAX];
-	ssize_t count = readlink("/proc/self/exe", buffer, PATH_MAX);
-	if (count != -1) {
-		return std::filesystem::path(std::string(buffer, count)).parent_path();
-	}
-#endif
-
-	return std::filesystem::path();
-}
-
 const char* FFMPEG_DOWNLOAD_URL = "https://ffmpeg.org/download.html";
 
 #define CLAMP_VALUE(n,a,b) \
@@ -57,20 +35,43 @@ void RenderVideoDialog::OnRegister()
 
 void RenderVideoDialog::DetectFFmpeg()
 {
-	std::filesystem::path binDir = GetBinaryDirectory();
-	if (binDir.empty())
+#if defined(_WIN32)
+	const char* ffmpegName = "ffmpeg.exe";
+	const char pathSeparator = ';';
+#else
+	const char* ffmpegName = "ffmpeg";
+	const char pathSeparator = ':';
+#endif
+
+	auto isFFmpeg = [](const std::filesystem::path& p)
 	{
-		hasFFmpeg = false;
+		std::error_code ec;
+		return std::filesystem::is_regular_file(p, ec);
+	};
+
+	// next to the Comet binary
+	std::filesystem::path binDir = Utils::GetExecutableDirectory();
+	if (!binDir.empty() && isFFmpeg(binDir / ffmpegName))
+	{
+		hasFFmpeg = true;
 		return;
 	}
 
-#if defined(_WIN32)
-	std::filesystem::path ffmpegPath = binDir / "ffmpeg.exe";
-#else
-	std::filesystem::path ffmpegPath = binDir / "ffmpeg";
-#endif
-
-	hasFFmpeg = std::filesystem::exists(ffmpegPath) && std::filesystem::is_regular_file(ffmpegPath);
+	// anywhere on PATH, which is where the render command looks for it too
+	hasFFmpeg = false;
+	if (const char* pathEnv = std::getenv("PATH"))
+	{
+		std::stringstream ss(pathEnv);
+		std::string dir;
+		while (std::getline(ss, dir, pathSeparator))
+		{
+			if (!dir.empty() && isFFmpeg(std::filesystem::path(dir) / ffmpegName))
+			{
+				hasFFmpeg = true;
+				return;
+			}
+		}
+	}
 }
 
 void RenderVideoDialog::DrawContent()

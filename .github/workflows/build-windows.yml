@@ -1,0 +1,35 @@
+name: Build (Windows)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: CMake build type
+        type: choice
+        options: [Release, RelWithDebInfo, Debug]
+        default: Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -S . -A x64
+
+      - name: Build
+        run: cmake --build build --config ${{ inputs.build_type }} --parallel
+
+      - name: Collect output
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item -Recurse "build/${{ inputs.build_type }}/*" dist/
+          Remove-Item dist/*.pdb -ErrorAction SilentlyContinue
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Comet-windows-x64-${{ inputs.build_type }}
+          path: dist
+          if-no-files-found: error

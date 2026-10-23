@@ -1,4 +1,6 @@
-﻿cmake_minimum_required(VERSION 3.8)
+﻿cmake_minimum_required(VERSION 3.16)
+
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 
 project(Comet LANGUAGES C CXX)
 
@@ -18,7 +20,11 @@ set(FETCHCONTENT_QUIET OFF)
 
 set(BUILD_CURL_EXE OFF CACHE BOOL "" FORCE)
 set(CURL_USE_LIBPSL OFF CACHE BOOL "" FORCE)
-set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE)
+if(WIN32)
+    set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE)
+else()
+    set(CURL_USE_OPENSSL ON CACHE BOOL "" FORCE)
+endif()
 
 include(FetchContent)
 
