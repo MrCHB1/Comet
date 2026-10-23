@@ -116,6 +116,8 @@ struct AuraData
   ((n) % 12) == 8 || \
   ((n) % 12) == 10 )
 
+struct Inputstate;
+
 // ported zenith's midi trail renderer to comet. funny 3d renderer
 class MIDIRendererMIDITrail : public AbstractMIDIRenderer
 {
@@ -123,6 +125,7 @@ public:
 	MIDIRendererMIDITrail(MIDIApp* app) : AbstractMIDIRenderer(app) {}
 
 	void Initialize() override;
+	void OnInput(InputState& inputState) override;
 	void ResetRenderer() override;
 	void LoadSequence(std::shared_ptr<MIDISequence> sequence) override;
 	void Render(double deltaTime) override;
@@ -209,6 +212,15 @@ private:
 	glm::mat4 projection = glm::mat4(1.0);
 	glm::mat4 view = glm::mat4(1.0);
 	glm::mat4 model = glm::mat4(1.0);
+
+	// per-frame mouse state
+	bool isRotatingCamera = false;
+	double lastDelta = 0;
+	double lastMouseX = 0;
+	double lastMouseY = 0;
+
+	float mouseSensitivity = 0.1f;
+	float moveSpeed = 1.0f;
 	#pragma endregion
 
 	float keyboardHeight = 0.014f;

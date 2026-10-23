@@ -14,6 +14,24 @@ struct WindowRect
 	int width, height;
 };
 
+struct InputState
+{
+	// mouse
+	int mouseButton = -1;
+	bool mouseDown = false;
+	bool mouseHold = false;
+	bool mouseUp = false;
+	
+	// keyboard
+	ImGuiKey key = ImGuiKey_None;
+	bool ctrl = false;
+	bool shift = false;
+	bool alt = false;
+	bool keyDown = false;
+	bool keyHold = false;
+	bool keyUp = false;
+};
+
 class MainWindow
 {
 public:
@@ -41,7 +59,7 @@ private:
 	void InitializeTheme();
 	void LoadWindowIcon();
 	void PostInit();
-	void DetectKeyPress();
+	void DetectInput();
 	void RenderUI();
 
 	std::unique_ptr<MIDIApp> midiApp;

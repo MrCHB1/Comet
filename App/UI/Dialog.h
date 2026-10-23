@@ -35,7 +35,6 @@ public:
 		if (windowFlags & ImGuiWindowFlags_AlwaysAutoResize)
 		{
 			ImGui::SetNextWindowSize(ImVec2(0, 0), ImGuiCond_Always);
-			ImGui::SetNextWindowContentSize(ImVec2(0, 0));
 			ImGui::SetNextWindowSizeConstraints(ImVec2(300, 100), ImVec2(FLT_MAX, FLT_MAX));
 			ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
 		}

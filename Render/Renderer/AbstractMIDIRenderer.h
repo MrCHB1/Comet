@@ -18,6 +18,8 @@ class MIDIApp;
 
 static std::vector<std::shared_ptr<AbstractMIDIRenderer>> RENDERERS = { };
 
+struct InputState;
+
 class AbstractMIDIRenderer
 {
 protected:
@@ -79,6 +81,7 @@ public:
 	}
 
 	virtual void Initialize();
+	virtual void OnInput(InputState& inputState) { }
 	virtual void Render(double deltaTime) = 0;
 	virtual void RenderSettings();
 	virtual void ResetSettings() {}

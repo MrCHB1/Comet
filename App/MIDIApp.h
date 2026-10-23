@@ -36,6 +36,8 @@ class MIDISequence;
 // pulling in the rest of imgui.h.
 enum ImGuiKey : int;
 
+struct InputState;
+
 class MIDIApp
 {
 public:
@@ -57,7 +59,7 @@ public:
 	void UnloadMIDI();
 	void UpdatePendingSequence();
 	void RenderMIDIVideo(const RenderSettings& renderSettings);
-	void RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt);
+	void RegisterInput(InputState& inputState);
 
 	MIDISequence* GetRendererSequence();
 	MIDIAudio* GetMIDIAudio() { return midiAudio.get(); }

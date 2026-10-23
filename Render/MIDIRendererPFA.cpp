@@ -4,6 +4,7 @@
 #include "MIDI/Timer/MIDITimer.h"
 #include "MIDI/TempoMap.h"
 #include "Render/RenderView.h"
+#include "App/Dialog/DialogMacros.h"
 
 #define NUM_WHITE_KEYS 75
 
@@ -1144,29 +1145,40 @@ void MIDIRendererPFA::UploadNoteBuffer(size_t count)
 void MIDIRendererPFA::RenderSettings()
 {
 	MIDIPlayerConfig* config = app->GetConfig();
-	ImGui::Text("Show Middle C Square");
-	ImGui::SameLine();
-	ImGui::Checkbox("##middleCSquare", &settings.showMiddleCSquare);
 
-	ImGui::Text("Show lines");
-	ImGui::SameLine();
-	ImGui::Checkbox("##showLines", &settings.showLines);
-
-	ImGui::Text("Rounded note lengths");
-	ImGui::SetItemTooltip("In the original PFA renderer, notes that were visually too short were invisible due to rounded note lengths. This option replicates that behaviour.");
-	ImGui::SameLine();
-	ImGui::Checkbox("##roundedLengths", &settings.roundedNoteLengths);
-
-	ImGui::Text("Bar color");
-	ImGui::SameLine();
-	ImVec4 barColor = config->render.GetBarColor();
-	float barColorV[3]{ barColor.x, barColor.y, barColor.z };
-	if (ImGui::ColorEdit3("##barColor", barColorV))
+	BEGIN_SECTION("##pfaSettings")
 	{
-		ImVec4 newBarColor(barColorV[0], barColorV[1], barColorV[2], 1.0);
-		SetBarColor(newBarColor);
-		config->render.SetBarColor(barColorV[0], barColorV[1], barColorV[2]);
+		SETUP_SECTION;
+
+		SECTION_ENTRY(SECTION_LABEL("Show Middle C Square"), {
+			ImGui::Checkbox("##middleCSquare", &settings.showMiddleCSquare);
+		});
+
+		SECTION_ENTRY(SECTION_LABEL("Show lines"), {
+			ImGui::Checkbox("##showLines", &settings.showLines);
+		});
+
+		SECTION_ENTRY(
+			TABLE_LABEL_TOOLTIP("Rounded note lengths",
+			"In the original PFA renderer, notes that were visually too short were invisible due to rounded note lengths. This option replicates that behaviour."),
+		{
+			ImGui::Checkbox("##roundedNoteLengths", &settings.showLines);
+		});
+
+		SECTION_ENTRY(SECTION_LABEL("Bar color"), {
+			ImVec4 barColor = config->render.GetBarColor();
+			float barColorV[3]{ barColor.x, barColor.y, barColor.z };
+			if (ImGui::ColorEdit3("##barColor", barColorV))
+			{
+				ImVec4 newBarColor(barColorV[0], barColorV[1], barColorV[2], 1.0);
+				SetBarColor(newBarColor);
+				config->render.SetBarColor(barColorV[0], barColorV[1], barColorV[2]);
+			}
+		});
+
+		END_SECTION;
 	}
+
 	AbstractMIDIRenderer::RenderSettings();
 }
 

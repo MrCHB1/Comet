@@ -263,7 +263,7 @@ void MainWindow::Run()
 		if (!midiApp->IsRendering())
 		{
 			ImGui::NewFrame();
-			DetectKeyPress();
+			DetectInput();
 
 			midiApp->RunFrame();
 			RenderUI();
@@ -335,7 +335,7 @@ bool MainWindow::CanShowNavigationBar()
 	return false;
 }
 
-void MainWindow::DetectKeyPress()
+void MainWindow::DetectInput()
 {
 	// ignore key presses if any dialog is opened
 	if (dialogManager.IsAnyDialogOpened()) return;
@@ -343,14 +343,33 @@ void MainWindow::DetectKeyPress()
 	ImGuiIO& io = ImGui::GetIO();
 	for (int key = ImGuiKey_NamedKey_BEGIN; key < ImGuiKey_NamedKey_END; key++)
 	{
-		if (!ImGui::IsKeyPressed((ImGuiKey)key)) continue;
+		const ImGuiKey pressedKey = static_cast<ImGuiKey>(key);
+		InputState input;
+		input.key = pressedKey;
+		input.ctrl = io.KeyCtrl;
+		input.shift = io.KeyShift;
+		input.alt = io.KeyAlt;
 
-		bool ctrl = io.KeyCtrl;
-		bool shift = io.KeyShift;
-		bool alt = io.KeyAlt;
+		input.keyDown = ImGui::IsKeyPressed(pressedKey);
+		input.keyHold = ImGui::IsKeyDown(pressedKey);
+		input.keyUp = ImGui::IsKeyReleased(pressedKey);
 
-		ImGuiKey pressedKey = (ImGuiKey)key;
-		midiApp->RegisterKeyPress(pressedKey, ctrl, shift, alt);
+		if (input.keyDown || input.keyHold || input.keyUp)
+			midiApp->RegisterInput(input);
+	}
+
+	// Mouse buttons
+	for (int button = 0; button < ImGuiMouseButton_COUNT; ++button)
+	{
+		InputState input;
+		input.mouseButton = button;
+
+		input.mouseDown = ImGui::IsMouseClicked(button);
+		input.mouseHold = ImGui::IsMouseDown(button);
+		input.mouseUp = ImGui::IsMouseReleased(button);
+
+		if (input.mouseDown || input.mouseHold || input.mouseUp)
+			midiApp->RegisterInput(input);
 	}
 }
 

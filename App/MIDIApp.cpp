@@ -446,12 +446,14 @@ void MIDIApp::UpdateNoteCounterInfo()
 	}
 }
 
-void MIDIApp::RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt)
+void MIDIApp::RegisterInput(InputState& inputState)
 {
-	MIDIPlayerConfig* config = GetConfig();
-
-	switch (key)
+	if (inputState.keyDown)
 	{
+		MIDIPlayerConfig* config = GetConfig();
+
+		switch (inputState.key)
+		{
 		case ImGuiKey_Space:
 		{
 			if (IsRendering()) return;
@@ -510,13 +512,16 @@ void MIDIApp::RegisterKeyPress(ImGuiKey key, bool ctrl, bool shift, bool alt)
 		}
 		case ImGuiKey_Enter:
 		{
-			if (!alt) return;
+			if (!inputState.alt) return;
 			mainWindow->ToggleFullscreen();
 			break;
 		}
-	default:
-		break;
+		default:
+			break;
+		}
 	}
+	
+	GetRenderer()->OnInput(inputState);
 }
 
 void MIDIApp::OnResize(int width, int height)

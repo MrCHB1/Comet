@@ -2,6 +2,7 @@
 #include "App/MIDIApp.h"
 #include "PrimitiveShaders.h"
 #include "App/Dialog/DialogMacros.h"
+#include "App/MainWindow.h"
 
 void AbstractMIDIRenderer::Initialize()
 {

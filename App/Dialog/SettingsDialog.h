@@ -9,8 +9,8 @@ public:
 	SettingsDialog(MIDIApp* app) : Dialog("settingsDialog"), app(app) {}
 	const char* GetTitle() override { return "Settings"; }
 	void DrawContent() override;
-	ImVec2 GetInitialSize() override { return ImVec2(450, 0); }
-	ImGuiWindowFlags GetWindowFlags() override { return ImGuiWindowFlags_HorizontalScrollbar; }
+	ImVec2 GetInitialSize() override { return ImVec2(760.0f, 650.0f); }
+	ImGuiWindowFlags GetWindowFlags() override { return ImGuiWindowFlags_NoSavedSettings; }
 private:
 	MIDIApp* app;
 
