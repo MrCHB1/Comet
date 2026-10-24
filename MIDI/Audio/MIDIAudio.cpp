@@ -5,7 +5,9 @@
 #include "MaestroEngine.h"
 
 #include "PrerenderEngine/PrerenderedEngine.h"
+#ifdef _WIN32
 #include "PrerenderEngine/BASSMIDI.h"
+#endif
 #include <iostream>
 
 MIDIAudio::MIDIAudio()

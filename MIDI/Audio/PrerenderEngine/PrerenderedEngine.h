@@ -176,5 +176,7 @@ public:
 
     // UI for soundfonts and voices
     void RenderSettings() override {}
+
+    double GetBufferSeconds() { return -1.0; }
 };
 #endif

@@ -119,8 +119,8 @@ void AppTheme::ApplyTheme()
     c[ImGuiCol_Tab] = colors.controlBase;
     c[ImGuiCol_TabHovered] = colors.controlHover;
     c[ImGuiCol_TabSelected] = colors.controlActive;
-    c[ImGuiCol_TabUnfocused] = colors.controlBase;
-    c[ImGuiCol_TabUnfocusedActive] = colors.controlHover;
+    c[ImGuiCol_TabDimmed] = colors.controlBase;
+    c[ImGuiCol_TabDimmedSelected] = colors.controlHover;
 
     // Scrollbar Grabs
     c[ImGuiCol_ScrollbarGrab] = colors.controlActive;

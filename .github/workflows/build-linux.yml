@@ -1,0 +1,40 @@
+name: Build (Linux)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: CMake build type
+        type: choice
+        options: [Release, RelWithDebInfo, Debug]
+        default: Release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build gcc g++ git pkg-config \
+            libgl-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev \
+            libgtk-3-dev libssl-dev openssl libtbb-dev
+
+      - name: Configure
+        run: >
+          cmake -G Ninja -B build -S .
+          -DCMAKE_BUILD_TYPE=${{ inputs.build_type }}
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Package
+        run: tar -C build -czf Comet-linux-x64.tar.gz Comet assets
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Comet-linux-x64-${{ inputs.build_type }}
+          path: Comet-linux-x64.tar.gz
+          if-no-files-found: error
