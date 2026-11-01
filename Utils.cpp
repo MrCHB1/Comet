@@ -17,9 +17,13 @@
 #elif defined(__APPLE__)
     #include <cstdlib>
     #include <mach-o/dyld.h>
+    #include <unistd.h>
+    #include <sys/wait.h>
     #include <limits.h>
 #else
     #include <unistd.h>
+    #include <sys/wait.h>
+    #include <limits.h>
     #include <cstdlib>
     #include <limits>
 #endif
@@ -434,41 +438,81 @@ namespace Utils
         return decoded;
     }
 
+    std::filesystem::path GetExecutableDirectory()
+    {
+#if defined(_WIN32)
+        wchar_t buffer[MAX_PATH];
+        DWORD len = GetModuleFileNameW(NULL, buffer, MAX_PATH);
+        if (len > 0 && len < MAX_PATH)
+            return std::filesystem::path(buffer).parent_path();
+#elif defined(__APPLE__)
+        char buffer[PATH_MAX];
+        uint32_t size = sizeof(buffer);
+        if (_NSGetExecutablePath(buffer, &size) == 0)
+            return std::filesystem::path(buffer).parent_path();
+#else
+        char buffer[PATH_MAX];
+        ssize_t count = readlink("/proc/self/exe", buffer, sizeof(buffer));
+        if (count > 0)
+            return std::filesystem::path(std::string(buffer, count)).parent_path();
+#endif
+        return std::filesystem::path();
+    }
+
+    static void OpenWithDefaultHandler(const std::string& target)
+    {
+#if defined(_WIN32)
+        int wlen = MultiByteToWideChar(CP_UTF8, 0, target.c_str(), -1, NULL, 0);
+        if (wlen <= 0) return;
+        std::wstring wide(wlen, L'\0');
+        MultiByteToWideChar(CP_UTF8, 0, target.c_str(), -1, &wide[0], wlen);
+        ShellExecuteW(NULL, L"open", wide.c_str(), NULL, NULL, SW_SHOWNORMAL);
+#else
+#if defined(__APPLE__)
+        const char* opener = "open";
+#else
+        const char* opener = "xdg-open";
+#endif
+        pid_t pid = fork();
+        if (pid == 0)
+        {
+            // double fork so the opener is reparented and never left as a zombie
+            if (fork() == 0)
+            {
+                execlp(opener, opener, target.c_str(), (char*)nullptr);
+                _exit(127);
+            }
+            _exit(0);
+        }
+        else if (pid > 0)
+        {
+            int status = 0;
+            waitpid(pid, &status, 0);
+        }
+        else
+        {
+            std::cerr << "Failed to launch " << opener << std::endl;
+        }
+#endif
+    }
+
     void OpenURL(const std::string& url)
     {
-#ifdef _WIN32
-        ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL);
-#elif __APPLE__
-        std::string command = "open " + url;
-        system(command.c_str());
-#else
-        std::string command = "xdg-open " + url;
-        system(command.c_str());
-#endif
+        OpenWithDefaultHandler(url);
     }
 
     void OpenFolder(const std::string& path)
     {
         std::error_code ec;
-        std::filesystem::path absPath = std::filesystem::absolute(path, ec);
+        std::filesystem::path absPath = std::filesystem::absolute(std::filesystem::u8path(path), ec);
         if (ec)
         {
             std::cerr << "Failed to resolve path: " << ec.message() << std::endl;
             return;
         }
 
-        std::string p = absPath.string();
-#if defined(_WIN32)
-        std::string command = "explorer \"" + p + "\"";
-#elif defined(__APPLE__)
-        std::string command = "open \"" + p + "\"";
-#elif defined(__linux__)
-        std::string command = "xdg-open \"" + p + "\"";
-#else
-        std::cerr << "Unsupported platform." << std::endl;
-        return;
-#endif
-        std::system(command.c_str());
+        auto u8 = absPath.u8string();
+        OpenWithDefaultHandler(std::string(u8.begin(), u8.end()));
     }
 
     bool FolderExists(const std::string& path)

@@ -50,6 +50,7 @@ public:
 	void Destroy() override
 	{
 		Stop();
+		midiOut->Shutdown();
 	}
 
 	void Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDITimer> timer) override;

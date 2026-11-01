@@ -19,6 +19,7 @@ void AudioThread::Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDIT
     if (!seq || !timer) return;
 
     Stop();
+    midiOut->Initialize();
     stopFlag = false;
 
     std::thread audioThread([this, seq, timer]() {

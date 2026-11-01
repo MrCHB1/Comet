@@ -1,3 +1,6 @@
+// BASS/BASSMIDI only ship for Windows here; the Prerendered engine is Windows-only.
+#ifdef _WIN32
+
 #include "BASSMIDI.h"
 #include <algorithm>
 #include <vector>
@@ -220,3 +223,5 @@ DWORD BASSMIDI::Read(float* buffer, int offset, int count) {
 	}
 	return ret / 4;
 }
+
+#endif // _WIN32

@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <variant>
 #include <cstdint>
+#include <cstdio>
 #include <optional>
 #include <algorithm>
 #include <type_traits>
@@ -50,6 +51,7 @@ namespace Utils
 		"abcdefghijklmnopqrstuvwxyz"
 		"0123456789+/";
 	std::string DecodeBase64(const std::string& encoded);
+	std::filesystem::path GetExecutableDirectory();
 	void OpenURL(const std::string& url);
 	void OpenFolder(const std::string& path);
 	bool FileExists(const std::string& path);
@@ -130,10 +132,10 @@ namespace Utils
 			}
 
 			MessageBoxA(nullptr, content, title, MB_OK | uType);
-#elif defined(__APPLE__)
-			// TODO: Showing dialogs natively on other platforms
-#elif defined(__linux__)
-
+#else
+			// no native message box on this platform, at least surface it on stderr
+			std::fprintf(stderr, "[%s] %s\n", title, content);
+			(void)dialogType;
 #endif
 		}
 	}
