@@ -86,7 +86,10 @@ void BASSMIDI::LoadSoundfonts(const std::vector<std::wstring>& paths)
 
 	for (int i = 0; i < fontCount; i++)
 	{
-		HSOUNDFONT font = BASS_MIDI_FontInit((void*)paths[i].c_str(), BASS_UNICODE);
+		// we load the fonts in reverse order so that the last font in the list has the highest priority
+		// querks of bassmidi i guess idk lol
+		std::wstring path = paths[fontCount - 1 - i];
+		HSOUNDFONT font = BASS_MIDI_FontInit((void*)path.c_str(), BASS_UNICODE);
 		if (font != 0)
 		{
 			fonts[i].font = font;

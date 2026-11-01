@@ -23,11 +23,11 @@ void MIDIOut::Initialize()
 		return;
 	}
 
-	Init = (KDMAPI_Init)GetProcAddress(omni, "InitializeKDMAPIStream");
+	InitStream = (KDMAPI_Init)GetProcAddress(omni, "InitializeKDMAPIStream");
 	Send = (KDMAPI_Send)GetProcAddress(omni, "SendDirectData");
 	End = (KDMAPI_Terminate)GetProcAddress(omni, "TerminateKDMAPIStream");
 
-	if (!Init || !Send || !End)
+	if (!InitStream || !Send || !End)
 	{
 		Utils::Dialogs::ShowDialog(
 			"KDMAPI warning",
@@ -37,13 +37,13 @@ void MIDIOut::Initialize()
 
 		FreeLibrary(omni);
 		omni = nullptr;
-		Init = nullptr;
+		InitStream = nullptr;
 		Send = nullptr;
 		End = nullptr;
 		return;
 	}
 
-	Init();
+	InitStream();
 	initialized = true;
 }
 

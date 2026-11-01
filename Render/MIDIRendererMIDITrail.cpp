@@ -587,54 +587,55 @@ void MIDIRendererMIDITrail::Initialize()
 			1, 0, blackKeyEnd
 		};
 
+		// changed so coloring looks better...
 		std::array<float, 32> colors = {
 			// front
+			0.9f,
 			0.95f,
-			1.00f,
-			1.00f,
 			0.95f,
+			0.9f,
 
 			// top (bright front -> much darker rear)
 			1.00f,
-			0.42f,
-			0.42f,
+			0.94f,
+			0.94f,
 			1.00f,
 
 			// left
-			0.88f,
-			1.00f,
-			0.35f,
-			0.18f,
+			0.8f,
+			0.8f,
+			0.9f,
+			0.8f,
 
 			// right
-			0.88f,
-			1.00f,
-			0.35f,
-			0.18f,
+			0.8f,
+			0.8f,	
+			0.9f,
+			0.8f,
 
 			// back
-			0.12f,
-			0.12f,
-			0.12f,
-			0.12f,
+			0.9f,
+			0.9f,
+			0.9f,
+			0.9f,
 
 			// left2
-			0.40f,
-			0.80f,
-			0.15f,
-			0.06f,
+			0.8f,
+			0.8f,
+			0.8f,
+			0.8f,
 
 			// right2
-			0.40f,
-			0.80f,
-			0.15f,
-			0.06f,
+			0.8f,
+			0.8f,
+			0.8f,
+			0.8f,
 
 			// front2
-			0.95f,
-			1.00f,
-			1.00f,
-			0.95f,
+			0.9f,
+			1.0f,
+			1.0f,
+			0.9f,
 		};
 
 		blackKeyColVBO = std::make_unique<Buffer>(GL_ARRAY_BUFFER);
