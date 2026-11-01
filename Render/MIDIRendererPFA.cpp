@@ -1162,7 +1162,7 @@ void MIDIRendererPFA::RenderSettings()
 			TABLE_LABEL_TOOLTIP("Rounded note lengths",
 			"In the original PFA renderer, notes that were visually too short were invisible due to rounded note lengths. This option replicates that behaviour."),
 		{
-			ImGui::Checkbox("##roundedNoteLengths", &settings.showLines);
+			ImGui::Checkbox("##roundedNoteLengths", &settings.roundedNoteLengths);
 		});
 
 		SECTION_ENTRY(SECTION_LABEL("Bar color"), {
