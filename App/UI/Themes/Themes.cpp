@@ -140,6 +140,9 @@ void AppTheme::ApplyTheme()
     c[ImGuiCol_ResizeGripHovered] = ImVec4(colors.accent.x, colors.accent.y, colors.accent.z, 0.70f);
     c[ImGuiCol_ResizeGripActive] = colors.accent;
 
+    // Checkboxes
+    c[ImGuiCol_CheckboxSelectedBg] = colors.background;
+
     // Other
     c[ImGuiCol_TitleBgActive] = colors.controlBase;
     c[ImGuiCol_DockingPreview] = ImVec4(colors.accent.x, colors.accent.y, colors.accent.z, 0.25f);

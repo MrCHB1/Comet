@@ -16,7 +16,7 @@ public:
 	void DrawContent() override;
 	void OnOpen() override;
 	void OnRegister() override;
-
+	ImVec2 GetInitialSize() override { return ImVec2(760.0f, 650.0f); }
 	ImGuiWindowFlags GetWindowFlags() override
 	{
 		return ImGuiWindowFlags_None;
