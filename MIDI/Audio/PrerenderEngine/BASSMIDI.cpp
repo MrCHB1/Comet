@@ -48,9 +48,10 @@ BASSMIDI::BASSMIDI(int voices, bool nofx = true)
 	if (nofx) BASS_ChannelFlags(streamHandle, BASS_MIDI_NOFX, BASS_MIDI_NOFX);
 
 	{
-		sfLock.lock();
-		BASS_MIDI_StreamSetFonts(streamHandle, fontArray, 1);
-		sfLock.unlock();
+		std::lock_guard<std::mutex> lock(sfLock);
+
+		if (fontArray != nullptr && fontCount > 0) 
+			BASS_MIDI_StreamSetFonts(streamHandle, fontArray, (DWORD)fontCount | BASS_MIDI_FONT_EX);
 	}
 }
 
@@ -70,48 +71,44 @@ void BASSMIDI::FreeSoundfonts()
 
 void BASSMIDI::LoadSoundfonts(const std::vector<std::wstring>& paths)
 {
-	sfLock.lock();
+	std::lock_guard<std::mutex> lock(sfLock);
 	FreeSoundfonts();
 
-	if (paths.empty())
+	if (paths.empty()) return;
+
+	BASS_MIDI_FONTEX* fonts = (BASS_MIDI_FONTEX*)malloc(paths.size() * sizeof(BASS_MIDI_FONTEX));
+	int loaded = 0;
+
+	// load in reverse so the last font in the list has the highest priority
+	for (size_t i = paths.size(); i-- > 0;)
 	{
-		fontArray = nullptr;
-		fontCount = 0;
-		sfLock.unlock();
+		HSOUNDFONT font = BASS_MIDI_FontInit(paths[i].c_str(), BASS_UNICODE);
+		if (font == 0)
+		{
+			std::cout << "Soundfont failed to load! Err Code: " << BASS_ErrorGetCode() << std::endl;
+			continue; // skip it instead of leaving a null handle in the array
+		}
+
+		BASS_MIDI_FONTEX& f = fonts[loaded++];
+		f = {};
+		f.font = font;
+		f.spreset = -1;
+		f.sbank = -1;
+		f.dpreset = -1;
+		f.dbank = 0;
+		f.dbanklsb = 0;
+
+		BASS_MIDI_FontLoad(font, -1, -1);
+	}
+
+	if (loaded == 0)
+	{
+		free(fonts);
 		return;
 	}
 
-	fontCount = (int)paths.size();
-	BASS_MIDI_FONTEX* fonts = (BASS_MIDI_FONTEX*)malloc(fontCount * sizeof(BASS_MIDI_FONTEX));
-
-	for (int i = 0; i < fontCount; i++)
-	{
-		// we load the fonts in reverse order so that the last font in the list has the highest priority
-		// querks of bassmidi i guess idk lol
-		std::wstring path = paths[fontCount - 1 - i];
-		HSOUNDFONT font = BASS_MIDI_FontInit((void*)path.c_str(), BASS_UNICODE);
-		if (font != 0)
-		{
-			fonts[i].font = font;
-			fonts[i].spreset = -1;
-			fonts[i].sbank = -1;
-			fonts[i].dpreset = -1;
-			fonts[i].dbank = 0;
-			fonts[i].dbanklsb = 0;
-
-			BASS_MIDI_FontLoad(font, -1, -1);
-		}
-		else
-		{
-			std::stringstream err;
-			err << "Soudfont failed to load! Err Code: " << BASS_ErrorGetCode() << "\0";
-			std::cout << err.str().c_str() << std::endl;
-			fonts[i].font = 0;
-		}
-	}
-
 	fontArray = fonts;
-	sfLock.unlock();
+	fontCount = loaded;
 }
 
 bool BASSMIDI::WriteBass(int buflen, unsigned long* progress)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../MIDIAudio.h"
+#include "../SoundfontList.h"
 #include <vector>
 #include <thread>
 #include <atomic>
@@ -46,7 +47,7 @@ public:
 
     // UI for soundfonts and voices
     void RenderSettings() override;
-
+    
     double GetBufferSeconds()
     {
         std::lock_guard<std::mutex> lock(bufferMutex);
@@ -74,6 +75,7 @@ private:
     // checks for timer pauses/navigation on a 10ms interval and adjusts the prerenderer as necessary (i think it's a weird way to do this lol)
     void TimerLoop();
 
+    void EnsureDefaultSoundfont();
     void LoadSoundfonts(std::vector<std::wstring> paths);
 
     void SyncPlayer(double time);
@@ -92,6 +94,15 @@ private:
 
     void WrappedCopy(float* src, int pos, int srcCount, float* dst, int pos2, int count);
     void ResizeBuffer(double newBufferLengthSecs);
+
+#pragma region UI
+    void RenderGeneralTab();
+    void RenderSoundfontsTab();
+    void RenderLimiterTab();
+
+    void MarkEngineDirty() { dirty = true; }
+    void MarkSoundfontsDirty() { sfDirty = true; }
+#pragma endregion
 
     std::unique_ptr<BASSMIDI> bassMidi;
     HSTREAM playbackStream = 0;
@@ -124,9 +135,14 @@ private:
     std::mutex timerMutex;
 
     // engine settings
+    bool dirty = false;
     int maxVoices = 1000;  
     bool noFx = false;     
-    std::vector<std::string> soundfontPaths{};
+
+    bool sfDirty = false;
+    SoundfontList soundfonts;
+    std::vector<std::wstring> appliedSoundfontPaths;
+
     int selectedSoundfontIndex = -1;
     double bufferSeconds = 5.0;
 

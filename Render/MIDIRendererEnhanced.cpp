@@ -113,7 +113,7 @@ void MIDIRendererEnhanced::Initialize()
     // 1. Sort keys to render white keys first, then black keys
     std::vector<uint8_t> blackIDs;
     std::vector<uint8_t> whiteIDs;
-    for (uint8_t key = 0; key < 128; key++)
+    for (uint8_t key = 0; key < MIDI_KEYS; key++)
     {
         bool black = KEY_IS_BLACK(key);
         if (black) blackIDs.push_back(key);
@@ -372,17 +372,17 @@ void MIDIRendererEnhanced::CalcKeyPosAndWidth()
     int keyFirst = config->render.GetKeyFirst();
     int keyLast = config->render.GetKeyLast();
 
-    float rawPos[128];
-    float rawWidth[128];
+    float rawPos[MIDI_KEYS];
+    float rawWidth[MIDI_KEYS];
     float pos = 0.0f;
-    for (int i = 0; i < 128; i++)
+    for (int i = 0; i < MIDI_KEYS; i++)
     {
         rawPos[i] = pos;
         pos += keyPosDiff[i % 12];
     }
 
     int lastIdxWhiteUnit = -1;
-    for (int j = 0; j < 128; j++)
+    for (int j = 0; j < MIDI_KEYS; j++)
     {
         if (KEY_IS_BLACK(j))
         {
@@ -411,11 +411,11 @@ void MIDIRendererEnhanced::CalcKeyPosAndWidth()
     float noteWidthBlack = noteWidth * (75.0f / 115.0f);
 
     float firstKeyPos = rawPos[keyFirst] * noteWidth;
-    for (int i = 0; i < 128; i++)
+    for (int i = 0; i < MIDI_KEYS; i++)
         keyPos[i] = (rawPos[i] * noteWidth - firstKeyPos) / (float)width;
 
     int lastIdxWhite = -1;
-    for (int j = 0; j < 128; j++)
+    for (int j = 0; j < MIDI_KEYS; j++)
     {
         if (KEY_IS_BLACK(j))
             keyWidth[j] = noteWidthBlack / (float)width;

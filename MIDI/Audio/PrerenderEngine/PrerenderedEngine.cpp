@@ -53,12 +53,9 @@ void PrerenderedEngine::Initialize()
         std::cout << "BASS_Init failed with error code: " << BASS_ErrorGetCode() << std::endl;
     }
 
-    std::vector<std::wstring> widePaths;
-    for (const auto& p : soundfontPaths)
-    {
-        widePaths.push_back(ConvertToWideString(p));
-    }
-    LoadSoundfonts(widePaths);
+    EnsureDefaultSoundfont();
+    appliedSoundfontPaths = soundfonts.GetActiveSoundfontPaths();
+    LoadSoundfonts(appliedSoundfontPaths);
 
     playbackStream = BASS_StreamCreate(SAMPLE_RATE, 2, BASS_SAMPLE_FLOAT, PlaybackStreamProc, this);
     if (playbackStream == 0)
@@ -294,6 +291,10 @@ void PrerenderedEngine::RenderLoop(double initialStartTime)
         if (stopFlag) break;
 
         double evTime = seq->timeBased ? (double)e.tick / TIME_BASED_MULTIPLIER : tempoMap->TicksToSecsFromMap(seq->resolution, e.tick);
+        if (fps > 0.0)
+        {
+            evTime = std::round(evTime * fps) / fps;
+        }
 
         bool isNoteEvent = ((e.message & 0xF0) == 0x90 || (e.message & 0xF0) == 0x80);
         if (isNoteEvent && evTime < startTime)
@@ -580,42 +581,39 @@ DWORD CALLBACK PrerenderedEngine::PlaybackStreamProc(HSTREAM handle, void* buffe
     return length;
 }
 
-void PrerenderedEngine::LoadSoundfonts(std::vector<std::wstring> paths)
+void PrerenderedEngine::EnsureDefaultSoundfont()
 {
-    std::wstring soundfontPath;
-    if (paths.empty())
+    if (soundfonts.GetSoundfontCount() > 0) return;
+
+    WCHAR binPath[512]{ };
+    GetModuleFileNameW(NULL, binPath, 512);
+    std::wstring::size_type pos = std::wstring(binPath).find_last_of(L"\\/");
+    std::wstring defaultPath = std::wstring(binPath).substr(0, pos) +
+        L"\\assets\\soundfonts\\GeneralUser-GS.sf2";
+
+    if (!Utils::FileExists(defaultPath.c_str()))
     {
-        WCHAR binPath[512]{ };
-        GetModuleFileNameW(NULL, binPath, 512);
-        std::wstring::size_type pos = std::wstring(binPath).find_last_of(L"\\/");
-        std::wstring defaultPath = std::wstring(binPath).substr(0, pos) +
-            L"\\assets\\soundfonts\\GeneralUser-GS.sf2";
+        std::filesystem::create_directories(std::filesystem::path(defaultPath).parent_path());
 
-        if (!Utils::FileExists(defaultPath.c_str()))
-        {
-            std::filesystem::create_directories(std::filesystem::path(defaultPath).parent_path());
+        HRSRC rc = FindResourceW(NULL, MAKEINTRESOURCEW(IDR_SOUNDFONT), MAKEINTRESOURCEW(10));
+        if (!rc) throw std::runtime_error("Failed to load embedded Soundfont");
 
-            HRSRC rc = FindResourceW(
-                NULL,
-                MAKEINTRESOURCEW(IDR_SOUNDFONT),
-                MAKEINTRESOURCEW(10)
-            );
-            if (!rc) throw std::runtime_error("Failed to load embedded Soundfont");
+        HGLOBAL rcData = LoadResource(NULL, rc);
+        int rSize = SizeofResource(NULL, rc);
+        unsigned char* data = (unsigned char*)LockResource(rcData);
+        if (!data) throw std::runtime_error("That's funny... the embedded soundfont data failed to load!");
 
-            HGLOBAL rcData = LoadResource(NULL, rc);
-            int rSize = SizeofResource(NULL, rc);
-            unsigned char* data = (unsigned char*)LockResource(rcData);
-            if (!data) throw std::runtime_error("That's funny... the embedded soundfont data failed to load!");
-
-            std::ofstream file;
-            file.open(defaultPath, std::ios::binary);
-            file.write((char*)data, rSize);
-            file.close();
-        }
-        paths = { defaultPath };
-        soundfontPaths = { ConvertFromWideString(defaultPath) };
+        std::ofstream file;
+        file.open(defaultPath, std::ios::binary);
+        file.write((char*)data, rSize);
+        file.close();
     }
 
+    soundfonts.AddSoundfont(defaultPath);
+}
+
+void PrerenderedEngine::LoadSoundfonts(std::vector<std::wstring> paths)
+{
     BASSMIDI::LoadSoundfonts(paths);
 }
 
@@ -667,193 +665,43 @@ void PrerenderedEngine::ResizeBuffer(double newBufferLengthSecs)
 
 void PrerenderedEngine::RenderSettings()
 {
-    bool shouldApplyChanges = false;
-    bool shouldChangeSoundfont = false;
-
     float volume = preVolume.load();
     if (ImGuiKnobs::Knob("Volume", &volume, 0.0f, 1.0f))
     {
         preVolume.store(volume);
     }
 
-    std::string memoryUsage = Utils::FormatFilesize(this->bufferSize * sizeof(float), 2);
     if (ImGui::BeginTabBar("##prerendererSettings"))
     {
         if (ImGui::BeginTabItem("General"))
         {
-            SECTION_HEADER("Engine Settings");
-            BEGIN_SECTION("##engineSettings")
-            {
-                SETUP_SECTION;
-
-                SECTION_ENTRY(SECTION_LABEL("Voices"),
-                    {
-                        if (ImGui::InputInt("##maxVoices", &maxVoices))
-                        {
-                            if (maxVoices > 100000) maxVoices = 100000;
-                            if (maxVoices < 32) maxVoices = 32;
-                            shouldApplyChanges = true;
-                        }
-                    });
-
-                SECTION_ENTRY(
-                    TABLE_LABEL_TOOLTIP(
-                        "Disable effects",
-                        "Disables various effects such as reverb and chorus. This may speed up rendering."
-                    ),
-                    {
-                        if (ImGui::Checkbox("##noFx", &noFx)) shouldApplyChanges = true;
-
-                    });
-
-                SECTION_ENTRY(SECTION_LABEL("Buffer length (s)"),
-                    {
-                        float bufferLength = this->bufferSeconds;
-                        if (ImGui::SliderFloat("##bufferLength", &bufferLength, BUFFER_SECS_MIN, BUFFER_SECS_MAX))
-                        {
-                            ResizeBuffer(bufferLength);
-                            shouldApplyChanges = true;
-                        }
-                        ImGui::Text("RAM Usage: %s", memoryUsage);
-                    });
-
-                END_SECTION;
-            }
-
+            RenderGeneralTab();
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Soundfonts"))
         {
-            ImGui::Text("Soundfont list");
-            if (ImGui::BeginListBox("##soundfontList", ImVec2(-FLT_MIN, 140)))
-            {
-                for (int i = 0; i < soundfontPaths.size(); i++)
-                {
-                    bool isSelected = (selectedSoundfontIndex == i);
-                    std::filesystem::path p(soundfontPaths[i]);
-                    std::string fileName = p.filename().string();
-                    if (fileName.empty()) fileName = soundfontPaths[i];
-
-                    std::string label = std::to_string(i + 1) + ": " + fileName + "##" + std::to_string(i);
-                    if (ImGui::Selectable(label.c_str(), isSelected))
-                    {
-                        selectedSoundfontIndex = i;
-                    }
-
-                    if (isSelected) ImGui::SetItemDefaultFocus();
-                }
-                ImGui::EndListBox();
-            }
-
-            bool canMoveUp = selectedSoundfontIndex > 0;
-            bool canMoveDown = selectedSoundfontIndex >= 0 && selectedSoundfontIndex < (int)soundfontPaths.size() - 1;
-
-            ImGui::BeginDisabled(!canMoveUp);
-            if (ImGui::SmallButton("^"))
-            {
-                std::swap(soundfontPaths[selectedSoundfontIndex], soundfontPaths[selectedSoundfontIndex - 1]);
-                selectedSoundfontIndex--;
-                shouldApplyChanges = true;
-                shouldChangeSoundfont = true;
-            }
-            ImGui::EndDisabled();
-
-            ImGui::SameLine();
-
-            ImGui::BeginDisabled(!canMoveDown);
-            if (ImGui::SmallButton("v"))
-            {
-                std::swap(soundfontPaths[selectedSoundfontIndex], soundfontPaths[selectedSoundfontIndex + 1]);
-                selectedSoundfontIndex++;
-                shouldApplyChanges = true;
-                shouldChangeSoundfont = true;
-            }
-            ImGui::EndDisabled();
-
-            ImGui::SameLine();
-
-            if (ImGui::SmallButton("+"))
-            {
-                std::string sfPath = "";
-                if (Utils::ChooseFile(sfPath, "sf2,sf3,sfz,sfark"))
-                {
-                    if (!sfPath.empty())
-                    {
-                        soundfontPaths.push_back(sfPath);
-                        shouldApplyChanges = true;
-                        shouldChangeSoundfont = true;
-                    }
-                }
-            }
-            ImGui::SameLine();
-            if (ImGui::SmallButton("-"))
-            {
-                if (!soundfontPaths.empty())
-                {
-                    if (selectedSoundfontIndex >= 0 && selectedSoundfontIndex < (int)soundfontPaths.size())
-                    {
-                        soundfontPaths.erase(soundfontPaths.begin() + selectedSoundfontIndex);
-                        if (selectedSoundfontIndex >= (int)soundfontPaths.size())
-                        {
-                            selectedSoundfontIndex = (int)soundfontPaths.size() - 1;
-                        }
-                    }
-                    else
-                    {
-                        soundfontPaths.pop_back();
-                    }
-                    shouldApplyChanges = true;
-                    shouldChangeSoundfont = true;
-                }
-            }
+            RenderSoundfontsTab();
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Limiter"))
         {
-            BEGIN_SECTION("##limiter")
-            {
-                SETUP_SECTION;
-                
-                SECTION_ENTRY(SECTION_LABEL("Attack rate (s)"),
-                    {
-                        float attackRate = this->attackRate;
-                        ImGui::SliderFloat("##limAttack", &attackRate, 0.001, 0.01);
-                        if (attackRate < 0.001) attackRate = 0.001;
-                        if (attackRate > 0.01) attackRate = 0.01;
-                        this->attackRate = attackRate;
-                    });
-
-                SECTION_ENTRY(SECTION_LABEL("Release rate (s)"),
-                    {
-                        float releaseRate = this->releaseRate;
-                        ImGui::SliderFloat("##limRelease", &releaseRate, 0.1, 2.0);
-                        if (releaseRate < 0.1) releaseRate = 0.1;
-                        if (releaseRate > 2.0) releaseRate = 2.0;
-                        this->releaseRate = releaseRate;
-                    });
-
-                END_SECTION;
-            }
-
+            RenderLimiterTab();
             ImGui::EndTabItem();
         }
 
         ImGui::EndTabBar();
     }
 
-    if (shouldApplyChanges)
+    if (std::exchange(dirty, false))
     {
         bool wasPlaying = IsPlaying();
         if (wasPlaying) Stop();
 
-        if (shouldChangeSoundfont)
+        if (std::exchange(sfDirty, false))
         {
-            std::vector<std::wstring> widePaths;
-            for (const auto& p : soundfontPaths)
-            {
-                widePaths.push_back(ConvertToWideString(p));
-            }
-            LoadSoundfonts(widePaths);
+            EnsureDefaultSoundfont(); // list emptied entirely -> fall back to the bundled one
+            appliedSoundfontPaths = soundfonts.GetActiveSoundfontPaths();
+            LoadSoundfonts(appliedSoundfontPaths);
         }
 
         bassMidi = std::make_unique<BASSMIDI>(maxVoices, noFx);
@@ -870,10 +718,13 @@ YAML::Node PrerenderedEngine::GetSettings()
     node["bufferSeconds"] = bufferSeconds;
 
     YAML::Node sfNode(YAML::NodeType::Sequence);
-    for (const auto& path : soundfontPaths)
-    {
-        sfNode.push_back(path);
-    }
+    soundfonts.ForEachSoundfont([&](const SoundfontEntry& sf)
+        {
+            YAML::Node entry;
+            entry["path"] = ConvertFromWideString(sf.path);
+            entry["enabled"] = sf.enabled;
+            sfNode.push_back(entry);
+        });
     node["soundfonts"] = sfNode;
 
     node["attackRate"] = attackRate;
@@ -882,6 +733,8 @@ YAML::Node PrerenderedEngine::GetSettings()
     node["strength"] = strength;
     node["minThresh"] = minThresh;
     node["velocityThresh"] = velocityThresh;
+    
+    node["simulatedFps"] = fps;
 
     return node;
 }
@@ -896,11 +749,24 @@ void PrerenderedEngine::LoadSettings(const YAML::Node& node)
 
     if (node["soundfonts"] && node["soundfonts"].IsSequence())
     {
-        soundfontPaths.clear();
+        std::vector<SoundfontEntry> entries;
         for (const auto& sf : node["soundfonts"])
         {
-            soundfontPaths.push_back(sf.as<std::string>());
+            SoundfontEntry entry;
+            if (sf.IsScalar())                       // legacy: plain path string
+            {
+                entry.path = ConvertToWideString(sf.as<std::string>());
+            }
+            else if (sf.IsMap() && sf["path"])
+            {
+                entry.path = ConvertToWideString(sf["path"].as<std::string>());
+                if (sf["enabled"]) entry.enabled = sf["enabled"].as<bool>();
+            }
+            else continue;
+
+            entries.push_back(std::move(entry));
         }
+        soundfonts.LoadFromEntries(std::move(entries));
     }
 
     if (node["attackRate"]) attackRate = node["attackRate"].as<double>();
@@ -910,7 +776,234 @@ void PrerenderedEngine::LoadSettings(const YAML::Node& node)
     if (node["minThresh"]) minThresh = node["minThresh"].as<double>();
     if (node["velocityThresh"]) velocityThresh = node["velocityThresh"].as<double>();
 
+    if (node["simulatedFps"]) fps = node["simulatedFps"].as<double>();
+
     ResizeBuffer(bufferSeconds);
 }
+
+#pragma region Tabs
+
+void PrerenderedEngine::RenderGeneralTab()
+{
+    std::string memoryUsage = Utils::FormatFilesize(this->bufferSize * sizeof(float), 2);
+
+    SECTION_HEADER("Engine Settings");
+    BEGIN_SECTION("##engineSettings")
+    {
+        SETUP_SECTION;
+
+        SECTION_ENTRY(SECTION_LABEL("Voices"),
+            {
+                if (ImGui::InputInt("##maxVoices", &maxVoices))
+                {
+                    if (maxVoices > 100000) maxVoices = 100000;
+                    if (maxVoices < 32) maxVoices = 32;
+                    MarkEngineDirty();
+                }
+            });
+
+        SECTION_ENTRY(
+            TABLE_LABEL_TOOLTIP(
+                "Disable effects",
+                "Disables various effects such as reverb and chorus. This may speed up rendering."
+            ),
+            {
+                if (ImGui::Checkbox("##noFx", &noFx)) MarkEngineDirty();
+
+            });
+
+        SECTION_ENTRY(SECTION_LABEL("Buffer length (s)"),
+            {
+                float bufferLength = this->bufferSeconds;
+                if (ImGui::SliderFloat("##bufferLength", &bufferLength, BUFFER_SECS_MIN, BUFFER_SECS_MAX))
+                {
+                    ResizeBuffer(bufferLength);
+                    MarkEngineDirty();
+                }
+                ImGui::Text("RAM Usage: %s", memoryUsage);
+            });
+
+        SECTION_ENTRY(
+            TABLE_LABEL_TOOLTIP(
+                "Simulated RT FPS",
+                "Set to 0 for sample-accurate timing. Values above 1 will snap events to the nearest \"frame\" at an interval of whatever was set."
+            ),
+            {
+                float fps = (float)this->fps;
+                if (ImGui::InputFloat("##rtFps", &fps))
+                {
+                    if (fps < 1.0) fps = 0.0f;
+                    if (fps > 1000.0) fps = 1000.0f;
+                    this->fps = (double)fps;
+                    MarkEngineDirty();
+                }
+            });
+
+        END_SECTION;
+    }
+}
+
+void PrerenderedEngine::RenderSoundfontsTab()
+{
+    const bool dirty = soundfonts.GetActiveSoundfontPaths() != appliedSoundfontPaths;
+    const int sfCount = (int)soundfonts.GetSoundfontCount();
+
+    ImGui::Text("Soundfont list");
+
+    ImGui::PushID("##soundfontList");
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(2, 2));
+    ImGui::BeginChild("##container", ImVec2(-FLT_MIN, 140), ImGuiChildFlags_Borders);
+    {
+        const bool canMoveUp = selectedSoundfontIndex > 0;
+        const bool canMoveDown = selectedSoundfontIndex >= 0 && selectedSoundfontIndex < sfCount - 1;
+
+        int moveDelta = 0;
+        bool removeSelected = false;
+
+        if (ImGui::BeginTable("##table", 2, ImGuiTableFlags_ScrollY, ImVec2(-FLT_MIN, -FLT_MIN)))
+        {
+            ImGui::TableSetupColumn("On", ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+
+            for (int i = 0; i < sfCount; i++)
+            {
+                SoundfontEntry* entry = soundfonts.GetSoundfont(i);
+                if (!entry) continue;
+
+                ImGui::PushID(i);
+                ImGui::TableNextRow();
+
+                // shade every other row
+                if ((i & 0b1) != 0)
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::GetColorU32(ImGuiCol_Text, 0.1f));
+
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Checkbox("##enabled", &entry->enabled);
+
+                ImGui::TableSetColumnIndex(1);
+                std::string fileName = ConvertFromWideString(std::filesystem::path(entry->path).filename().wstring());
+                if (fileName.empty()) fileName = ConvertFromWideString(entry->path);
+
+                // right edge of this cell, in cursor coordinates (grab it before the Selectable moves the cursor)
+                const float cellRightScreen = ImGui::GetCursorScreenPos().x + ImGui::GetContentRegionAvail().x;
+
+                if (!entry->enabled) ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+
+                // AllowOverlap lets the buttons below sit on top of the row and still receive clicks
+                if (ImGui::Selectable(fileName.c_str(), selectedSoundfontIndex == i, ImGuiSelectableFlags_AllowOverlap))
+                    selectedSoundfontIndex = i;
+
+                if (!entry->enabled) ImGui::PopStyleColor();
+
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("%s", ConvertFromWideString(entry->path).c_str());
+
+                // up/down/delete buttons
+                if (selectedSoundfontIndex == i)
+                {
+                    const ImGuiStyle& style = ImGui::GetStyle();
+                    const char* labels[] = { "^", "v", "-" };
+                    float totalWidth = style.ItemSpacing.x * 2;
+                    for (const char* l : labels)
+                        totalWidth += ImGui::CalcTextSize(l).x + style.FramePadding.x * 2;
+
+                    // vertically center the small buttons against the row, then place them flush right
+                    const float rowTop = ImGui::GetItemRectMin().y;
+                    const float rowH = ImGui::GetItemRectSize().y;
+                    const float btnH = ImGui::GetFontSize(); // SmallButton uses zero vertical padding
+                    ImGui::SetCursorScreenPos(ImVec2(cellRightScreen - totalWidth, rowTop + (rowH - btnH) * 0.5f));
+
+                    ImGui::BeginDisabled(!canMoveUp);
+                    if (ImGui::SmallButton("^")) moveDelta = -1;
+                    ImGui::EndDisabled();
+
+                    ImGui::SameLine();
+                    ImGui::BeginDisabled(!canMoveDown);
+                    if (ImGui::SmallButton("v")) moveDelta = 1;
+                    ImGui::EndDisabled();
+
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("-")) removeSelected = true;
+                }
+
+                ImGui::PopID();
+            }
+            ImGui::EndTable();
+        }
+
+        // now it's safe to modify the list
+        if (moveDelta != 0 && soundfonts.SwapSoundfonts(selectedSoundfontIndex, selectedSoundfontIndex + moveDelta))
+        {
+            selectedSoundfontIndex += moveDelta;
+        }
+        else if (removeSelected)
+        {
+            soundfonts.RemoveSoundfont(selectedSoundfontIndex);
+            selectedSoundfontIndex = std::min(selectedSoundfontIndex, (int)soundfonts.GetSoundfontCount() - 1);
+        }
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleVar();
+    ImGui::PopID();
+
+    if (ImGui::Button("+"))
+    {
+        std::string sfPath;
+        if (Utils::ChooseFile(sfPath, "sf2,sf3,sfz,sfark") && !sfPath.empty())
+        {
+            soundfonts.AddSoundfont(ConvertToWideString(sfPath));
+            selectedSoundfontIndex = (int)soundfonts.GetSoundfontCount() - 1;
+        }
+    }
+
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!dirty);
+    if (ImGui::Button("Apply"))
+    {
+        MarkEngineDirty();
+        MarkSoundfontsDirty();
+    }
+    ImGui::EndDisabled();
+
+    if (dirty)
+    {
+        ImGui::SameLine();
+        ImGui::TextDisabled("Unapplied changes");
+    }
+    if (soundfonts.GetActiveSoundfontPaths().empty())
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "No soundfonts are enabled.");
+    }
+}
+
+void PrerenderedEngine::RenderLimiterTab()
+{
+    BEGIN_SECTION("##limiter")
+    {
+        SETUP_SECTION;
+
+        SECTION_ENTRY(SECTION_LABEL("Attack rate (s)"),
+            {
+                float attackRate = this->attackRate;
+                ImGui::SliderFloat("##limAttack", &attackRate, 0.001, 0.01);
+                if (attackRate < 0.001) attackRate = 0.001;
+                if (attackRate > 0.01) attackRate = 0.01;
+                this->attackRate = attackRate;
+            });
+
+        SECTION_ENTRY(SECTION_LABEL("Release rate (s)"),
+            {
+                float releaseRate = this->releaseRate;
+                ImGui::SliderFloat("##limRelease", &releaseRate, 0.1, 2.0);
+                if (releaseRate < 0.1) releaseRate = 0.1;
+                if (releaseRate > 2.0) releaseRate = 2.0;
+                this->releaseRate = releaseRate;
+            });
+
+        END_SECTION;
+    }
+}
+
+#pragma endregion
 
 #endif

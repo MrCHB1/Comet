@@ -266,6 +266,7 @@ void MaestroEngine::GeneratorLoop(std::shared_ptr<MIDISequence> seq)
     std::priority_queue<PendingNoteOff, std::vector<PendingNoteOff>, PendingNoteOffLater> pendingOffs;
     std::priority_queue<NoteHead, std::vector<NoteHead>, NoteHeadLater> noteHeads;
     uint64_t order = 0;
+    std::array<std::array<uint64_t, 16>, MIDI_KEYS> activeNote{};
 
     size_t chCursor = 0;
     int64_t chNextNs = NS_NONE;
@@ -318,6 +319,7 @@ void MaestroEngine::GeneratorLoop(std::shared_ptr<MIDISequence> seq)
 
         pendingOffs = decltype(pendingOffs)();
         noteHeads = decltype(noteHeads)();
+        for (auto& a : activeNote) a.fill(0);
 
         {
             size_t lo = 0, hi = chEvs.size();
@@ -423,9 +425,18 @@ void MaestroEngine::GeneratorLoop(std::shared_ptr<MIDISequence> seq)
 
         case Off:
         {
-            const uint32_t msg = pendingOffs.top().message;
+            const PendingNoteOff off = pendingOffs.top();
             pendingOffs.pop();
-            push(best, msg);
+
+            const uint32_t k = (off.message >> 8) & 0x7F;
+            const uint32_t c = off.message & 0x0F;
+
+            // superseded by a retrigger on the same key+channel: its off was already sent
+            if (activeNote[k][c] != off.order + 1)
+                break;
+
+            activeNote[k][c] = 0;
+            push(best, off.message);
             break;
         }
 
@@ -457,15 +468,20 @@ void MaestroEngine::GeneratorLoop(std::shared_ptr<MIDISequence> seq)
 
             ++cursor;
             if (cursor < notes.Size())
-            {
-                const int64_t nextOnNs = tickNs(notes.tick[cursor]);
-                noteHeads.push({ nextOnNs, key });
+                noteHeads.push({ tickNs(notes.tick[cursor]), key });
 
-                offNs = std::min(offNs, nextOnNs);
-            }
             offNs = std::max(offNs, onNs);   // a note is at least 1 us long
 
-            pendingOffs.push({ offNs, order++, MakeMidiMessage(0x80, channel, noteKey, 0) });
+            const uint8_t k = noteKey & 0x7F;
+
+            // same key + same channel still sounding: cut it now (the only case where a cut is right)
+            if (activeNote[k][channel] != 0)
+                push(onNs, MakeMidiMessage(0x80, channel, noteKey, 0));
+
+            const uint64_t id = order++;
+            activeNote[k][channel] = id + 1;
+
+            pendingOffs.push({ offNs, id, MakeMidiMessage(0x80, channel, noteKey, 0) });
             push(onNs, MakeMidiMessage(0x90, channel, noteKey, velocity));
             break;
         }

@@ -354,11 +354,11 @@ private:
     size_t numDrawWhiteKeys = 0;
     size_t numDrawBlackKeys = 0;
 
-    std::array<float, 128> keyPos;
-    std::array<float, 128> keyWidth;
-    std::array<RenderKeyboardKey3D, 128> keyboardData;
-    std::array<KeyboardMeta3D, 128> keyMetas;
-    std::array<uint8_t, 128> kbIDs;
+    std::array<float, MIDI_KEYS> keyPos;
+    std::array<float, MIDI_KEYS> keyWidth;
+    std::array<RenderKeyboardKey3D, MIDI_KEYS> keyboardData;
+    std::array<KeyboardMeta3D, MIDI_KEYS> keyMetas;
+    std::array<uint8_t, MIDI_KEYS> kbIDs;
 #pragma endregion
 
 #pragma region Note data
