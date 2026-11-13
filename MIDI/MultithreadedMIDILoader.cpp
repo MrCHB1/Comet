@@ -69,12 +69,13 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 		const auto& progress = [this, &i, tracks]() { return (double)i / (double)tracks; };
 		AddBar(progress);
 
+		uint8_t chunkHdr[8];
 		for (; i < tracks; ++i)
 		{
 			SetName((std::string("Indexing track ") + std::to_string(i + 1) + "/" + std::to_string(tracks)).c_str());
 
 			if (!running) { pis->Close(); return seq; }
-			uint8_t chunkHdr[8];
+			
 			pis->Read(chunkHdr, 8);
 			if (ToInt(chunkHdr) != 0x4D54726B)
 			{

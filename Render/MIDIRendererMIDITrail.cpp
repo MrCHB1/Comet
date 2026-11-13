@@ -994,7 +994,6 @@ void MIDIRendererMIDITrail::Render(double deltaTime)
 
 void MIDIRendererMIDITrail::RenderSettings()
 {
-	ImGui::SliderFloat("Keyboard offest", &keyboardOffset, -0.1f, 0.1f);
 	ImGui::Text("Preset");
 	ImGui::SameLine();
 	if (ImGui::BeginCombo("##settingsPreset", ""))

@@ -787,7 +787,6 @@ void PrerenderedEngine::RenderGeneralTab()
 {
     std::string memoryUsage = Utils::FormatFilesize(this->bufferSize * sizeof(float), 2);
 
-    SECTION_HEADER("Engine Settings");
     BEGIN_SECTION("##engineSettings")
     {
         SETUP_SECTION;
@@ -875,7 +874,7 @@ void PrerenderedEngine::RenderSoundfontsTab()
 
                 // shade every other row
                 if ((i & 0b1) != 0)
-                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::GetColorU32(ImGuiCol_Text, 0.1f));
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImGui::GetColorU32(ImGuiCol_Text, 0.075f));
 
                 ImGui::TableSetColumnIndex(0);
                 ImGui::Checkbox("##enabled", &entry->enabled);
