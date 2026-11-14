@@ -24,7 +24,7 @@ void MIDIAudio::SwitchEngine(AudioEngineType engine)
 		return;
 
 	AudioEngine* oldEngine = GetCurrentEngine();
-	std::shared_ptr<MIDISequence> seq = oldEngine->seq;
+	MIDISequence* seq = oldEngine->seq;
 	std::shared_ptr<MIDITimer> timer = oldEngine->timer;
 
 	bool lastPlaying = oldEngine->IsPlaying();

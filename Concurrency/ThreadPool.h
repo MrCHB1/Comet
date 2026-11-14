@@ -6,6 +6,7 @@
 #include <queue>
 #include <mutex>
 #include <condition_variable>
+#include <future>
 
 class ThreadPool
 {
@@ -14,6 +15,8 @@ public:
 	~ThreadPool();
 
 	void SubmitJob(std::function<void()> job);
+	std::future<void> SubmitJobWithFuture(std::function<void()> job);
+	size_t WorkerCount() const { return workers.size(); }
 	void WaitForAllJobs();
 
 private:

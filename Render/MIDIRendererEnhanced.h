@@ -282,7 +282,7 @@ public:
         keyMetas.fill(KeyboardMeta3D());
     }
 
-    void LoadSequence(std::shared_ptr<MIDISequence> sequence) override;
+    void LoadSequence(MIDISequence* sequence) override;
 
     void Initialize() override;
     void Render(double deltaTime) override;

@@ -69,7 +69,7 @@ public:
 	MIDIPlayerConfig* GetConfig() { return &config; }
 	RenderView* GetRenderView() { return renderView.get(); }
 	std::shared_ptr<MIDITimer> GetTimer() { return timer; }
-	std::shared_ptr<Progress> GetProgress() { return prog; }
+	Progress* GetProgress() { return prog; }
 	ResourcePackList* GetPackList() { return packList.get(); }
 	ColorPaletteList* GetColorList() { return colorList.get(); }
 	NavigationBar* GetNavigationBar() { return navigationBar.get(); }
@@ -98,7 +98,7 @@ public:
 
 	// Body lives in MIDIApp.cpp: constructs MIDILoader/MultithreadedMIDILoader
 	// via make_shared, which needs their complete types.
-	std::shared_ptr<AbstractMIDILoader> CreateLoader(const char* path);
+	std::unique_ptr<AbstractMIDILoader> CreateLoader(const char* path);
 
 	bool hasSequence = false;
 	std::atomic_bool rendering = false;
@@ -118,7 +118,7 @@ private:
 	std::unique_ptr<ResourcePackList> packList;
 	std::shared_ptr<ColorPaletteList> colorList;
 	std::shared_ptr<RenderView> renderView;
-	std::shared_ptr<Progress> prog;
+	Progress* prog = nullptr;
 	std::shared_ptr<MIDITimer> timer;
 	std::unique_ptr<MIDIAudio> midiAudio;
 	std::atomic_bool loading = false;
@@ -146,7 +146,7 @@ private:
 	std::unique_ptr<FFmpegPipe> ffmpegPipe;
 
 	// staging variables for thread-safe loading
-	std::shared_ptr<MIDISequence> pendingSeq = nullptr;
+	std::unique_ptr<MIDISequence> pendingSeq = nullptr;
 	std::string pendingTitle = "";
 	std::atomic_bool hasPendingSeq{ false };
 

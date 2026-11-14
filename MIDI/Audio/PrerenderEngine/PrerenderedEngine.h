@@ -33,7 +33,7 @@ public:
     void Destroy() override;
     std::string GetName() override { return "Prerendered Audio"; }
 
-    void Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDITimer> timer) override;
+    void Start(MIDISequence* seq, std::shared_ptr<MIDITimer> timer) override;
     void Stop() override;
     void Reset() override;
     void Mute() override;
@@ -166,7 +166,7 @@ private:
     double releaseRate = 1.0;
     std::atomic<double> preVolume{ 1.0 };
 
-    std::shared_ptr<MIDISequence> lastSeq;
+    MIDISequence* lastSeq = nullptr;
 };
 #else
 class PrerenderedEngine : public AudioEngine
@@ -179,7 +179,7 @@ public:
     void Destroy() override {}
     std::string GetName() override { return "Prerendered Audio (Unsupported)"; }
 
-    void Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDITimer> timer) override {}
+    void Start(MIDISequence* seq, std::shared_ptr<MIDITimer> timer) override {}
     void Stop() override {}
     void Reset() override {}
     void Mute() override {}

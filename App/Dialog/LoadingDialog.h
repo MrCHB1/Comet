@@ -18,6 +18,6 @@ public:
 
 	void DrawContent() override;
 private:
-	std::shared_ptr<Progress> prog;
+	Progress* prog;
 	MIDIApp* app;
 };

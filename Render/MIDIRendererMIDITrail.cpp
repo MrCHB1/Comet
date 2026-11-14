@@ -857,7 +857,7 @@ void MIDIRendererMIDITrail::CalcKeyPosAndWidth()
 	separatorVerts.emplace_back(1.0f, -0.004f, -10.0f);
 }
 
-void MIDIRendererMIDITrail::LoadSequence(std::shared_ptr<MIDISequence> sequence)
+void MIDIRendererMIDITrail::LoadSequence(MIDISequence* sequence)
 {
 	if (seq != sequence) AbstractMIDIRenderer::UnloadSequence();
 	AbstractMIDIRenderer::LoadSequence(sequence);

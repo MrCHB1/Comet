@@ -127,7 +127,7 @@ public:
 	void Initialize() override;
 	void OnInput(InputState& inputState) override;
 	void ResetRenderer() override;
-	void LoadSequence(std::shared_ptr<MIDISequence> sequence) override;
+	void LoadSequence(MIDISequence* sequence) override;
 	void Render(double deltaTime) override;
 	void RenderSettings() override;
 	void ResetSettings() override;

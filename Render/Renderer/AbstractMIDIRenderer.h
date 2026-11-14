@@ -23,7 +23,7 @@ struct InputState;
 class AbstractMIDIRenderer
 {
 protected:
-	std::shared_ptr<MIDISequence> seq;
+	MIDISequence* seq = nullptr;
 	std::unique_ptr<Framebuffer> sceneFramebuffer;
 	int width = 0;
 	int height = 0;
@@ -32,7 +32,7 @@ protected:
 	std::shared_ptr<NoteCounterInfo> noteCounterInfo;
 	std::array<bool, MIDI_KEYS> blackArr{};
 
-	MIDIApp* app;
+	MIDIApp* app = nullptr;
 	ColorAsset colors;
 
 	// Fullscreen quad for special effects
@@ -62,22 +62,24 @@ public:
 		}
 	}
 
-	virtual void LoadSequence(std::shared_ptr<MIDISequence> sequence)
+	virtual void LoadSequence(MIDISequence* sequence)
 	{
 		seq = sequence;
 		isTimeBased = seq->timeBased;
 		noteCounterInfo->ppq = sequence->resolution;
 	}
 
-	virtual std::shared_ptr<MIDISequence> GetSequence()
+	virtual MIDISequence* GetSequence()
 	{
 		return seq;
 	}
 
 	virtual void UnloadSequence()
 	{
-		seq.reset();
-		noteCounterInfo->ResetCounter();
+		if (noteCounterInfo)
+			noteCounterInfo->ResetCounter();
+
+		seq = nullptr;
 	}
 
 	virtual void Initialize();

@@ -18,10 +18,9 @@ public:
 	~MultithreadedMIDILoader()
 	{
 		Stop();
-		seq.reset();
 	}
 
-	std::shared_ptr<MIDISequence> Load(bool timeBasedLoading = false) override;
+	std::unique_ptr<MIDISequence> Load(bool timeBasedLoading = false) override;
 
 	void Stop() override
 	{
@@ -31,7 +30,6 @@ public:
 
 private:
 	std::string file;
-	std::shared_ptr<MIDISequence> seq;
 	std::shared_ptr<InputStream> is;
 	std::shared_ptr<ProgressInputStream> pis;
 	std::mutex fileMutex;

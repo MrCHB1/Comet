@@ -1,3 +1,4 @@
+#include "MIDISequence.h"
 #include "TempoMap.h"
 #include <algorithm>
 #include <cmath>

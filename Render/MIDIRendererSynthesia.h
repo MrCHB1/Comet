@@ -208,7 +208,7 @@ class MIDIRendererSynthesia : public AbstractMIDIRenderer
 public:
 	MIDIRendererSynthesia(MIDIApp* app) : AbstractMIDIRenderer(app) {}
 	void Initialize() override;
-	void LoadSequence(std::shared_ptr<MIDISequence> sequence) override;
+	void LoadSequence(MIDISequence* sequence) override;
 	void Render(double deltaTime) override;
 	void RenderSettings() override;
 	void ResetSettings() override;

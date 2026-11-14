@@ -352,7 +352,7 @@ void MIDIRendererEnhanced::SetupUniforms()
     }
 }
 
-void MIDIRendererEnhanced::LoadSequence(std::shared_ptr<MIDISequence> sequence)
+void MIDIRendererEnhanced::LoadSequence(MIDISequence* sequence)
 {
     std::lock_guard<std::mutex> lock(renderMutex);
 

@@ -1,4 +1,5 @@
 #include "ThreadPool.h"
+#include <memory>
 
 ThreadPool::ThreadPool(size_t threadCount)
 {
@@ -31,6 +32,21 @@ void ThreadPool::SubmitJob(std::function<void()> job)
 	}
 
 	queueCV.notify_one();
+}
+
+
+std::future<void> ThreadPool::SubmitJobWithFuture(std::function<void()> job)
+{
+	auto task = std::make_shared<std::packaged_task<void()>>(std::move(job));
+	std::future<void> result = task->get_future();
+
+	{
+		std::lock_guard lock(queueMutex);
+		jobs.emplace([task] { (*task)(); });
+	}
+
+	queueCV.notify_one();
+	return result;
 }
 
 void ThreadPool::WaitForAllJobs()

@@ -149,7 +149,7 @@ void MaestroEngine::Destroy()
     hasMaestro = false;
 }
 
-void MaestroEngine::Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDITimer> timer)
+void MaestroEngine::Start(MIDISequence* seq, std::shared_ptr<MIDITimer> timer)
 {
     if (!seq || !timer || !hasMaestro || maxScheduleTimeUs == 0)
         return;
@@ -173,9 +173,9 @@ void MaestroEngine::Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MID
     threadWorking.store(true);
 
     generatorThread = std::thread(
-        [this, seq = std::move(seq)]() mutable
+        [this, seq]() mutable
         {
-            GeneratorLoop(std::move(seq));
+            GeneratorLoop(seq);
         });
 
     playerThread = std::thread(
@@ -216,7 +216,7 @@ void MaestroEngine::Stop()
 // Generator: turns the sequence into a time-ordered event stream, as far ahead as the ring
 // allows, starting from wherever the player says playback begins.
 // ---------------------------------------------------------------------------------------
-void MaestroEngine::GeneratorLoop(std::shared_ptr<MIDISequence> seq)
+void MaestroEngine::GeneratorLoop(MIDISequence* seq)
 {
     auto* tempoMap = seq->GetTempoMap();
     if (!tempoMap)

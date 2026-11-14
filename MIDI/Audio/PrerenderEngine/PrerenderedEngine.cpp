@@ -106,7 +106,7 @@ void PrerenderedEngine::SyncPlayer(double time)
     if (std::abs(bufferReadPos - newPos) / (double)SAMPLE_RATE > 0.03) bufferReadPos = newPos;
 }
 
-void PrerenderedEngine::Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDITimer> timer)
+void PrerenderedEngine::Start(MIDISequence* seq, std::shared_ptr<MIDITimer> timer)
 {
     if (!seq || !timer) return;
 

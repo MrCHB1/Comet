@@ -99,7 +99,7 @@ void MIDIRendererVelocities::Initialize()
 	}
 }
 
-void MIDIRendererVelocities::LoadSequence(std::shared_ptr<MIDISequence> sequence)
+void MIDIRendererVelocities::LoadSequence(MIDISequence* sequence)
 {
 	std::lock_guard<std::mutex> guard(renderMutex);
 

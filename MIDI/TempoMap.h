@@ -1,8 +1,9 @@
 #pragma once
 
-#include "MIDISequence.h"
 #include <memory>
 #include <vector>
+
+class MIDISequence;
 
 struct TempoPoint
 {

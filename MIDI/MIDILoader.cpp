@@ -25,9 +25,10 @@ MIDILoader::MIDILoader(std::shared_ptr<InputStream> is)
 	this->is = is;
 }
 
-std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
+std::unique_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 {
 	running = true;
+	std::unique_ptr<MIDISequence> seq;
 
 	if (!file.empty())
 	{
@@ -39,14 +40,14 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 		auto filenameU8 = path.filename().u8string();
 		std::cout << "Loading file " << reinterpret_cast<const char*>(filenameU8.c_str()) << std::endl;
 		MIDIStreamInfo stream = OpenMIDIFileStream(path);
-		seq = std::make_shared<MIDISequence>("TODO");
+		seq = std::make_unique<MIDISequence>("TODO");
 		pis = stream.stream;
 	}
 	else
 	{
 		std::cout << "Loading stream" << std::endl;
 		// name = "Unnamed";
-		seq = std::make_shared<MIDISequence>();
+		seq = std::make_unique<MIDISequence>();
 		pis = std::make_shared<ProgressInputStream>(*(is.get()));
 	}
 
@@ -190,7 +191,7 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 	seq->mergedNotes = SequenceFuncs::DistributeNotes(std::move(mergedNotes));
 	seq->mergedEvents = std::move(mergedEvents);
 	// really weird way to do this but ok
-	seq->tempoMap = std::make_shared<TempoMap>();
+	seq->tempoMap = std::make_unique<TempoMap>();
 	seq->tempoMap->RebuildTempoMap(seq.get());
 
 	// NEW: apply note bounds
@@ -215,7 +216,7 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 
 	SetName("Finalizing (2/2)...\nIndexing note blocks...");
 	size_t blockProgress = 0;
-	AddBar([this, &blockProgress]() { return (double)blockProgress / (double)seq->notes; });
+	AddBar([this, &blockProgress, &seq]() { return (double)blockProgress / (double)seq->notes; });
 
 	std::array<std::vector<NoteBlock>, MIDI_KEYS> noteBlockArray{};
 
@@ -281,7 +282,7 @@ std::shared_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 
 	prog = 1;
 
-	return seq;
+	return std::move(seq);
 }
 
 AbstractMIDILoader::ParsedTrack MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)

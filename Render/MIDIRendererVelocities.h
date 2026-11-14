@@ -67,7 +67,7 @@ public:
 
 	void Initialize() override;
 
-	void LoadSequence(std::shared_ptr<MIDISequence> seq) override;
+	void LoadSequence(MIDISequence* seq) override;
 	void UnloadSequence() override;
 	void Render(double deltaTime) override;
 

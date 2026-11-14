@@ -100,7 +100,7 @@ void MIDIRendererChannels::Initialize()
 	}
 }
 
-void MIDIRendererChannels::LoadSequence(std::shared_ptr<MIDISequence> sequence)
+void MIDIRendererChannels::LoadSequence(MIDISequence* sequence)
 {
 	std::lock_guard<std::mutex> guard(renderMutex);
 

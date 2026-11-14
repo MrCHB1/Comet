@@ -14,7 +14,7 @@ struct PrecalculatedEvent
     uint32_t message;
 };
 
-void AudioThread::Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDITimer> timer)
+void AudioThread::Start(MIDISequence* seq, std::shared_ptr<MIDITimer> timer)
 {
     if (!seq || !timer) return;
 

@@ -25,7 +25,7 @@ public:
 	virtual YAML::Node GetSettings() { return YAML::Node(); }
 	virtual void LoadSettings(const YAML::Node& node) {}
 
-	virtual void Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDITimer> timer) = 0;
+	virtual void Start(MIDISequence* seq, std::shared_ptr<MIDITimer> timer) = 0;
 	virtual void Stop() = 0;
 	virtual void Reset() = 0;
 	virtual void Mute() = 0;
@@ -36,7 +36,7 @@ public:
 	// displays the engine's settings. kinda weird to define the method here but makes stuff easier ig
 	virtual void RenderSettings() { }
 protected:
-	std::shared_ptr<MIDISequence> seq;
+	MIDISequence* seq = nullptr;
 	std::shared_ptr<MIDITimer> timer;
 };
 
@@ -58,7 +58,7 @@ class MIDIAudio
 public:
 	MIDIAudio();
 
-	void Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDITimer> timer)
+	void Start(MIDISequence* seq, std::shared_ptr<MIDITimer> timer)
 	{
 		AudioEngine* currentEngine = GetCurrentEngine();
 		currentEngine->seq = seq;

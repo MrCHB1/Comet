@@ -9,7 +9,7 @@ class MIDIRendererCounter : public AbstractMIDIRenderer
 public:
 	MIDIRendererCounter(MIDIApp* app) : AbstractMIDIRenderer(app) {}
 	void Initialize() override;
-	void LoadSequence(std::shared_ptr<MIDISequence> sequence) override;
+	void LoadSequence(MIDISequence* sequence) override;
 	void Render(double deltaTime) override;
 	void OnResize(int width, int height) override;
 	void RenderSettings() override

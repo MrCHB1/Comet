@@ -78,16 +78,16 @@ bool MIDIApp::IsGLReady() const
 	return mainWindow->IsGLReady();
 }
 
-std::shared_ptr<AbstractMIDILoader> MIDIApp::CreateLoader(const char* path)
+std::unique_ptr<AbstractMIDILoader> MIDIApp::CreateLoader(const char* path)
 {
-	std::shared_ptr<AbstractMIDILoader> loader;
+	std::unique_ptr<AbstractMIDILoader> loader;
 	if (config.midi.multithreadedLoading)
-		loader = std::make_shared<MultithreadedMIDILoader>(path);
+		loader = std::make_unique<MultithreadedMIDILoader>(path);
 	else
-		loader = std::make_shared<MIDILoader>(path);
+		loader = std::make_unique<MIDILoader>(path);
 
 	loader->SetLoadOnlyNotes(config.midi.loadNotesOnly);
-	return loader;
+	return std::move(loader);
 }
 
 void MIDIApp::LoadMIDI(const char* path)
@@ -97,11 +97,11 @@ void MIDIApp::LoadMIDI(const char* path)
 	if (loading) return;
 	UnloadMIDI();
 	loading.store(true);
-	std::shared_ptr<AbstractMIDILoader> loader = CreateLoader(path);
-	prog = loader;
+	std::unique_ptr<AbstractMIDILoader> loader = CreateLoader(path);
+	prog = loader.get();
 
-	std::thread([this, loader, pathStr = std::string(path)]() {
-		std::shared_ptr<MIDISequence> seq;
+	std::thread([this, loader = std::move(loader), pathStr = std::string(path)]() {
+		std::unique_ptr<MIDISequence> seq;
 		try
 		{
 			auto* config = this->GetConfig();
@@ -114,19 +114,23 @@ void MIDIApp::LoadMIDI(const char* path)
 		catch (const std::runtime_error& e)
 		{
 			std::cout << "An error occured while loading the MIDI.\n" << e.what() << std::endl;
+			
+			if (this->prog == loader.get())
+				this->prog = nullptr;
+
 			this->loading.store(false);
 			return;
 		}
 
 		bool hasStopped = this->prog->hasStopped.load();
 
-		if (this->prog == loader)
+		if (this->prog == loader.get())
 			this->prog = nullptr;
 
 		if (!hasStopped && seq)
 		{
 			this->pendingTitle = std::filesystem::path(pathStr).filename().string();
-			this->pendingSeq = seq;
+			this->pendingSeq = std::move(seq);
 			this->hasPendingSeq.store(true);
 		}
 		
@@ -149,11 +153,10 @@ void MIDIApp::UpdatePendingSequence()
 {
 	if (!hasPendingSeq.exchange(false)) return;
 
-	std::shared_ptr<MIDISequence> seq = pendingSeq;
-	pendingSeq.reset();
+	MIDISequence* seq = pendingSeq.get();
 
 	renderer->LoadSequence(seq);
-	navigationBar->SetMIDILengthFromSeq(*seq.get());
+	navigationBar->SetMIDILengthFromSeq(*seq);
 	noteCounterInfo->ppq.value = seq->resolution;
 	hasSequence = true;
 	seqLength = seq->CalcLengthMilliseconds() / 1000.0;
@@ -185,7 +188,7 @@ void MIDIApp::SetRenderer()
 	}
 
 	// get renderer's sequence so the new one can automatically load it
-	std::shared_ptr<MIDISequence> seq;
+	MIDISequence* seq = nullptr;
 	if (this->renderer) seq = GetRenderer()->GetSequence();
 
 	this->renderer = std::make_unique<T>(this);
@@ -322,7 +325,7 @@ MIDISequence* MIDIApp::GetRendererSequence()
 {
 	AbstractMIDIRenderer* renderer = GetRenderer();
 	if (!renderer) return nullptr;
-	return renderer->GetSequence().get();
+	return renderer->GetSequence();
 }
 
 void MIDIApp::Update()
@@ -483,7 +486,7 @@ void MIDIApp::RegisterInput(InputState& inputState)
 			if (IsRendering()) return;
 			// VERY hacky, lmfao
 			MIDISequence* seq = nullptr;
-			if (this->renderer) seq = GetRenderer()->GetSequence().get();
+			if (this->renderer) seq = GetRenderer()->GetSequence();
 			if (!seq) return;
 
 			TempoMap* tempoMap = seq->GetTempoMap();
@@ -499,7 +502,7 @@ void MIDIApp::RegisterInput(InputState& inputState)
 			if (IsRendering()) return;
 
 			MIDISequence* seq = nullptr;
-			if (this->renderer) seq = GetRenderer()->GetSequence().get();
+			if (this->renderer) seq = GetRenderer()->GetSequence();
 			if (!seq) return;
 
 			TempoMap* tempoMap = seq->GetTempoMap();

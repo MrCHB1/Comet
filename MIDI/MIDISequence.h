@@ -24,30 +24,19 @@ public:
 	std::vector<NoteSequence> mergedNotes{};
 	std::array<std::vector<NoteBlock>, MIDI_KEYS> noteBlocks{};
 	std::vector<MIDIMessageEvent> mergedEvents{};
-	std::shared_ptr<TempoMap> tempoMap = nullptr;
+	std::unique_ptr<TempoMap> tempoMap = nullptr;
 	size_t noteTrackCount;
 	long long notes = 0;
 	long length = 0;
 	uint32_t longestNoteLength = 0;
 	bool timeBased = false;
 
-	MIDISequence() : MIDISequence("Unnamed") {}
-	MIDISequence(const char* name)
-		: name(name), tracks({}), tempos({}), timeSignatures({}) {}
-	~MIDISequence()
-	{
-		tracks.clear();
-		tempos.clear();
-		mergedNotes.clear();
-		timeSignatures.clear();
-		if (tempoMap) tempoMap.reset();
-	}
+	MIDISequence();
+	MIDISequence(const char* name);
+	~MIDISequence();
 
-	TempoMap* GetTempoMap()
-	{
-		return tempoMap.get();
-	}
-	
+	TempoMap* GetTempoMap();
+
 	long GetNotes()
 	{
 		return this->notes;

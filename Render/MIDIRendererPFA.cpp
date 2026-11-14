@@ -379,13 +379,20 @@ void MIDIRendererPFA::Initialize()
 	}
 }
 
-void MIDIRendererPFA::LoadSequence(std::shared_ptr<MIDISequence> sequence)
+void MIDIRendererPFA::LoadSequence(MIDISequence* sequence)
 {
 	if (seq != sequence) AbstractMIDIRenderer::UnloadSequence();
 	AbstractMIDIRenderer::LoadSequence(sequence);
 
 	colors.LoadColors();
 	seq = sequence;
+
+	const auto* sequences = &seq->mergedNotes;
+	for (std::size_t key = 0; key < MIDI_KEYS; key++)
+	{
+		const auto* notes = &(sequences->at(key));
+		keyNoteIndices[key].Build(notes->tick.data(), notes->gate.data(), notes->Size());
+	}
 
 	for (auto& id : startBlockIDs)
 		id = 0;
@@ -873,190 +880,147 @@ void MIDIRendererPFA::RenderNotes()
 		notesComputeProgram->SetInt("roundedNoteLengths", settings.roundedNoteLengths);
 	}
 
+	const double tickScale = isTimeBased ? (double)TIME_BASED_MULTIPLIER : 1.0;
+	const double nowTicks = accTime * tickScale;
+	const double viewTicks = viewRegion * tickScale;
+	const double marginPx = settings.roundedNoteLengths ? 1.0 : 0.02;
+	const size_t sparseLimit = (size_t)height / 4;
+
+	// pass 1 (serial): stats, key state, build job list
+	size_t jobCount = 0;
 	for (uint8_t id : kbIDs)
 	{
-		uint16_t lastTrack = 0;
-		uint8_t lastChannel = 0;
-		uint32_t lastTick = 0;
-		uint32_t lastGate = 0;
-		uint32_t lastNote = 0;
-
 		const NoteSequence& notesNote = notes[id];
-		const std::vector<NoteBlock>& blocks = seq->noteBlocks[id];
-		if (blocks.empty()) continue;
+		if (notesNote.Size() == 0) continue;
+		auto& index = keyNoteIndices[id];
 
-#pragma region Note block culling
+		const size_t started = index.CountStartAtOrBefore(nowTicks);
+		const size_t ended = index.CountEndAtOrBefore(nowTicks);
+		notesPassed += started;
+		polyphony += started - ended;
 
-		size_t& blockIndex = startBlockIDs[id];
-		size_t noteBegin = blockIndex * NOTE_BLOCK_SIZE;
-
-		if (lastTime < time)
+		ptrdiff_t active = index.LastActiveAt(nowTicks);
+		if (active >= 0)
 		{
-			while (blockIndex < blocks.size() && blocks[blockIndex].maxBound <= targetTick)
-			{
-				++blockIndex;
-			}
-		}
-		else if (lastTime > time)
-		{
-			while (blockIndex > 0 && blocks[blockIndex - 1].maxBound > targetTick)
-			{
-				--blockIndex;
-			}
+			keyStates[id].color.SetColor(colors.GetColor(notesNote.GetTrack(active), notesNote.GetChannel(active)));
+			keyStates[id].pressed = true;
 		}
 
-		noteBegin = std::min(notesNote.Size(), blockIndex * NOTE_BLOCK_SIZE);
-		notesPassed += noteBegin;
+		if (id < startRender || id > endRender) continue;
 
-#pragma endregion
+		const size_t startCap = index.CountStartAtOrBefore(nowTicks + viewTicks);
+		const size_t visible = index.CountVisible(nowTicks, startCap, ended);
+		if (visible == 0) continue;
 
-		bool isBlack = blackArr[id];
+		jobs[jobCount++] = { id, startCap, visible <= sparseLimit };
+	}
 
-		float cx = whiteCX;
-		float x = noteXTable[id];
+	// pass 2 (parallel): collect per-key indices
+	const double ticksPerPixel = viewTicks / notesCY;
+	// multiply by 0.499 instead of 0.5 to keep a little slack for the shader's float math
+	const uint32_t minGate = settings.roundedNoteLengths
+		? (uint32_t)std::ceil(0.499 * ticksPerPixel)
+		: 0u;
 
-		if (isBlack)
+	nextJob.store(0, std::memory_order_relaxed);
+	auto worker = [&]
+	{
+		for (size_t j; (j = nextJob.fetch_add(1, std::memory_order_relaxed)) < jobCount;)
 		{
-			cx *= SharpRatio;
+			const KeyJob& job = jobs[j];
+			auto& index = keyNoteIndices[job.id];
+			auto& out = keepPerKey[job.id];
+
+			if (job.sparse)
+				index.CollectVisible(out, nowTicks, job.startCap, minGate);
+			else
+				index.CollectRowOwners(out, RowQuery{
+					.tNow = nowTicks, .ticksPerPixel = ticksPerPixel,
+					.yBase = notesY + notesCY, .rowBegin = 0, .rowEnd = (int)height,
+					.marginPx = marginPx, .startCap = job.startCap,
+					.minGate = minGate
+				});
 		}
+	};
 
-		// actually render each note
-		size_t numNotes = notesNote.Size();
+	collectFutures.clear();
+	const size_t extra = std::min(threadPool.WorkerCount(), jobCount);
+	for (size_t w = 1; w < extra; ++w)
+		collectFutures.push_back(threadPool.SubmitJobWithFuture(worker));
+	worker(); // calling thread helps too
+	for (auto& f : collectFutures) f.get();
 
-		size_t i = noteBegin;
+	for (size_t j = 0; j < jobCount; ++j)
+	{
+		const uint8_t id = jobs[j].id;
+		const NoteSequence& notesNote = notes[id];
 
-		while (i < numNotes)
+		uint16_t lastTrack = 0; uint8_t lastChannel = 0;
+		uint32_t lastTick = 0, lastGate = 0, lastNote = 0;
+
+		const bool isBlack = blackArr[id];
+		const float x = noteXTable[id];
+		const float cx = isBlack ? whiteCX * SharpRatio : whiteCX;
+
+		for (uint32_t i : keepPerKey[id])
 		{
-			const size_t blockIndex = i / NOTE_BLOCK_SIZE;
-			const size_t blockEnd = std::min(numNotes, (blockIndex + 1) * NOTE_BLOCK_SIZE);
+			const uint32_t nTick = notesNote.tick[i];
+			const uint32_t nGate = notesNote.gate[i];
+			const uint8_t  nNote = notesNote.GetKey(i);
+			const uint16_t nTrack = notesNote.GetTrack(i);
+			const uint8_t  nChannel = notesNote.GetChannel(i);
 
-			const NoteBlock& currBlock = blocks[blockIndex];
-			double blockMin = currBlock.minBound;
-			double blockMax = currBlock.maxBound;
+			double noteStart = (double)nTick;
+			double noteEnd = (double)(nTick + nGate);
+			if (isTimeBased) { noteStart *= invTimeMultiplier; noteEnd *= invTimeMultiplier; }
 
-			if (isTimeBased)
-			{
-				blockMin *= invTimeMultiplier;
-				blockMax *= invTimeMultiplier;
-			}
+			if (noteStart > accTime + viewRegion || noteEnd <= accTime) continue; // safety, same culls as before
 
-			if (blockMax <= accTime)
-			{
-				notesPassed += blockEnd - i;
-				i = blockEnd;
+			if (lastNote && nTick == lastTick && nNote == lastNote &&
+				nChannel == lastChannel && nTrack == lastTrack && nGate == lastGate)
 				continue;
-			}
+			lastTick = nTick; lastNote = nNote; lastChannel = nChannel; lastTrack = nTrack; lastGate = nGate;
 
-			if (blockMin > accTime + viewRegion) break;
-
-			bool beyondView = false;
-
-			for (; i < blockEnd; ++i)
+			if (supportsCompute)
 			{
-				uint32_t nTick = notesNote.tick[i];
-				uint32_t nGate = notesNote.gate[i];
-				uint8_t nNote = notesNote.GetKey(i);
-				uint16_t nTrack = notesNote.GetTrack(i);
-				uint8_t nChannel = notesNote.GetChannel(i);
+				gpuInputNotes[noteID++] = { nTick, nGate, nNote, colors.GetColor(nTrack, nChannel) };
+			}
+			else
+			{
+				float yDistStart = (float)((noteStart - accTime) * invViewRegion) * notesCY;
+				float yDistEnd = (float)((noteEnd - accTime) * invViewRegion) * notesCY;
 
-				double noteStart = (double)nTick;
-				double noteEnd = (double)(nTick + nGate);
+				float noteBottom = notesY + notesCY - yDistStart;
+				float noteTop = notesY + notesCY - yDistEnd;
 
-				if (isTimeBased)
+				float noteCY = noteBottom - noteTop;
+				if (settings.roundedNoteLengths)
 				{
-					noteStart *= invTimeMultiplier;
-					noteEnd *= invTimeMultiplier;
+					noteTop = std::round(noteTop);
+					noteCY = std::round(noteCY);
 				}
 
-				// don't render any more notes
-				if (noteStart > accTime + viewRegion)
-				{
-					beyondView = true;
-					break;
-				}
-
-				if (noteEnd <= accTime)
-				{
-					notesPassed++;
-					continue;
-				}
-
-				if (noteStart <= accTime)
-				{
-					keyStates[id].color.SetColor(colors.GetColor(nTrack, nChannel));
-					keyStates[id].pressed = true;
-
-					notesPassed++;
-					polyphony++;
-				}
-
-				// note is outside bounds, so don't bother rendering this column's notes
-				if (id < startRender || id > endRender)
-				{
-					beyondView = true;
-					break;
-				}
-
-				// skip rendering this note if it's basically the same one lol
-				if (lastNote &&
-					nTick == lastTick &&
-					nNote == lastNote &&
-					nChannel == lastChannel &&
-					nTrack == lastTrack &&
-					nGate == lastGate)
-				{
-					continue;
-				}
-
-				lastTick = nTick;
-				lastNote = nNote;
-				lastChannel = nChannel;
-				lastTrack = nTrack;
-				lastGate = nGate;
-
-				if (supportsCompute)
-				{
-					gpuInputNotes[noteID++] = { nTick, nGate, nNote, colors.GetColor(nTrack, nChannel) };
-				}
-				else
-				{
-					float yDistStart = (float)((noteStart - accTime) * invViewRegion) * notesCY;
-					float yDistEnd = (float)((noteEnd - accTime) * invViewRegion) * notesCY;
-
-					float noteBottom = notesY + notesCY - yDistStart;
-					float noteTop = notesY + notesCY - yDistEnd;
-
-					float noteCY = noteBottom - noteTop;
-					if (settings.roundedNoteLengths)
-					{
-						noteTop = std::round(noteTop);
-						noteCY = std::round(noteCY);
-					}
-
-					renderNotes[noteID++] = {
-						x,
-						noteTop,
-						isBlack ? cx : whiteCX,
-						noteCY,
-						colors.GetColor(nTrack, nChannel)
-					};
-				}
-
-				if (noteID >= NOTE_BUFFER_SIZE)
-				{
-					UploadNoteBuffer(NOTE_BUFFER_SIZE);
-					batchCount++;
-					if (batchCount >= NOTES_MAX_BATCHES)
-					{
-						glFlush();
-						batchCount = 0;
-					}
-					noteID = 0;
-				}
-				notesToRender++;
+				renderNotes[noteID++] = {
+					x,
+					noteTop,
+					isBlack ? cx : whiteCX,
+					noteCY,
+					colors.GetColor(nTrack, nChannel)
+				};
 			}
 
-			if (beyondView) break;
+			if (noteID >= NOTE_BUFFER_SIZE)
+			{
+				UploadNoteBuffer(NOTE_BUFFER_SIZE);
+				batchCount++;
+				if (batchCount >= NOTES_MAX_BATCHES)
+				{
+					glFlush();
+					batchCount = 0;
+				}
+				noteID = 0;
+			}
+			notesToRender++;
 		}
 	}
 

@@ -8,7 +8,7 @@ void MIDIRendererCounter::Initialize()
 	AbstractMIDIRenderer::Initialize();
 }
 
-void MIDIRendererCounter::LoadSequence(std::shared_ptr<MIDISequence> sequence)
+void MIDIRendererCounter::LoadSequence(MIDISequence* sequence)
 {
 	if (seq != sequence) AbstractMIDIRenderer::UnloadSequence();
 	AbstractMIDIRenderer::LoadSequence(sequence);

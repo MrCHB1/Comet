@@ -640,7 +640,7 @@ void MIDIRendererSynthesia::GenerateKeyLayoutArrays()
 	keyArrayDirty = false;
 }
 
-void MIDIRendererSynthesia::LoadSequence(std::shared_ptr<MIDISequence> sequence)
+void MIDIRendererSynthesia::LoadSequence(MIDISequence* sequence)
 {
 	if (seq != sequence) AbstractMIDIRenderer::UnloadSequence();
 	AbstractMIDIRenderer::LoadSequence(sequence);

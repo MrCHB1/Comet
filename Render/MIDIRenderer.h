@@ -109,7 +109,7 @@ public:
 	void InitializeFromConfig();
 
 	// Overrides from AbstractMIDIRenderer
-	void LoadSequence(std::shared_ptr<MIDISequence> seq) override;
+	void LoadSequence(MIDISequence* seq) override;
 	void UnloadSequence() override;
 	void Render(double deltaTime) override;
 	void RenderSettings() override;

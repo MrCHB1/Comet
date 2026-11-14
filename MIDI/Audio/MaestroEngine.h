@@ -43,7 +43,7 @@ public:
 	void Initialize() override;
 	void Destroy() override;
 
-	void Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDITimer> timer) override;
+	void Start(MIDISequence* seq, std::shared_ptr<MIDITimer> timer) override;
 	void Stop() override;
 	void Reset() override { Stop(); }
 	void Mute() override {}
@@ -92,7 +92,7 @@ private:
 	std::mutex spaceMutex;                     // generator sleeps here
 	std::condition_variable spaceCV;
 
-	void GeneratorLoop(std::shared_ptr<MIDISequence> seq);
+	void GeneratorLoop(MIDISequence* seq);
 	void PlayerLoop(std::shared_ptr<MIDITimer> timer);
 	void MAESTRO_CALL OnLog(void* user, uint32_t level, const char* message);
 };

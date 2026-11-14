@@ -1,4 +1,9 @@
+#include "TempoMap.h"
 #include "MIDISequence.h"
+
+MIDISequence::MIDISequence() : MIDISequence("Unnamed") {}
+MIDISequence::MIDISequence(const char* name)
+	: name(name), tracks({}), tempos({}), timeSignatures({}) {}
 
 double MIDISequence::CalcLengthMilliseconds()
 {
@@ -13,4 +18,11 @@ double MIDISequence::CalcLengthMilliseconds()
 		bpm = t->bpm;
 	}
 	return msTotal + 60000.0 / bpm * (length - tick) / resolution;
+}
+
+MIDISequence::~MIDISequence() = default;
+
+TempoMap* MIDISequence::GetTempoMap()
+{
+	return tempoMap.get();
 }

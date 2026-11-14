@@ -74,7 +74,7 @@ public:
 	{
 		this->loadOnlyNotes = loadOnlyNotes;
 	}
-	virtual std::shared_ptr<MIDISequence> Load(bool timeBasedLoading = false) = 0;
+	virtual std::unique_ptr<MIDISequence> Load(bool timeBasedLoading = false) = 0;
 	virtual void Stop() { Progress::Stop(); }
 
 protected:

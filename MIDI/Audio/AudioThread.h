@@ -53,7 +53,7 @@ public:
 		midiOut->Shutdown();
 	}
 
-	void Start(std::shared_ptr<MIDISequence> seq, std::shared_ptr<MIDITimer> timer) override;
+	void Start(MIDISequence* seq, std::shared_ptr<MIDITimer> timer) override;
 	void Stop() override
 	{
 		stopFlag = true;

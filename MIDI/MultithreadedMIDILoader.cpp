@@ -18,9 +18,11 @@ MultithreadedMIDILoader::MultithreadedMIDILoader(std::shared_ptr<InputStream> is
 	this->is = is;
 }
 
-std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoading)
+std::unique_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoading)
 {
 	running = true;
+	std::unique_ptr<MIDISequence> seq;
+
 	tracksProcessed = 0;
 
 	if (!file.empty())
@@ -32,12 +34,12 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 #endif
 
 		MIDIStreamInfo stream = OpenMIDIFileStream(path);
-		seq = std::make_shared<MIDISequence>("TODO");
+		seq = std::make_unique<MIDISequence>("TODO");
 		pis = stream.stream;
 	}
 	else
 	{
-		seq = std::make_shared<MIDISequence>();
+		seq = std::make_unique<MIDISequence>();
 		pis = std::make_shared<ProgressInputStream>(*(is.get()));
 	}
 
@@ -89,7 +91,7 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 			RawTrackChunk chunk;
 			chunk.start = start;
 			chunk.index = i;
-			chunk.reader = std::make_unique<BufferedByteReader>(pis->GetStream(), start, trackLength, 1048576, &fileMutex);
+			chunk.reader = std::make_unique<BufferedByteReader>(pis->GetStream(), start, trackLength, 131072, &fileMutex);
 			pis->Seek(start + trackLength, SEEK_SET);
 
 			rawChunks.push_back(std::move(chunk));
@@ -244,7 +246,7 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 	seq->mergedNotes = SequenceFuncs::DistributeNotes(std::move(mergedNotes));
 	seq->mergedEvents = std::move(mergedEvents);
 
-	seq->tempoMap = std::make_shared<TempoMap>();
+	seq->tempoMap = std::make_unique<TempoMap>();
 	seq->tempoMap->RebuildTempoMap(seq.get());
 
 	// NEW: Apply note bounds
@@ -269,7 +271,7 @@ std::shared_ptr<MIDISequence> MultithreadedMIDILoader::Load(bool timeBasedLoadin
 
 	SetName("Finalizing (2/2)...\nIndexing note blocks...");
 	size_t blockProgress = 0;
-	AddBar([this, &blockProgress]() { return (double)blockProgress / (double)seq->notes; });
+	AddBar([this, &blockProgress, &seq]() { return (double)blockProgress / (double)seq->notes; });
 
 	std::array<std::vector<NoteBlock>, MIDI_KEYS> noteBlockArray{};
 

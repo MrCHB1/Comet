@@ -253,7 +253,7 @@ const std::array<unsigned int, 6> QUAD_INDICES = {
 	1, 2, 3
 };
 
-void MIDIRenderer::LoadSequence(std::shared_ptr<MIDISequence> sequence)
+void MIDIRenderer::LoadSequence(MIDISequence* sequence)
 {
 	std::lock_guard<std::mutex> lock(renderMutex);
 

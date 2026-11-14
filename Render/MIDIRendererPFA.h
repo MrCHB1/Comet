@@ -6,6 +6,7 @@
 #include "RenderEngine/Buffers.h"
 #include "RenderEngine/Shaders.h"
 #include "Renderer/NoteCuller.h"
+#include "Renderer/KeyNoteIndex.h"
 
 #define NOTES_MAX_BATCHES 131072
 
@@ -69,7 +70,7 @@ class MIDIRendererPFA : public AbstractMIDIRenderer
 public:
 	MIDIRendererPFA(MIDIApp* app) : AbstractMIDIRenderer(app) {}
 	void Initialize() override;
-	void LoadSequence(std::shared_ptr<MIDISequence> sequence) override;
+	void LoadSequence(MIDISequence* sequence) override;
 	void Render(double deltaTime) override;
 	void RenderSettings() override;
 	void ResetSettings() override
@@ -103,6 +104,16 @@ private:
 	std::array<GPUInputPFANote, NOTE_BUFFER_SIZE> gpuInputNotes{};
 	// colors for notes
 	std::vector<RenderColor> noteColors;
+#pragma endregion
+
+#pragma region Key Indices
+	struct KeyJob { uint8_t id; size_t startCap; bool sparse; };
+	std::array<KeyJob, MIDI_KEYS> jobs;
+	std::array<std::vector<uint32_t>, MIDI_KEYS> keepPerKey; // persistent, never shrinks
+	std::vector<std::future<void>> collectFutures;           // reserve(WorkerCount) once
+	std::atomic<size_t> nextJob{ 0 };
+
+	std::array<KeyNoteIndex, MIDI_KEYS> keyNoteIndices{};
 #pragma endregion
 
 #pragma region Computer shaders
@@ -139,6 +150,8 @@ private:
 	std::array<size_t, MIDI_KEYS> startBlockIDs{};
 
 	std::array<uint8_t, MIDI_KEYS> kbIDs;
+
+	ThreadPool threadPool;
 
 	void UpdateGlobals();
 	void GenNoteXTable();
