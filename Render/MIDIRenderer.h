@@ -13,6 +13,9 @@
 #include "ColorAsset.h"
 #include <queue>
 
+#include "Concurrency/ThreadPool.h"
+#include "Renderer/KeyNoteIndex.h"
+
 #define NOTE_BUFFER_SIZE 65536
 #define NOTES_MAX_BATCHES 128
 
@@ -156,7 +159,6 @@ private:
 	std::array<float, MIDI_KEYS> keyWidth;
 	std::array<RenderKeyboardKey, MIDI_KEYS> keyboardData;
 	std::array<KeyboardMeta, MIDI_KEYS> keyMetas;
-	std::array<uint8_t, MIDI_KEYS> kbIDs;
 #pragma endregion
 
 #pragma region Notes

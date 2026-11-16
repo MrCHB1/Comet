@@ -156,7 +156,8 @@ layout(std430, binding = 1) writeonly buffer OutputNotes {
     RenderPFANote outputs[];
 };
 
-uniform float currentTime;
+uniform uint tickOrigin;
+uniform float currentTickOffset;
 uniform float viewRegion;
 uniform float notesX;
 uniform float notesY;
@@ -176,24 +177,25 @@ void main()
 
     GPUInputNote note = inputs[id];
 
-    double noteStart = double(note.tick);
-    double noteEnd = double(note.tick + note.gate);
+    float relativeTick;
+	if (note.tick >= tickOrigin)
+		relativeTick = float(note.tick - tickOrigin);
+	else
+		relativeTick = -float(tickOrigin - note.tick);
 
-    if (isTimeBased) {
-        noteStart *= timeMultiplier;
-        noteEnd *= timeMultiplier;
-    }
+	float timeScale = isTimeBased ? timeMultiplier : 1.0;
+	float noteStartOffset = (relativeTick - currentTickOffset) * timeScale;
+	float noteEndOffset = noteStartOffset + float(note.gate) * timeScale;
 
-    // Skip notes outside visible timeframe
-    if (noteEnd <= currentTime || noteStart > currentTime + viewRegion) {
-        // Mark invalid by zeroing scale so vertex shader discards
-        outputs[id].cy = 0.0;
-        return;
-    }
+	if (noteEndOffset <= 0.0 || noteStartOffset > viewRegion)
+	{
+		outputs[id].cy = 0.0;
+		return;
+	}
 
     float invViewRegion = 1.0 / viewRegion;
-    float yDistStart = float((noteStart - currentTime) * invViewRegion) * notesCY;
-    float yDistEnd   = float((noteEnd - currentTime) * invViewRegion) * notesCY;
+    float yDistStart = noteStartOffset * invViewRegion * notesCY;
+    float yDistEnd   = noteEndOffset * invViewRegion * notesCY;
 
     float noteBottom = notesY + notesCY - yDistStart;
     float noteTop    = notesY + notesCY - yDistEnd;
@@ -201,8 +203,9 @@ void main()
 
 	if (roundedNoteLengths)
 	{
-		noteTop = round(noteTop);
-		noteCY = round(noteCY);
+		noteBottom = roundEven(noteBottom);
+		noteCY = roundEven(noteCY);
+		noteTop = noteBottom - noteCY;
 	}
 
     bool isBlack = blackKeys[note.key];
@@ -338,9 +341,12 @@ void MIDIRendererPFA::Initialize()
 	{
 		notesComputeProgram = ShaderProgram::CreateCompute(notesCompute);
 
-		glGenBuffers(1, &rawNotesSSBO);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, rawNotesSSBO);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, NOTE_BUFFER_SIZE * sizeof(GPUInputPFANote), nullptr, GL_DYNAMIC_DRAW);
+		glGenBuffers(SSBO_RING_SIZE, rawNotesSSBO);
+		for (size_t i = 0; i < SSBO_RING_SIZE; i++)
+		{
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, rawNotesSSBO[i]);
+			glBufferData(GL_SHADER_STORAGE_BUFFER,NOTE_BUFFER_SIZE * sizeof(GPUInputPFANote), nullptr, GL_STREAM_DRAW);
+		}
 
 		// black magic: tell compute shader to output DIRECTLY into Notes IBO
 		outputNotesSSBO = notesIBO->GetID();
@@ -379,20 +385,12 @@ void MIDIRendererPFA::Initialize()
 	}
 }
 
+// Must be called after setting the key index data.
 void MIDIRendererPFA::LoadSequence(MIDISequence* sequence)
 {
 	if (seq != sequence) AbstractMIDIRenderer::UnloadSequence();
 	AbstractMIDIRenderer::LoadSequence(sequence);
-
 	colors.LoadColors();
-	seq = sequence;
-
-	const auto* sequences = &seq->mergedNotes;
-	for (std::size_t key = 0; key < MIDI_KEYS; key++)
-	{
-		const auto* notes = &(sequences->at(key));
-		keyNoteIndices[key].Build(notes->tick.data(), notes->gate.data(), notes->Size());
-	}
 
 	for (auto& id : startBlockIDs)
 		id = 0;
@@ -820,21 +818,8 @@ void MIDIRendererPFA::RenderImmediateRects()
 
 void MIDIRendererPFA::RenderNotes()
 {
-	if (!seq) return;
-	std::vector<NoteSequence>& notes = seq->mergedNotes;
-	if (notes.empty()) return;
-	auto* renderView = app->GetRenderView();
-	if (!renderView) return;
-
-	size_t notesToRender = 0;
-	double playbackSeconds = app->GetTimer()->Elapsed();
-
-	TempoMap* tempoMap = seq->GetTempoMap();
-	long time = tempoMap->SecsToTicksFromMap(seq->resolution, playbackSeconds);
-	double bpm = tempoMap->GetBPMAtTick(time);
-	noteCounterInfo->tick.value = time >= 0 ? time : 0;
-	noteCounterInfo->timeSeconds.value = playbackSeconds;
-	noteCounterInfo->bpm.value = bpm;
+	NoteFrame f;
+	if (!BeginNoteFrame(f)) return;
 
 	ShaderBind shader(*notesProgram);
 	notesProgram->SetFloat("deflate", std::clamp(std::round(whiteCX * 0.15f / 2.0f), 1.0f, 3.0f));
@@ -847,236 +832,136 @@ void MIDIRendererPFA::RenderNotes()
 	BufferBind iboBind(*notesIBO);
 	if (notesIBO) notesIBO->Bind();
 
-	size_t noteID = 0;
-	size_t notesPassed = 0;
-	size_t polyphony = 0;
-	size_t batchCount = 0;
-
-	const double accTime = isTimeBased ? playbackSeconds : time;
-	const double viewRegion = isTimeBased ? (double)renderView->viewTicks / 1000 : (double)renderView->viewTicks;
-	const double invViewRegion = 1.0 / viewRegion;
-	const double invTimeMultiplier = 1.0 / (double)TIME_BASED_MULTIPLIER;
-
-	double targetTick = isTimeBased ? (accTime * TIME_BASED_MULTIPLIER) : accTime;
-
-	MIDIPlayerConfig* config = app->GetConfig();
-	auto keyFirst = config->render.GetKeyFirst();
-	auto keyLast = config->render.GetKeyLast();
-
-	int startRender = (blackArr[keyFirst] ? keyFirst - 1 : keyFirst);
-	int endRender = (blackArr[keyLast] ? keyLast + 1 : keyLast);
-
 	if (supportsCompute)
 	{
 		ShaderBind computeBind(*notesComputeProgram);
-		notesComputeProgram->SetFloat("currentTime", accTime);
-		notesComputeProgram->SetFloat("viewRegion", viewRegion);
+		const double originDouble = std::clamp(std::floor(f.nowTicks), 0.0, (double)UINT32_MAX);
+		notesComputeProgram->SetUInt("tickOrigin", (uint32_t)originDouble);
+		notesComputeProgram->SetFloat("currentTickOffset", (float)(f.nowTicks - originDouble));
+		notesComputeProgram->SetFloat("viewRegion", f.viewRegion);
 		notesComputeProgram->SetFloat("notesX", notesX);
 		notesComputeProgram->SetFloat("notesY", notesY);
 		notesComputeProgram->SetFloat("notesCY", notesCY);
 		notesComputeProgram->SetFloat("whiteCX", whiteCX);
 		notesComputeProgram->SetInt("isTimeBased", isTimeBased ? 1 : 0);
-		notesComputeProgram->SetFloat("timeMultiplier", invTimeMultiplier);
+		notesComputeProgram->SetFloat("timeMultiplier", f.invTimeMultiplier);
 		notesComputeProgram->SetInt("roundedNoteLengths", settings.roundedNoteLengths);
 	}
 
-	const double tickScale = isTimeBased ? (double)TIME_BASED_MULTIPLIER : 1.0;
-	const double nowTicks = accTime * tickScale;
-	const double viewTicks = viewRegion * tickScale;
-	const double marginPx = settings.roundedNoteLengths ? 1.0 : 0.02;
-	const size_t sparseLimit = (size_t)height / 4;
-
-	// pass 1 (serial): stats, key state, build job list
-	size_t jobCount = 0;
-	for (uint8_t id : kbIDs)
-	{
-		const NoteSequence& notesNote = notes[id];
-		if (notesNote.Size() == 0) continue;
-		auto& index = keyNoteIndices[id];
-
-		const size_t started = index.CountStartAtOrBefore(nowTicks);
-		const size_t ended = index.CountEndAtOrBefore(nowTicks);
-		notesPassed += started;
-		polyphony += started - ended;
-
-		ptrdiff_t active = index.LastActiveAt(nowTicks);
-		if (active >= 0)
+	CollectNotes(f,
+		{ .noteAreaPx = notesCY, .yBase = notesY + notesCY, .pixelSnap = settings.roundedNoteLengths },
+		[&](uint8_t id, uint16_t track, uint8_t channel)
 		{
-			keyStates[id].color.SetColor(colors.GetColor(notesNote.GetTrack(active), notesNote.GetChannel(active)));
+			keyStates[id].color.SetColor(colors.GetColor(track, channel));
 			keyStates[id].pressed = true;
-		}
+		});
 
-		if (id < startRender || id > endRender) continue;
-
-		const size_t startCap = index.CountStartAtOrBefore(nowTicks + viewTicks);
-		const size_t visible = index.CountVisible(nowTicks, startCap, ended);
-		if (visible == 0) continue;
-
-		jobs[jobCount++] = { id, startCap, visible <= sparseLimit };
-	}
-
-	// pass 2 (parallel): collect per-key indices
-	const double ticksPerPixel = viewTicks / notesCY;
-	// multiply by 0.499 instead of 0.5 to keep a little slack for the shader's float math
-	const uint32_t minGate = settings.roundedNoteLengths
-		? (uint32_t)std::ceil(0.499 * ticksPerPixel)
-		: 0u;
-
-	nextJob.store(0, std::memory_order_relaxed);
-	auto worker = [&]
-	{
-		for (size_t j; (j = nextJob.fetch_add(1, std::memory_order_relaxed)) < jobCount;)
+	size_t noteID = 0, batchCount = 0;
+	ForEachNote(f, [&](const NoteRef& n)
 		{
-			const KeyJob& job = jobs[j];
-			auto& index = keyNoteIndices[job.id];
-			auto& out = keepPerKey[job.id];
-
-			if (job.sparse)
-				index.CollectVisible(out, nowTicks, job.startCap, minGate);
-			else
-				index.CollectRowOwners(out, RowQuery{
-					.tNow = nowTicks, .ticksPerPixel = ticksPerPixel,
-					.yBase = notesY + notesCY, .rowBegin = 0, .rowEnd = (int)height,
-					.marginPx = marginPx, .startCap = job.startCap,
-					.minGate = minGate
-				});
-		}
-	};
-
-	collectFutures.clear();
-	const size_t extra = std::min(threadPool.WorkerCount(), jobCount);
-	for (size_t w = 1; w < extra; ++w)
-		collectFutures.push_back(threadPool.SubmitJobWithFuture(worker));
-	worker(); // calling thread helps too
-	for (auto& f : collectFutures) f.get();
-
-	for (size_t j = 0; j < jobCount; ++j)
-	{
-		const uint8_t id = jobs[j].id;
-		const NoteSequence& notesNote = notes[id];
-
-		uint16_t lastTrack = 0; uint8_t lastChannel = 0;
-		uint32_t lastTick = 0, lastGate = 0, lastNote = 0;
-
-		const bool isBlack = blackArr[id];
-		const float x = noteXTable[id];
-		const float cx = isBlack ? whiteCX * SharpRatio : whiteCX;
-
-		for (uint32_t i : keepPerKey[id])
-		{
-			const uint32_t nTick = notesNote.tick[i];
-			const uint32_t nGate = notesNote.gate[i];
-			const uint8_t  nNote = notesNote.GetKey(i);
-			const uint16_t nTrack = notesNote.GetTrack(i);
-			const uint8_t  nChannel = notesNote.GetChannel(i);
-
-			double noteStart = (double)nTick;
-			double noteEnd = (double)(nTick + nGate);
-			if (isTimeBased) { noteStart *= invTimeMultiplier; noteEnd *= invTimeMultiplier; }
-
-			if (noteStart > accTime + viewRegion || noteEnd <= accTime) continue; // safety, same culls as before
-
-			if (lastNote && nTick == lastTick && nNote == lastNote &&
-				nChannel == lastChannel && nTrack == lastTrack && nGate == lastGate)
-				continue;
-			lastTick = nTick; lastNote = nNote; lastChannel = nChannel; lastTrack = nTrack; lastGate = nGate;
-
 			if (supportsCompute)
-			{
-				gpuInputNotes[noteID++] = { nTick, nGate, nNote, colors.GetColor(nTrack, nChannel) };
-			}
+				gpuInputNotes[noteID++] = { n.tick, n.gate, n.id, colors.GetColor(n.track, n.channel) };
 			else
 			{
-				float yDistStart = (float)((noteStart - accTime) * invViewRegion) * notesCY;
-				float yDistEnd = (float)((noteEnd - accTime) * invViewRegion) * notesCY;
-
-				float noteBottom = notesY + notesCY - yDistStart;
-				float noteTop = notesY + notesCY - yDistEnd;
-
+				float noteBottom = notesY + notesCY - (float)(n.yStart * notesCY);
+				float noteTop = notesY + notesCY - (float)(n.yEnd * notesCY);
 				float noteCY = noteBottom - noteTop;
 				if (settings.roundedNoteLengths)
 				{
-					noteTop = std::round(noteTop);
-					noteCY = std::round(noteCY);
+					noteBottom = (float)Utils::RoundEven(noteBottom);
+					noteCY = (float)Utils::RoundEven(noteCY);
+					noteTop = noteBottom - noteCY;
 				}
-
-				renderNotes[noteID++] = {
-					x,
-					noteTop,
-					isBlack ? cx : whiteCX,
-					noteCY,
-					colors.GetColor(nTrack, nChannel)
-				};
+				renderNotes[noteID++] = { noteXTable[n.id], noteTop,
+					n.isBlack ? whiteCX * SharpRatio : whiteCX, noteCY,
+					colors.GetColor(n.track, n.channel) };
 			}
 
 			if (noteID >= NOTE_BUFFER_SIZE)
 			{
 				UploadNoteBuffer(NOTE_BUFFER_SIZE);
-				batchCount++;
-				if (batchCount >= NOTES_MAX_BATCHES)
-				{
-					glFlush();
-					batchCount = 0;
-				}
+				if (++batchCount >= NOTES_MAX_BATCHES) { glFlush(); batchCount = 0; }
 				noteID = 0;
 			}
-			notesToRender++;
-		}
-	}
+		});
 
-	if (noteID != 0)
+	if (noteID != 0) UploadNoteBuffer(noteID);
+	EndNoteFrame(f);
+
+	lastTime = f.tick;
+}
+
+// cycles through all buffers and returns the first one that's free
+size_t MIDIRendererPFA::AcquireNoteBuffer()
+{
+	for (size_t i = 0; i < SSBO_RING_SIZE; ++i)
 	{
-		UploadNoteBuffer(noteID);
-		batchCount++;
-	}
+		const size_t index = (currentBuffer + i) % SSBO_RING_SIZE;
 
-	noteCounterInfo->notesPassed.value = static_cast<uint64_t>(notesPassed);
-	noteCounterInfo->polyphony.value = static_cast<uint64_t>(polyphony);
-
-	if (!noteCounterInfo->npsHistory.empty() && playbackSeconds < noteCounterInfo->npsHistory.back().timeSeconds)
-	{
-		noteCounterInfo->npsHistory.clear();
-	}
-
-	noteCounterInfo->npsHistory.push_back({ playbackSeconds, static_cast<uint64_t>(notesPassed) });
-	while (!noteCounterInfo->npsHistory.empty() &&
-		(playbackSeconds - noteCounterInfo->npsHistory.front().timeSeconds) > 1.0)
-	{
-		noteCounterInfo->npsHistory.pop_front();
-	}
-
-	if (!noteCounterInfo->npsHistory.empty())
-	{
-		uint64_t notesOneSecondAgo = noteCounterInfo->npsHistory.front().totalNotes;
-		uint64_t currentNotes = static_cast<uint64_t>(notesPassed);
-
-		if (currentNotes >= notesOneSecondAgo)
+		if (!fences[index])
 		{
-			noteCounterInfo->notesPerSecond.value = currentNotes - notesOneSecondAgo;
+			currentBuffer = index;
+			return index;
 		}
-		else
+
+		GLenum result = glClientWaitSync(fences[index], 0, 0);
+
+		// this buffer is free
+		if (result == GL_ALREADY_SIGNALED || result == GL_CONDITION_SATISFIED)
 		{
-			noteCounterInfo->notesPerSecond.value = 0;
+			glDeleteSync(fences[index]);
+			fences[index] = nullptr;
+			currentBuffer = index;
+			return index;
 		}
-	}
-	else
-	{
-		noteCounterInfo->notesPerSecond.value = 0;
+
+		if (result == GL_WAIT_FAILED)
+		{
+			// don't reuse a buffer whose synchronization status couldn't be determined
+			continue;
+		}
 	}
 
-	lastTime = time;
+	// all buffers are busy. wait for the next candidate.
+	const size_t index = currentBuffer;
+
+	GLenum result;
+
+	// poll for 1 ms
+	do
+	{
+		result = glClientWaitSync(fences[index], GL_SYNC_FLUSH_COMMANDS_BIT, 1'000'000ULL);
+	} while (result == GL_TIMEOUT_EXPIRED);
+
+	// one buffer has been freed, use that one
+	if (result == GL_ALREADY_SIGNALED || result == GL_CONDITION_SATISFIED)
+	{
+		glDeleteSync(fences[index]);
+		fences[index] = nullptr;
+		currentBuffer = index;
+		return index;
+	}
+
+	// unexpected synchronization failure (wtf)
+	return SIZE_MAX;
 }
 
 void MIDIRendererPFA::UploadNoteBuffer(size_t count)
 {
 	if (!notesIBO) return;
 
+	size_t freeBuffer = 0;
 	if (supportsCompute)
 	{
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, rawNotesSSBO);
+		freeBuffer = AcquireNoteBuffer();
+		if (freeBuffer == SIZE_MAX) return;
+
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, rawNotesSSBO[freeBuffer]);
+		// try orphaning
+		glBufferData(GL_SHADER_STORAGE_BUFFER, NOTE_BUFFER_SIZE * sizeof(GPUInputPFANote), nullptr, GL_STREAM_DRAW);
 		glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, count * sizeof(GPUInputPFANote), gpuInputNotes.data());
 	
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, rawNotesSSBO);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, rawNotesSSBO[freeBuffer]);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, outputNotesSSBO);
 
 		notesComputeProgram->Bind();
@@ -1104,6 +989,12 @@ void MIDIRendererPFA::UploadNoteBuffer(size_t count)
 		nullptr,
 		count
 	);
+
+	if (supportsCompute)
+	{
+		fences[freeBuffer] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+		currentBuffer = (freeBuffer + 1) % SSBO_RING_SIZE;
+	}
 }
 
 void MIDIRendererPFA::RenderSettings()

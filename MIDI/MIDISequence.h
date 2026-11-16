@@ -8,6 +8,8 @@
 #include <fstream>
 #include <memory>
 #include "MIDIDefs.h"
+#include <atomic>
+
 #define NOTE_BLOCK_SIZE 1024
 
 class TempoMap;
@@ -30,7 +32,6 @@ public:
 	long length = 0;
 	uint32_t longestNoteLength = 0;
 	bool timeBased = false;
-
 	MIDISequence();
 	MIDISequence(const char* name);
 	~MIDISequence();
@@ -86,4 +87,16 @@ public:
 		}
 		return res;
 	}
+
+	// Call this ONLY when loading a new midi.
+	[[nodiscard]] static uint64_t NextSequenceID() noexcept
+	{
+		static std::atomic<uint64_t> sequenceID = 0;
+		return sequenceID.fetch_add(1, std::memory_order_relaxed);
+	}
+
+	void SetSequenceID(uint64_t id) noexcept { sequenceID = id; }
+	[[nodiscard]] uint64_t GetSequenceID() const noexcept { return sequenceID; }
+private:
+	uint64_t sequenceID = 0;
 };

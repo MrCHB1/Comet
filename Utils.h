@@ -15,6 +15,12 @@
 #include <glm/glm.hpp>
 #include <yaml-cpp/yaml.h>
 
+#include <cmath>
+#if defined(__SSE4_1__) || defined(__AVX__) || (defined(_MSC_VER) && (defined(_M_X64) || defined(_M_AMD64)))
+#include <smmintrin.h>
+#define COMET_HAS_ROUNDSD 1
+#endif
+
 struct ImVec4;
 
 #if defined(_WIN32)
@@ -138,5 +144,55 @@ namespace Utils
 			(void)dialogType;
 #endif
 		}
+	}
+
+	class ProfileBlock
+	{
+		using Clock = std::chrono::steady_clock;
+
+		struct ProfileStats
+		{
+			size_t frames = 0;
+			double totalMs = 0.0;
+		};
+
+		inline static constexpr size_t FRAMES_PER_DEBUG = 15;
+		inline static std::unordered_map<std::string, ProfileStats> sections;
+	public:
+		ProfileBlock(const char* sectionName)
+			: sectionName(sectionName), startTime(Clock::now())
+		{
+		}
+
+		~ProfileBlock()
+		{
+			const double diffMs = std::chrono::duration<double, std::milli>(Clock::now() - startTime).count();
+			auto& stats = sections[sectionName];
+			stats.totalMs += diffMs;
+
+			if (++stats.frames >= FRAMES_PER_DEBUG)
+			{
+				std::cout << sectionName << ": " << stats.totalMs / FRAMES_PER_DEBUG << "ms/frame\n";
+
+				stats.frames = 0;
+				stats.totalMs = 0.0;
+			}
+		}
+	private:
+		const char* sectionName = nullptr;
+		Clock::time_point startTime;
+	};
+
+	// Round half to even. One instruction on x64; independent of the FP rounding mode there.
+	inline double RoundEven(double v)
+	{
+#if defined(COMET_HAS_ROUNDSD)
+		const __m128d x = _mm_set_sd(v);
+		return _mm_cvtsd_f64(_mm_round_sd(x, x, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC));
+#else
+		// Portable fallback: valid for |v| < 2^51, assumes default FP mode and no fast-math.
+		constexpr double M = 6755399441055744.0; // 1.5 * 2^52
+		return (v + M) - M;
+#endif
 	}
 }

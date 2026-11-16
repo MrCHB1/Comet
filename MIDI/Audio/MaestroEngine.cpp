@@ -227,7 +227,18 @@ void MaestroEngine::GeneratorLoop(MIDISequence* seq)
 
     auto tickNs = [&](uint64_t tick) -> int64_t
     {
-        return SecondsToNs(tempoMap->TicksToSecsFromMap(resolution, tick));
+        if (seq->timeBased)
+        {
+            const long double ns =
+                static_cast<long double>(tick) * 1'000'000'000.0L
+                / static_cast<long double>(TIME_BASED_MULTIPLIER);
+
+            if (ns >= NS_LIMIT) return NS_LIMIT;
+            return static_cast<int64_t>(std::llroundl(ns));
+        }
+
+        return SecondsToNs(
+            tempoMap->TicksToSecsFromMap(resolution, tick));
     };
 
     struct PendingNoteOff

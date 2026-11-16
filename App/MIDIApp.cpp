@@ -130,6 +130,7 @@ void MIDIApp::LoadMIDI(const char* path)
 		if (!hasStopped && seq)
 		{
 			this->pendingTitle = std::filesystem::path(pathStr).filename().string();
+			seq->SetSequenceID(MIDISequence::NextSequenceID()); // will be used for rebuilding key index data
 			this->pendingSeq = std::move(seq);
 			this->hasPendingSeq.store(true);
 		}
@@ -189,7 +190,11 @@ void MIDIApp::SetRenderer()
 
 	// get renderer's sequence so the new one can automatically load it
 	MIDISequence* seq = nullptr;
-	if (this->renderer) seq = GetRenderer()->GetSequence();
+	if (this->renderer) seq = this->renderer->GetSequence();
+
+	// and finally, get old key indices
+	std::unique_ptr<KeyNoteIndexData> keyIndexData =
+		this->renderer ? this->renderer->TakeKeyIndexData() : nullptr;
 
 	this->renderer = std::make_unique<T>(this);
 	this->renderer->OnResize(width, height);
@@ -203,7 +208,11 @@ void MIDIApp::SetRenderer()
 		this->renderer->LoadSettings(config.renderersSettings[newKey]);
 	}
 
-	if (seq != nullptr) this->renderer->LoadSequence(seq);
+	if (seq != nullptr)
+	{
+		if (keyIndexData) this->renderer->SetKeyIndexData(std::move(keyIndexData));
+		this->renderer->LoadSequence(seq);
+	}
 
 	if (blurredQuadRenderer)
 		blurredQuadRenderer->SetSceneTexture(this->renderer->GetSceneTexture());
@@ -230,7 +239,7 @@ template void MIDIApp::SetRenderer<MIDIRendererEnhanced>();
 template void MIDIApp::SetRenderer<MIDIRendererMIDITrail>();
 template void MIDIApp::SetRenderer<MIDIRendererChannels>();
 template void MIDIApp::SetRenderer<MIDIRendererVelocities>();
-template void MIDIApp::SetRenderer<MIDIRendererCounter>(); // <--- errors here
+template void MIDIApp::SetRenderer<MIDIRendererCounter>();
 
 // called after glfw/glad initialization has finished, and is safe to load stuff, such as images, for rendering
 void MIDIApp::LoadResources()

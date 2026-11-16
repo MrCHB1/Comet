@@ -174,27 +174,203 @@ target_include_directories(nfd PUBLIC
 )
 
 add_executable(Comet
+    # --- Root / entry point -------------------------------------------------
     "Comet.cpp"
-    App/MainWindow.cpp
-    App/MIDIApp.cpp
-    MIDI/SavedInputStream.cpp
-    MIDI/ProgressInputStream.cpp
     Inter.hpp
     FiraCode.hpp
     icon32.hpp
+    RLEvec.h
+    Utils.cpp
+    IntervalThread.h
+    IntervalThread.cpp
+    UpdateChecker.h
+    UpdateChecker.cpp
+
+    # --- Vendored single-header libraries (repo root) ------------------------
+    stb_image.cpp
+    stb_image_write.cpp
+    stb_image_write.h
+    tiny_obj_loader.h
+
+    # --- App ----------------------------------------------------------------
+    App/MainWindow.cpp
+    App/MIDIApp.cpp
+    App/Fonts.h
+    App/Fonts.cpp
+    App/FontList.h
+    App/FontList.cpp
+    App/Models.h
+    App/Models.cpp
+    App/Diagnosis/DiagnosisDialog.h
+    App/Diagnosis/DiagnosisDialog.cpp
+    App/Diagnosis/DiagnosisFieldView.h
+    App/Diagnosis/DiagnosisFieldView.cpp
+    App/Diagnosis/DiagnosisPanel.h
+    App/Diagnosis/DiagnosisPanel.cpp
+    App/Dialog/DialogMacros.h
+    App/Dialog/LoadingDialog.h
+    App/Dialog/LoadingDialog.cpp
+    App/Dialog/MessageDialog.h
+    App/Dialog/MessageDialog.cpp
+    App/Dialog/RenderVideoDialog.h
+    App/Dialog/RenderVideoDialog.cpp
+    App/Dialog/SettingsDialog.h
+    App/Dialog/SettingsDialog.cpp
+    App/UI/Dialog.h
+    App/UI/NavigationBar.h
+    App/UI/NavigationBar.cpp
+    App/UI/Themes/Themes.h
+    App/UI/Themes/Themes.cpp
+    App/UI/Widgets/ThinSlider.h
+    App/UI/Widgets/ThinSlider.cpp
+    App/UI/Widgets/TimeRange.h
+    App/UI/Widgets/TimeRange.cpp
+    App/VideoRender/RenderSettings.h
+
+    # --- MIDI ----------------------------------------------------------------
+    MIDI/AbstractMIDILoader.h
+    MIDI/MIDIDefs.h
+    MIDI/MIDILoader.h
+    MIDI/MIDILoader.cpp
+    MIDI/MIDISequence.h
+    MIDI/MIDISequence.cpp
+    MIDI/MultithreadedMIDILoader.h
+    MIDI/MultithreadedMIDILoader.cpp
+    MIDI/ProgressInputStream.cpp
+    MIDI/SavedInputStream.cpp
+    MIDI/TempoMap.h
+    MIDI/TempoMap.cpp
+    MIDI/Events/MIDIMessageEvent.h
+    MIDI/Events/NoteEvent.h
+    MIDI/Events/TempoEvent.h
+    MIDI/Events/TimeSignatureEvent.h
+    MIDI/Events/TrackEvent.h
+    MIDI/Sequence/SequenceFuncs.h
+    MIDI/Sequence/SequenceFuncs.cpp
+    MIDI/Timer/MIDITimer.h
+    MIDI/Timer/MIDITimer.cpp
     MIDI/Diagnosis/ADiagnosis.h
     MIDI/Diagnosis/ADiagnosis.cpp
     MIDI/Diagnosis/BasicDiagnosis.cpp
-    App/Diagnosis/DiagnosisDialog.cpp
-    App/Diagnosis/DiagnosisDialog.h
-    App/UI/Dialog.h
-    stb_image_write.h
-    stb_image.cpp
-    stb_image_write.cpp
-    tiny_obj_loader.h
-    ColorPalette/ColorPaletteList.h
+    MIDI/Diagnosis/BlackMIDIDiagnosis.h
+    MIDI/Diagnosis/BlackMIDIDiagnosis.cpp
+    MIDI/Diagnosis/Diagnoses.h
+    MIDI/Diagnosis/Diagnoses.cpp
+    MIDI/Diagnosis/DiagnosisException.h
+    MIDI/Diagnosis/DiagnosisField.cpp
+    MIDI/Diagnosis/DiagnosisMessage.h
+    MIDI/Audio/AudioThread.h
+    MIDI/Audio/AudioThread.cpp
     MIDI/Audio/MaestroEngine.cpp
- "MIDI/Diagnosis/DiagnosisField.cpp" "Utils.cpp" "MIDI/Diagnosis/Diagnoses.h" "MIDI/Diagnosis/Diagnoses.cpp" "App/Diagnosis/DiagnosisPanel.h" "App/Diagnosis/DiagnosisPanel.cpp" "App/Diagnosis/DiagnosisFieldView.h" "App/Diagnosis/DiagnosisFieldView.cpp"  "IntervalThread.h" "IntervalThread.cpp" "MIDI/AbstractMIDILoader.h" "MIDI/MIDISequence.h" "MIDI/Events/MIDIMessageEvent.h" "MIDI/Events/TrackEvent.h" "MIDI/Events/TempoEvent.h" "MIDI/Events/NoteEvent.h" "MIDI/MIDISequence.cpp" "MIDI/Diagnosis/BlackMIDIDiagnosis.h" "MIDI/Diagnosis/BlackMIDIDiagnosis.cpp" "MIDI/Diagnosis/DiagnosisMessage.h" "MIDI/Diagnosis/DiagnosisException.h" "IO/BufferedByteReader.h" "IO/BufferedByteReader.cpp" "IO/InputStream.h" "IO/InputStream.cpp" "ResourcePack/ResourcePack.h" "Render/RenderUtils.h" "ResourcePack/ResourcePackInfo.h" "ResourcePack/SignatureState.h" "ResourcePack/ResourcePack.cpp" "ResourcePack/FolderResourcePack.h" "ResourcePack/FolderResourcePack.cpp" "Config/ConfigSection.h" "Config/ConfigSection.cpp" "ResourcePack/ResourcePackVerifier.h" "ResourcePack/DefaultResourcePack.h" "ResourcePack/DefaultResourcePack.cpp" "Config/MIDIPlayerConfig.h" "Render/ColorAsset.h" "Render/GPUImage.h" "Render/GPUImage.cpp" "Render/ColorAsset.cpp" "Render/MIDIRenderer.h" "Render/MIDIRenderer.cpp" "Render/RenderEngine/Shaders.h" "Render/RenderEngine/Shaders.cpp" "Render/RenderEngine/Buffers.h" "Render/RenderEngine/Buffers.cpp" "Render/Renderer/QuadDrawer.h" "Render/Renderer/PrimitiveDrawer.h" "Render/Renderer/PrimitiveDrawer.cpp" "MIDI/MIDILoader.h" "MIDI/MIDILoader.cpp" "App/Dialog/LoadingDialog.h" "App/Dialog/LoadingDialog.cpp" "MIDI/Sequence/SequenceFuncs.h" "MIDI/Sequence/SequenceFuncs.cpp" "Render/RenderView.h" "MIDI/MIDIDefs.h" "MIDI/Timer/MIDITimer.h" "MIDI/Timer/MIDITimer.cpp" "MIDI/TempoMap.h" "MIDI/TempoMap.cpp" "App/UI/NavigationBar.h" "App/UI/NavigationBar.cpp" "Render/NoteCounter/NoteCounterInfo.h" "Render/NoteCounter/NoteCounterRenderer.h" "Render/NoteCounter/NoteCounterStyles.h" "Render/NoteCounter/NoteCounterRenderer.cpp" "Render/Renderer/PrimitiveShaders.h" "Render/BlurredQuadRenderer.h" "App/Dialog/RenderVideoDialog.h" "App/Dialog/RenderVideoDialog.cpp" "App/VideoRender/RenderSettings.h" "FFmpeg/FFmpegPipe.h" "Render/NoteCounter/NoteCounterInfo.cpp" "App/Dialog/SettingsDialog.h" "App/Dialog/SettingsDialog.cpp" "ResourcePack/ZipResourcePack.h" "ResourcePack/ZipResourcePack.cpp" "ResourcePack/ResourcePackList.h" "ResourcePack/ResourcePackList.cpp" "FFmpeg/FFmpegGPU.h" "FFmpeg/FFmpegGPU.cpp" "FFmpeg/FFmpegCommandBuilder.h" "FFmpeg/FFmpegCommandBuilder.cpp" "App/Fonts.h" "App/Fonts.cpp" "ColorPalette/ColorPaletteList.cpp" "MIDI/Audio/MIDIOut.h" "MIDI/Audio/MIDIOut.cpp" "MIDI/Audio/AudioThread.h" "MIDI/Audio/AudioThread.cpp" "Config/MIDIPlayerConfig.cpp" "MIDI/MultithreadedMIDILoader.h" "MIDI/MultithreadedMIDILoader.cpp" "Render/MIDIRendererEnhanced.h" "Render/MIDIRendererEnhanced.cpp" "Render/Renderer/AbstractMIDIRenderer.cpp" "Render/RenderEngine/OBJMesh.h" "Render/RenderEngine/OBJMesh.cpp" "App/Models.h" "App/Models.cpp" "App/UI/Themes/Themes.h" "App/UI/Themes/Themes.cpp"  "Render/MIDIRendererMIDITrail.h" "Render/MIDIRendererMIDITrail.cpp" "MIDI/Events/TimeSignatureEvent.h" "Render/MIDIRendererChannels.h" "Render/MIDIRendererChannels.cpp" "Render/MIDIRendererPFA.h" "Render/MIDIRendererPFA.cpp" "Render/MIDIRendererVelocities.h" "Render/MIDIRendererVelocities.cpp" "Render/MIDIRendererEnhancedShaders.h" "MIDI/Audio/MIDIAudio.h" "MIDI/Audio/MIDIAudio.cpp" "MIDI/Audio/PrerenderEngine/BASSMIDI.h" "MIDI/Audio/PrerenderEngine/BASSMIDI.cpp" "MIDI/Audio/PrerenderEngine/PrerenderedEngine.h" "MIDI/Audio/PrerenderEngine/PrerenderedEngine.cpp" "App/FontList.h" "App/FontList.cpp" "App/Dialog/DialogMacros.h" "Concurrency/ThreadPool.h" "Concurrency/ThreadPool.cpp" "Render/MIDIRendererSynthesia.h" "Render/MIDIRendererSynthesia.cpp" "Render/RenderEngine/TextureArray.h" "Render/RenderEngine/TextureArray.cpp" "Render/Renderer/NoteCuller.h" "Render/Renderer/NoteCuller.cpp" "RLEvec.h" "Render/MIDIRendererCounter.cpp" "Render/NoteCounter/AbstractOverlayRenderer.h" "Render/NoteCounter/AbstractOverlayRenderer.cpp" "Render/NoteCounter/StatsOverlayRenderer.h" "Render/NoteCounter/StatsOverlayRenderer.cpp" "App/UI/Widgets/TimeRange.h" "App/UI/Widgets/TimeRange.cpp" "App/UI/Widgets/ThinSlider.h" "App/UI/Widgets/ThinSlider.cpp" "UpdateChecker.h" "UpdateChecker.cpp" "App/Dialog/MessageDialog.h" "App/Dialog/MessageDialog.cpp"  "MIDI/Audio/SoundfontList.cpp" "Render/Renderer/KeyNoteIndex.h")
+    MIDI/Audio/MIDIAudio.h
+    MIDI/Audio/MIDIAudio.cpp
+    MIDI/Audio/MIDIOut.h
+    MIDI/Audio/MIDIOut.cpp
+    MIDI/Audio/SoundfontList.cpp
+    MIDI/Audio/PrerenderEngine/BASSMIDI.h
+    MIDI/Audio/PrerenderEngine/BASSMIDI.cpp
+    MIDI/Audio/PrerenderEngine/PrerenderedEngine.h
+    MIDI/Audio/PrerenderEngine/PrerenderedEngine.cpp
+
+    # --- IO ------------------------------------------------------------------
+    IO/BufferedByteReader.h
+    IO/BufferedByteReader.cpp
+    IO/InputStream.h
+    IO/InputStream.cpp
+
+    # --- Config --------------------------------------------------------------
+    Config/ConfigSection.h
+    Config/ConfigSection.cpp
+    Config/MIDIPlayerConfig.h
+    Config/MIDIPlayerConfig.cpp
+
+    # --- ResourcePack --------------------------------------------------------
+    ResourcePack/DefaultResourcePack.h
+    ResourcePack/DefaultResourcePack.cpp
+    ResourcePack/FolderResourcePack.h
+    ResourcePack/FolderResourcePack.cpp
+    ResourcePack/ResourcePack.h
+    ResourcePack/ResourcePack.cpp
+    ResourcePack/ResourcePackInfo.h
+    ResourcePack/ResourcePackList.h
+    ResourcePack/ResourcePackList.cpp
+    ResourcePack/ResourcePackVerifier.h
+    ResourcePack/SignatureState.h
+    ResourcePack/ZipResourcePack.h
+    ResourcePack/ZipResourcePack.cpp
+
+    # --- Render (renderers) --------------------------------------------------
+    Render/RenderUtils.h
+    Render/RenderView.h
+    Render/BlurredQuadRenderer.h
+    Render/ColorAsset.h
+    Render/ColorAsset.cpp
+    Render/GPUImage.h
+    Render/GPUImage.cpp
+    Render/MIDIRenderer.h
+    Render/MIDIRenderer.cpp
+    Render/MIDIRendererChannels.h
+    Render/MIDIRendererChannels.cpp
+    Render/MIDIRendererCounter.cpp
+    Render/MIDIRendererEnhanced.h
+    Render/MIDIRendererEnhanced.cpp
+    Render/MIDIRendererEnhancedShaders.h
+    Render/MIDIRendererMIDITrail.h
+    Render/MIDIRendererMIDITrail.cpp
+    Render/MIDIRendererPFA.h
+    Render/MIDIRendererPFA.cpp
+    Render/MIDIRendererSynthesia.h
+    Render/MIDIRendererSynthesia.cpp
+    Render/MIDIRendererVelocities.h
+    Render/MIDIRendererVelocities.cpp
+
+    # --- Render/RenderEngine -------------------------------------------------
+    Render/RenderEngine/Buffers.h
+    Render/RenderEngine/Buffers.cpp
+    Render/RenderEngine/OBJMesh.h
+    Render/RenderEngine/OBJMesh.cpp
+    Render/RenderEngine/Shaders.h
+    Render/RenderEngine/Shaders.cpp
+    Render/RenderEngine/TextureArray.h
+    Render/RenderEngine/TextureArray.cpp
+
+    # --- Render/Renderer -----------------------------------------------------
+    Render/Renderer/AbstractMIDIRenderer.cpp
+    Render/Renderer/KeyNoteIndex.h
+    Render/Renderer/KeyNoteIndexData.h
+    Render/Renderer/NoteCuller.h
+    Render/Renderer/NoteCuller.cpp
+    Render/Renderer/PrimitiveDrawer.h
+    Render/Renderer/PrimitiveDrawer.cpp
+    Render/Renderer/PrimitiveShaders.h
+    Render/Renderer/QuadDrawer.h
+
+    # --- Render/NoteCounter --------------------------------------------------
+    Render/NoteCounter/AbstractOverlayRenderer.h
+    Render/NoteCounter/AbstractOverlayRenderer.cpp
+    Render/NoteCounter/NoteCounterInfo.h
+    Render/NoteCounter/NoteCounterInfo.cpp
+    Render/NoteCounter/NoteCounterRenderer.h
+    Render/NoteCounter/NoteCounterRenderer.cpp
+    Render/NoteCounter/NoteCounterStyles.h
+    Render/NoteCounter/StatsOverlayRenderer.h
+    Render/NoteCounter/StatsOverlayRenderer.cpp
+
+    # --- FFmpeg --------------------------------------------------------------
+    FFmpeg/FFmpegCommandBuilder.h
+    FFmpeg/FFmpegCommandBuilder.cpp
+    FFmpeg/FFmpegGPU.h
+    FFmpeg/FFmpegGPU.cpp
+    FFmpeg/FFmpegPipe.h
+
+    # --- Concurrency ---------------------------------------------------------
+    Concurrency/ThreadPool.h
+    Concurrency/ThreadPool.cpp
+
+    # --- ColorPalette --------------------------------------------------------
+    ColorPalette/ColorPaletteList.h
+    ColorPalette/ColorPaletteList.cpp
+)
 
 target_precompile_headers(Comet PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/pch.h"
@@ -208,7 +384,7 @@ set_source_files_properties(
 
  target_include_directories(Comet PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
- )
+)
 
  target_sources(Comet PRIVATE
     ${imgui_knobs_SOURCE_DIR}/imgui-knobs.cpp
@@ -216,7 +392,7 @@ set_source_files_properties(
 
   target_include_directories(Comet PRIVATE
     ${imgui_knobs_SOURCE_DIR}
- )
+)
 
 target_link_libraries(Comet PRIVATE
     hwy

@@ -12,6 +12,7 @@
 #include <vector>
 #include <bit>
 #include "Concurrency/ThreadPool.h"
+#include "Utils.h"
 
 struct RowQuery
 {
@@ -23,7 +24,9 @@ struct RowQuery
     double marginPx;
     size_t startCap;
 
-    uint32_t minGate = 0;
+    uint32_t minGate = 0; // smallest gate that a note can be before the key index starts ignoring it.
+    double minVisualPx = 0;  // smallest gate that a note renders as. used for synthesia renderer
+    bool pixelSnap = false;
 };
 
 class KeyNoteIndex
@@ -135,10 +138,11 @@ public:
     }
 
     // Largest index <= iMax whose end >= x, or -1.
-    ptrdiff_t RightmostEndAtLeast(ptrdiff_t iMax, double x) const
+    ptrdiff_t RightmostEndAtLeast(ptrdiff_t iMax, double x, double m = 0.0) const
     {
-        if (iMax < 0 || n_ == 0)
-            return -1;
+        if (iMax < 0 || n_ == 0) return -1;
+        iMax = std::min<ptrdiff_t>(iMax, (ptrdiff_t)n_ - 1);
+        if (m > 0.0 && (double)tick_[iMax] >= x - m) return iMax;
 
         const size_t maxIndex = std::min(static_cast<size_t>(iMax), n_ - 1);
         const size_t block = maxIndex / B;
@@ -196,7 +200,7 @@ public:
 
     // Every potentially visible note, ascending. Uses the segment tree, so it costs ~O(k log n).
     void CollectVisible(std::vector<uint32_t>& out, double tNow,
-        size_t startCap, uint32_t minGate = 0) const
+        size_t startCap, uint32_t minGate = 0, double m = 0.0) const
     {
         out.clear();
         startCap = std::min(startCap, n_);
@@ -204,10 +208,20 @@ public:
             return;
 
         const double x = std::nextafter(tNow, std::numeric_limits<double>::infinity());
-        CollectRangeAtLeast(out, 0, startCap - 1, x, minGate);   // yields descending
+        CollectRangeAtLeast(out, 0, startCap - 1, x, minGate, m);   // yields descending
         std::reverse(out.begin(), out.end());
     }
 private:
+    static double SnapRound(double v) { return Utils::RoundEven(v); }
+
+    // Pixel rows [top, bottom) that note i is drawn into when snapped.
+    void SnappedRows(size_t i, const RowQuery& q, double& top, double& bottom) const
+    {
+        const double inv = 1.0 / q.ticksPerPixel;
+        bottom = SnapRound(q.yBase - (static_cast<double>(tick_[i]) - q.tNow) * inv);
+        top = bottom - SnapRound(static_cast<double>(gate_[i]) * inv);
+    }
+
     struct OwnerSet
     {
         std::vector<uint64_t> bits;
@@ -255,14 +269,21 @@ private:
     {
         const double margin = q.marginPx * q.ticksPerPixel;
         const size_t cap = std::min(q.startCap, n_);
+        const double m = q.minVisualPx * q.ticksPerPixel;
 
         if (cap == 0)
             return;
 
-        const double endFloor =
-            std::nextafter(q.tNow, std::numeric_limits<double>::infinity());
+        // Conservative slack (ticks) so the superset search never misses a
+        // note whose snapped extent reaches the row. Zero when not snapping.
+        constexpr double kEps = 1e-6;
+        const double sp = q.pixelSnap ? (1.0 + kEps) * q.ticksPerPixel : 0.0; // start side
+        const double ep = q.pixelSnap ? (0.5 + kEps) * q.ticksPerPixel : 0.0; // end side
 
-        // Each row band initializes its own monotonic cursors once.
+        const double endFloor = std::nextafter(q.tNow, std::numeric_limits<double>::infinity());
+
+        std::vector<uint32_t> scratch; // snapped path only; reused across rows
+
         bool firstRow = true;
         size_t cL = 0;
         size_t cS = 0;
@@ -275,49 +296,83 @@ private:
 
             const double startHi = t + margin;
             const double startLo = t - margin;
+            const double cntHi = startHi + sp;
+            const double cntLo = startLo + sp;
 
             if (firstRow)
             {
-                cL = std::min(cap, CountStartBefore(startHi));
-                cS = std::min(cap, CountStartBefore(startLo));
+                cL = std::min(cap, CountStartBefore(cntHi));
+                cS = std::min(cap, CountStartBefore(cntLo));
                 firstRow = false;
             }
             else
             {
-                while (cL < cap &&
-                    static_cast<double>(tick_[cL]) < startHi)
-                    ++cL;
-
-                while (cS < cap &&
-                    static_cast<double>(tick_[cS]) < startLo)
-                    ++cS;
+                while (cL < cap && static_cast<double>(tick_[cL]) < cntHi) ++cL;
+                while (cS < cap && static_cast<double>(tick_[cS]) < cntLo) ++cS;
             }
 
             if (cL == 0)
                 continue;
 
-            const double xLo = std::max(startLo, endFloor);
-            const double xHi = std::max(startHi, endFloor);
+            const double xLo = std::max(startLo - ep, endFloor);
+            const double xHi = std::max(startHi - ep, endFloor);
 
             const ptrdiff_t iL =
-                RightmostEndAtLeast(static_cast<ptrdiff_t>(cL) - 1, xLo);
-
+                RightmostEndAtLeast(static_cast<ptrdiff_t>(cL) - 1, xLo, m);
             if (iL < 0)
                 continue;
 
-            const ptrdiff_t iS = cS
-                ? RightmostEndAtLeast(static_cast<ptrdiff_t>(cS) - 1, xHi)
+            if (!q.pixelSnap)
+            {
+                const ptrdiff_t iS = cS
+                    ? RightmostEndAtLeast(static_cast<ptrdiff_t>(cS) - 1, xHi, m)
+                    : -1;
+
+                if (iL > iS)
+                    CollectRangeAtLeast(out, static_cast<size_t>(iS + 1),
+                        static_cast<size_t>(iL), xLo, q.minGate, m);
+
+                if (iS >= 0 && gate_[static_cast<size_t>(iS)] >= q.minGate)
+                    out.push_back(static_cast<uint32_t>(iS));
+                continue;
+            }
+
+            // ---- pixel-snapped path: exact test on the superset ----
+            const double c = static_cast<double>(r) + 0.5;
+            const double wLo = c - q.marginPx;
+            const double wHi = c + q.marginPx;
+
+            // Rightmost note whose *snapped* extent fully covers the window.
+            // The superset search can return false positives near the rounding
+            // boundary, so step left until one passes the exact test.
+            ptrdiff_t iS = cS
+                ? RightmostEndAtLeast(static_cast<ptrdiff_t>(cS) - 1, xHi, m)
                 : -1;
+            while (iS >= 0)
+            {
+                double top, bot;
+                SnappedRows(static_cast<size_t>(iS), q, top, bot);
+                if (top <= wLo && bot >= wHi)
+                    break;
+                iS = iS > 0 ? RightmostEndAtLeast(iS - 1, xHi, m) : -1;
+            }
 
             if (iL > iS)
             {
-                CollectRangeAtLeast(out,
-                    static_cast<size_t>(iS + 1),
-                    static_cast<size_t>(iL),
-                    xLo, q.minGate);
+                scratch.clear();
+                CollectRangeAtLeast(scratch, static_cast<size_t>(iS + 1),
+                    static_cast<size_t>(iL), xLo, q.minGate, m);
+
+                for (const uint32_t i : scratch)
+                {
+                    double top, bot;
+                    SnappedRows(i, q, top, bot);
+                    if (top < wHi && bot > wLo)
+                        out.push_back(i);
+                }
             }
 
-            if (iS >= 0)
+            if (iS >= 0 && gate_[static_cast<size_t>(iS)] >= q.minGate)
                 out.push_back(static_cast<uint32_t>(iS));
         }
     }
@@ -327,19 +382,26 @@ private:
     template <class Out>
     void CollectRangeAtLeast(Out& out,
         size_t indexLo, size_t indexHi,
-        double x, uint32_t minGate) const
+        double x, uint32_t minGate, double m = 0.0) const
     {
-        if (indexLo > indexHi || indexLo >= n_)
-            return;
-
+        if (indexLo > indexHi || indexLo >= n_) return;
         indexHi = std::min(indexHi, n_ - 1);
+       
+        const size_t s0 = m > 0.0 ? CountStartBefore(x - m) : indexHi + 1;
+        for (size_t i = indexHi + 1; i > std::max(indexLo, s0);)
+        {
+            --i;
+            if (gate_[i] >= minGate) out.push_back((uint32_t)i);
+        }
 
         const size_t firstBlock = indexLo / B;
         const size_t lastBlock = indexHi / B;
 
-        CollectBlocksAtLeast(
-            out, 1, 0, size_, firstBlock, lastBlock,
-            indexLo, indexHi, x, minGate);
+        if (s0 > indexLo)
+            CollectBlocksAtLeast(out, 1, 0, size_,
+                indexLo / B, std::min(indexHi, s0 - 1) / B,
+                indexLo,     std::min(indexHi, s0 - 1),
+                x, minGate);
     }
 
     template <class Out>

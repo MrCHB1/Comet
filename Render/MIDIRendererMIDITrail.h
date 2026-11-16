@@ -161,7 +161,6 @@ private:
 	std::array<float, MIDI_KEYS> keyWidth{};
 	std::array<RenderKeyboardKeyMT, MIDI_KEYS> keyboardData{};
 	std::array<KeyboardMetaMT, MIDI_KEYS> keyMetas{};
-	std::array<uint8_t, MIDI_KEYS> kbIDs{};
 	#pragma endregion
 
 	#pragma region Note data

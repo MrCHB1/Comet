@@ -6,7 +6,6 @@
 #include "RenderEngine/Buffers.h"
 #include "RenderEngine/Shaders.h"
 #include "Renderer/NoteCuller.h"
-#include "Renderer/KeyNoteIndex.h"
 
 #define NOTES_MAX_BATCHES 131072
 
@@ -18,7 +17,7 @@ struct PFARenderSettings
 };
 
 #define RECTS_PER_PASS 16384
-#define NOTE_BUFFER_SIZE 131072
+#define NOTE_BUFFER_SIZE 65536
 #define MAX_BATCHES 64
 
 struct RenderColor
@@ -106,21 +105,17 @@ private:
 	std::vector<RenderColor> noteColors;
 #pragma endregion
 
-#pragma region Key Indices
-	struct KeyJob { uint8_t id; size_t startCap; bool sparse; };
-	std::array<KeyJob, MIDI_KEYS> jobs;
-	std::array<std::vector<uint32_t>, MIDI_KEYS> keepPerKey; // persistent, never shrinks
-	std::vector<std::future<void>> collectFutures;           // reserve(WorkerCount) once
-	std::atomic<size_t> nextJob{ 0 };
-
-	std::array<KeyNoteIndex, MIDI_KEYS> keyNoteIndices{};
-#pragma endregion
-
 #pragma region Computer shaders
 	bool supportsCompute = false;
 
 	std::unique_ptr<ShaderProgram> notesComputeProgram;
-	GLuint rawNotesSSBO = 0;
+	// testing ring buffers (may allocate more memory!)
+	static constexpr size_t SSBO_RING_SIZE = 4;
+
+	GLuint rawNotesSSBO[SSBO_RING_SIZE]{};
+	GLsync fences[SSBO_RING_SIZE]{};
+	size_t currentBuffer = 0;
+
 	GLuint outputNotesSSBO = 0;
 #pragma endregion
 
@@ -149,10 +144,6 @@ private:
 	double lastTime = 0.0f;
 	std::array<size_t, MIDI_KEYS> startBlockIDs{};
 
-	std::array<uint8_t, MIDI_KEYS> kbIDs;
-
-	ThreadPool threadPool;
-
 	void UpdateGlobals();
 	void GenNoteXTable();
 
@@ -166,6 +157,7 @@ private:
 	void RenderImmediateRects();
 
 	void RenderNotes();
+	size_t AcquireNoteBuffer();
 	void UploadNoteBuffer(size_t count);
 
 	void SetBarColor(ImVec4 color);

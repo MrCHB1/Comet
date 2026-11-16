@@ -6,6 +6,8 @@
 #include <array>
 #include <glm/glm.hpp>
 #include <random>
+#include "Concurrency/ThreadPool.h"
+#include "Renderer/KeyNoteIndex.h"
 
 #define RECT_BUFFER_SIZE 32768
 #define NOTE_BUFFER_SIZE 131072
@@ -280,7 +282,6 @@ private:
 	std::array<float, MIDI_KEYS> keyWidth{};
 	std::array<size_t, MIDI_KEYS> keyNum{};
 	std::array<KeyboardState, MIDI_KEYS> keyStates{};
-	std::array<size_t, MIDI_KEYS> kbIDs{};
 
 	std::array<size_t, MIDI_KEYS> startBlockIDs;
 	long lastTime = -1;

@@ -6,6 +6,7 @@
 #include <mutex>
 #include <glm/glm.hpp>
 #include "Concurrency/ThreadPool.h"
+#include "Renderer/KeyNoteIndex.h"
 
 #define NOTE_BUFFER_SIZE 262144
 #define NOTES_MAX_BATCHES 512
@@ -358,7 +359,6 @@ private:
     std::array<float, MIDI_KEYS> keyWidth;
     std::array<RenderKeyboardKey3D, MIDI_KEYS> keyboardData;
     std::array<KeyboardMeta3D, MIDI_KEYS> keyMetas;
-    std::array<uint8_t, MIDI_KEYS> kbIDs;
 #pragma endregion
 
 #pragma region Note data
