@@ -63,6 +63,8 @@ MIDIApp::~MIDIApp()
 	if (midiAudio)
 	{
 		config.audioSettings = midiAudio->GetSettings();
+		timer->Pause();
+		midiAudio->Reset();
 	}
 	if (renderer)
 	{

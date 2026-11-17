@@ -45,6 +45,8 @@ namespace
     constexpr int64_t REFILLS_PER_LOOKAHEAD = 16;   // player tops up this many times per lookahead
     constexpr int64_t GAP_NS = 1'000;              // 1 us: min note length / gap before the same key retriggers
 
+    static inline std::atomic_bool lastPlaying = false;
+
     int64_t SecondsToNs(double seconds)
     {
         if (std::isnan(seconds))
@@ -147,6 +149,23 @@ void MaestroEngine::Destroy()
     rt = nullptr;
     core = nullptr;
     hasMaestro = false;
+}
+
+void MaestroEngine::Mute()
+{
+    lastPlaying.store(threadWorking.load(std::memory_order_acquire), std::memory_order_relaxed);
+    muted.store(true, std::memory_order_release);
+
+    if (lastPlaying.load())
+    {
+        Stop();
+    }
+}
+
+void MaestroEngine::Unmute()
+{
+    if (lastPlaying.load())
+        Start(seq, timer);
 }
 
 void MaestroEngine::Start(MIDISequence* seq, std::shared_ptr<MIDITimer> timer)

@@ -46,8 +46,8 @@ public:
 	void Start(MIDISequence* seq, std::shared_ptr<MIDITimer> timer) override;
 	void Stop() override;
 	void Reset() override { Stop(); }
-	void Mute() override {}
-	void Unmute() override {}
+	void Mute() override;
+	void Unmute() override;
 	bool IsPlaying() override { return threadWorking.load(); }
 
 	void RenderSettings() override;
@@ -64,6 +64,8 @@ private:
 	std::atomic_bool threadWorking{ false };
 	std::thread generatorThread;
 	std::thread playerThread;
+
+	std::atomic_bool muted = false;
 
 	// ---- generator -> player ring buffer (single producer, single consumer) ----
 	struct SchedEvent
