@@ -212,6 +212,7 @@ public:
         std::reverse(out.begin(), out.end());
     }
 private:
+    static double Up(double v) { return std::nextafter(v, std::numeric_limits<double>::infinity()); }
     static double SnapRound(double v) { return Utils::RoundEven(v); }
 
     // Pixel rows [top, bottom) that note i is drawn into when snapped.
@@ -296,8 +297,9 @@ private:
 
             const double startHi = t + margin;
             const double startLo = t - margin;
-            const double cntHi = startHi + sp;
-            const double cntLo = startLo + sp;
+            // Half-open [start, end): start <= t  <=>  start < nextafter(t)
+            const double cntHi = Up(startHi + sp);
+            const double cntLo = Up(startLo + sp);
 
             if (firstRow)
             {
@@ -307,15 +309,16 @@ private:
             }
             else
             {
-                while (cL < cap && static_cast<double>(tick_[cL]) < cntHi) ++cL;
-                while (cS < cap && static_cast<double>(tick_[cS]) < cntLo) ++cS;
+                cL = GallopStartBefore(cL, cap, cntHi);
+                cS = GallopStartBefore(cS, cap, cntLo);
             }
 
             if (cL == 0)
                 continue;
 
-            const double xLo = std::max(startLo - ep, endFloor);
-            const double xHi = std::max(startHi - ep, endFloor);
+            // end > t  <=>  end >= nextafter(t)
+            const double xLo = std::max(Up(startLo - ep), endFloor);
+            const double xHi = std::max(Up(startHi - ep), endFloor);
 
             const ptrdiff_t iL =
                 RightmostEndAtLeast(static_cast<ptrdiff_t>(cL) - 1, xLo, m);
@@ -386,7 +389,7 @@ private:
     {
         if (indexLo > indexHi || indexLo >= n_) return;
         indexHi = std::min(indexHi, n_ - 1);
-       
+
         const size_t s0 = m > 0.0 ? CountStartBefore(x - m) : indexHi + 1;
         for (size_t i = indexHi + 1; i > std::max(indexLo, s0);)
         {
@@ -400,7 +403,7 @@ private:
         if (s0 > indexLo)
             CollectBlocksAtLeast(out, 1, 0, size_,
                 indexLo / B, std::min(indexHi, s0 - 1) / B,
-                indexLo,     std::min(indexHi, s0 - 1),
+                indexLo, std::min(indexHi, s0 - 1),
                 x, minGate);
     }
 
@@ -477,6 +480,40 @@ private:
         }
 
         return -1;
+    }
+
+    // First index i in [from, cap] with tick_[i] >= t.
+    // Requires every index < from to already have tick_ < t (true for your monotonic cursors).
+    size_t GallopStartBefore(size_t from, size_t cap, double t) const
+    {
+        if (from >= cap || static_cast<double>(tick_[from]) >= t)
+            return from;
+
+        // Invariant from here on: tick_[lo] < t.
+        size_t lo = from;
+        size_t step = 1;
+        size_t hi;
+
+        // Phase 1: double the stride until we overshoot (or hit cap).
+        for (;;)
+        {
+            hi = std::min(lo + step, cap);
+            if (hi == cap || static_cast<double>(tick_[hi]) >= t)
+                break;
+            lo = hi;
+            step <<= 1;
+        }
+
+        // Phase 2: binary search in (lo, hi]. The answer is at most hi.
+        while (lo + 1 < hi)
+        {
+            const size_t mid = lo + (hi - lo) / 2;
+            if (static_cast<double>(tick_[mid]) < t)
+                lo = mid;
+            else
+                hi = mid;
+        }
+        return hi;
     }
 
     const uint32_t* tick_ = nullptr;

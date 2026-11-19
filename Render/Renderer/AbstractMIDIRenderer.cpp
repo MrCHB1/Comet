@@ -7,6 +7,12 @@
 #include "MIDI/TempoMap.h"
 
 #include "Render/RenderEngine/Buffers.h"
+#include "App/UI/Layout/ForumLayout.h"
+
+namespace
+{
+	using namespace Comet::UI::Layout;
+}
 
 AbstractMIDIRenderer::AbstractMIDIRenderer(MIDIApp* app) : app(app)
 {
@@ -175,7 +181,7 @@ void AbstractMIDIRenderer::CollectNotes(NoteFrame& f, const NoteAreaParams& area
 					index.CollectRowOwners(out, RowQuery{
 						.tNow = f.nowTicks, .ticksPerPixel = ticksPerPixel,
 						.yBase = area.yBase, .rowBegin = 0, .rowEnd = (int)height,
-						.marginPx = kRowMarginPx, .startCap = job.startCap,
+						.marginPx = advancedSettings.rowMarginPx, .startCap = job.startCap,
 						.minGate = minGate, .minVisualPx = area.minVisualPx,
 						.pixelSnap = area.pixelSnap });
 			}
@@ -211,11 +217,11 @@ void AbstractMIDIRenderer::RenderSettings()
 {
 	MIDIPlayerConfig* config = app->GetConfig();
 	ImGui::Separator();
-	BEGIN_SECTION("##globalSettings")
-	{
-		SETUP_SECTION;
 
-		SECTION_ENTRY(SECTION_LABEL("Background color"),
+	{
+		ForumLayout layout("##globalSettings");
+		layout.AddField("##bgColor", "Background color",
+			[&]()
 			{
 				ImVec4 bgColorVec = config->render.GetBackground();
 				float bgColor[3]{ bgColorVec.x, bgColorVec.y, bgColorVec.z };
@@ -225,38 +231,41 @@ void AbstractMIDIRenderer::RenderSettings()
 				}
 			});
 
-		SECTION_ENTRY(SECTION_LABEL("Key range"),
+		layout.AddField("##keyRange", "Key range",
+			[&]()
 			{
+				const float tildeWidth = ImGui::CalcTextSize("~").x;
+				const float availableWidth = ImGui::GetContentRegionAvail().x;
+				if (availableWidth < 0.0) return;
+
+				const float rangeWidth = (availableWidth - tildeWidth) / 2.0f - ImGui::GetStyle().ItemSpacing.x * 2.0f;
+				
 				int keyFirst = config->render.GetKeyFirst();
 				int keyLast = config->render.GetKeyLast();
-				ImGui::SetNextItemWidth(100);
-				if (ImGui::InputInt("##keyFirst", &keyFirst, 0, 0))
+
+				ImGui::SetNextItemWidth(rangeWidth);
+				if (ImGui::InputInt("##first", &keyFirst, 0, 0))
 				{
 					config->render.SetKeyFirst(keyFirst);
 				}
+
 				ImGui::SameLine();
 				ImGui::Text("~");
 				ImGui::SameLine();
-				ImGui::SetNextItemWidth(100);
-				if (ImGui::InputInt("##keyLast", &keyLast, 0, 0))
+
+				ImGui::SetNextItemWidth(rangeWidth);
+				if (ImGui::InputInt("##last", &keyLast, 0, 0))
 				{
 					config->render.SetKeyLast(keyLast);
 				}
 
 				std::string previewText;
-				
 				if (keyFirst == 21 && keyLast == 108)
-				{
 					previewText = "88 Keys";
-				}
 				else if (keyFirst == 0 && keyLast == 127)
-				{
 					previewText = "128 Keys";
-				}
 				else
-				{
 					previewText = "Custom";
-				}
 
 				if (ImGui::BeginCombo("##keyRangePreset", previewText.c_str()))
 				{
@@ -276,10 +285,40 @@ void AbstractMIDIRenderer::RenderSettings()
 				}
 			});
 
-		END_SECTION;
+		{
+			ForumLayoutBreak brk(&layout);
+			ImGui::Separator();
+		}
+
+		static bool showAdvanced = false;
+		layout.AddField("##showAdvanced", "Show advanced settings",
+			[&]()
+			{
+				ImGui::Checkbox("", &showAdvanced);
+			});
+
+		if (showAdvanced)
+		{
+			layout.AddFieldWithTooltip("##marginPx", "Row margin (px)",
+				"How much headroom to leave when collecting row owners per key. 0 = At most one note per pixel row, but can introduce rendering artifacts.",
+				[&]()
+				{
+					float margin = advancedSettings.rowMarginPx;
+					if (ImGui::InputFloat("", &margin, 0, 0))
+					{
+						if (margin < 0) margin = 0;
+						if (margin > 0.02) margin = 0.02;
+						advancedSettings.rowMarginPx = margin;
+					}
+				});
+		}
 	}
 	
-	if (ImGui::Button("Reset settings")) ResetSettings();
+	if (ImGui::Button("Reset settings"))
+	{
+		advancedSettings = {};
+		ResetSettings();
+	}
 }
 
 void AbstractMIDIRenderer::OnResize(int newWidth, int newHeight)

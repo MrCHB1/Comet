@@ -65,6 +65,14 @@ struct NoteRef
 class AbstractMIDIRenderer
 {
 protected:
+	struct AdvancedSettings
+	{
+		double rowMarginPx = 0.001; // 0 = at most one note per pixel row but can introduce some empty pixel rows.
+		size_t noteBufferSize = 131072; // Allowed values: 65536, 131072, 262144, 524288
+		size_t instancedBufferSize = 128; // Allowed values: 128, 256, 512
+	};
+	AdvancedSettings advancedSettings{};
+
 	MIDISequence* seq = nullptr;
 	std::unique_ptr<Framebuffer> sceneFramebuffer;
 	int width = 0;
@@ -85,7 +93,6 @@ protected:
 
 	std::array<uint8_t, MIDI_KEYS> kbIDs{};   // white keys first, then black
 
-	static constexpr double kRowMarginPx = 0.02;
 	bool BeginNoteFrame(NoteFrame& f);
 	void CollectNotes(NoteFrame& f, const NoteAreaParams& area,
 		const std::function<void(uint8_t id, uint16_t track, uint8_t channel)>& onActiveKey);
