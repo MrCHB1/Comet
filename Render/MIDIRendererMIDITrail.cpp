@@ -16,14 +16,13 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "Config/ConfigUtils.h"
+#include "App/UI/Layout/ForumLayout.h"
 
-// REFACTOR (compile-memory): this renderer no longer includes MIDIRenderer.h (the
-// aggregator hub), which is where keyPosDiff used to come from. The table is
-// repeated locally here, with the same values the piano-roll renderer uses and
-// mirroring the local copy MIDIRendererEnhanced.cpp already keeps.
 namespace
 {
 	using namespace Config;
+	using namespace Comet::UI::Layout;
+
 	static const float keyPosDiff[12] = {
 		0.6F, 0.4F, 0.8F, 0.2F, 1.0F, 0.6F, 0.4F, 0.675F, 0.325F, 0.8F, 0.2F, 1.0F
 	};
@@ -1060,19 +1059,23 @@ void MIDIRendererMIDITrail::RenderSettings()
 	{
 		if (ImGui::BeginTabItem("Rendering"))
 		{
-			SECTION_HEADER("Note appearance");
-			BEGIN_SECTION("##noteAppearance")
-			{
-				SETUP_SECTION;
+			bool updateSeparatorLines = false;
 
-				SECTION_ENTRY(SECTION_LABEL("3D notes"),
+			{
+				ForumLayout layout("##trailRendering");
+
+				layout.AddHeader("Note appearance");
+
+				layout.AddField("##3dNotes", "3D notes",
+					[&]()
 					{
-						ImGui::Checkbox("##3dNotes", &settings.notes3D);
+						ImGui::Checkbox("", &settings.notes3D);
 					});
 
-				SECTION_ENTRY(SECTION_LABEL("Eat notes"),
+				layout.AddField("##eatNotes", "Eat notes",
+					[&]()
 					{
-						if (ImGui::Checkbox("##eatNotes", &settings.eatNotes))
+						if (ImGui::Checkbox("", &settings.eatNotes))
 						{
 							if (settings.eatNotes)
 								UpdateSeparatorLines(settings.frontRenderCutoff, 0);
@@ -1086,56 +1089,28 @@ void MIDIRendererMIDITrail::RenderSettings()
 						}
 					});
 
-				SECTION_ENTRY(SECTION_LABEL("Transparency"),
-					{
-						float noteTransparency = settings.noteTransparency;
-						if (ImGui::SliderFloat("##noteTransparency", &noteTransparency, 0.0f, 1.0f))
-						{
-							settings.noteTransparency = std::clamp(noteTransparency, 0.0f, 1.0f);
-						}
-					});
+				SliderFloatField(layout, "##noteTransparency", "Transparency", nullptr,
+					settings.noteTransparency, 0.0f, 1.0f);
 
-				END_SECTION;
-			}
+				layout.AddHeader("Rendering");
 
-			bool updateSeparatorLines = false;
+				if (SliderFloatField(layout, "##frontRenderCutoff", "Front render cutoff", nullptr,
+					settings.frontRenderCutoff, 1.0f, 40.0f))
+				{
+					updateSeparatorLines = true;
+				}
 
-			SECTION_HEADER("Rendering");
-			BEGIN_SECTION("##renderingSection")
-			{
-				SETUP_SECTION;
+				if (SliderFloatField(layout, "##backRenderCutoff", "Back render cutoff", nullptr,
+					settings.backRenderCutoff, 0.0f, 20.0f))
+				{
+					for (auto& id : startRenderIDs)
+						id = 0;
 
-				SECTION_ENTRY(SECTION_LABEL("Front render cutoff"),
-					{
-						float frontRenderCutuff = settings.frontRenderCutoff;
-						if (ImGui::SliderFloat("##frontRenderCutoff", &frontRenderCutuff, 1.0f, 40.0f))
-						{
-							settings.frontRenderCutoff = std::clamp(frontRenderCutuff, 1.0f, 40.0f);
-							updateSeparatorLines = true;
-						}
-					});
+					for (auto& id : endRenderIDs)
+						id = 0;
 
-				SECTION_ENTRY(SECTION_LABEL("Back render cutoff"),
-					{
-						float backRenderCutoff = settings.backRenderCutoff;
-						if (ImGui::SliderFloat("##backRenderCutoff", &backRenderCutoff, 0.0f, 20.0f))
-						{
-							settings.backRenderCutoff = std::clamp(backRenderCutoff, 0.0f, 20.0f);
-							for (auto& id : startRenderIDs)
-							{
-								id = 0;
-							}
-
-							for (auto& id : endRenderIDs)
-							{
-								id = 0;
-							}
-
-							updateSeparatorLines = true;
-						}
-					});
-
-				END_SECTION;
+					updateSeparatorLines = true;
+				}
 			}
 
 			if (updateSeparatorLines)
@@ -1145,99 +1120,86 @@ void MIDIRendererMIDITrail::RenderSettings()
 
 			ImGui::EndTabItem();
 		}
+
 		if (ImGui::BeginTabItem("Keyboard"))
 		{
-			BEGIN_SECTION("##keyboardSec")
 			{
-				SETUP_SECTION;
-				SECTION_ENTRY(SECTION_LABEL("Show keyboard"),
+				ForumLayout layout("##keyboardSec");
+
+				layout.AddField("##showKeyboard", "Show keyboard",
+					[&]()
 					{
-						ImGui::Checkbox("##showKeyboard", &settings.showKeyboard);
+						ImGui::Checkbox("", &settings.showKeyboard);
 					});
-				END_SECTION;
 			}
 
 			ImGui::EndTabItem();
 		}
+
 		if (ImGui::BeginTabItem("Camera"))
 		{
-			BEGIN_SECTION("##cameraSec")
 			{
-				SETUP_SECTION;
+				ForumLayout layout("##cameraSec");
 
-				SECTION_ENTRY(SECTION_LABEL("Position"),
+				layout.AddField("##cameraPos", "Position",
+					[&]()
 					{
-						ImGui::DragFloat3("##cameraPos", glm::value_ptr(settings.cameraPos), 0.1f);
-					});
-				SECTION_ENTRY(SECTION_LABEL("Rotation"),
-					{
-						ImGui::DragFloat3("##cameraRot", glm::value_ptr(settings.cameraRotation), 0.1f);
-					});
-				SECTION_ENTRY(SECTION_LABEL("FOV"),
-					{
-						float cameraFOV = settings.cameraFOV;
-						if (ImGui::SliderFloat("##cameraFOV", &cameraFOV, 1.0f, 120.0f))
-						{
-							settings.cameraFOV = std::clamp(cameraFOV, 1.0f, 120.0f);
-						}
+						ImGui::DragFloat3("", glm::value_ptr(settings.cameraPos), 0.1f);
 					});
 
-				END_SECTION;
+				layout.AddField("##cameraRot", "Rotation",
+					[&]()
+					{
+						ImGui::DragFloat3("", glm::value_ptr(settings.cameraRotation), 0.1f);
+					});
+
+				SliderFloatField(layout, "##cameraFOV", "FOV", nullptr,
+					settings.cameraFOV, 1.0f, 120.0f);
 			}
 
 			ImGui::EndTabItem();
 		}
+
 		if (ImGui::BeginTabItem("Measure Lines & Borders"))
 		{
-			BEGIN_SECTION("##measureLines")
 			{
-				SETUP_SECTION;
+				ForumLayout layout("##measureLines");
 
-				SECTION_ENTRY(SECTION_LABEL("Show measure lines"),
+				layout.AddField("##showMeasureLines", "Show measure lines",
+					[&]()
 					{
-						ImGui::Checkbox("##showMeasureLines", &settings.showMeasureLines);
+						ImGui::Checkbox("", &settings.showMeasureLines);
 					});
 
-				SECTION_ENTRY(SECTION_LABEL("Show outer borders"),
+				layout.AddField("##showBorders", "Show outer borders",
+					[&]()
 					{
-						ImGui::Checkbox("##showBorders", &settings.showOuterBorders);
+						ImGui::Checkbox("", &settings.showOuterBorders);
 					});
 
-				SECTION_ENTRY(SECTION_LABEL("Line transparency"),
-					{
-						float lineTransparency = settings.lineTransparency;
-						if (ImGui::SliderFloat("##lineTransparency", &lineTransparency, 0.0f, 1.0f))
-						{
-							settings.lineTransparency = std::clamp(lineTransparency, 0.0f, 1.0f);
-						}
-					});
-
-				END_SECTION;
+				SliderFloatField(layout, "##lineTransparency", "Line transparency", nullptr,
+					settings.lineTransparency, 0.0f, 1.0f);
 			}
 
 			ImGui::EndTabItem();
 		}
+
 		if (ImGui::BeginTabItem("Aura"))
 		{
-			BEGIN_SECTION("##aura")
 			{
-				SETUP_SECTION;
+				ForumLayout layout("##aura");
 
-				SECTION_ENTRY(SECTION_LABEL("Show aura"), 
+				layout.AddField("##showAura", "Show aura",
+					[&]()
 					{
-						ImGui::Checkbox("##showAura", &settings.showAura);
+						ImGui::Checkbox("", &settings.showAura);
 					});
 
-				SECTION_ENTRY(SECTION_LABEL("Aura size"),
-					{
-						float auraSize = settings.auraSize;
-						if (ImGui::SliderFloat("##auraSize", &auraSize, 0.03f, 0.08f))
-						{
-							settings.auraSize = std::clamp(auraSize, 0.03f, 0.08f);
-						}
-					});
+				SliderFloatField(layout, "##auraSize", "Aura size", nullptr,
+					settings.auraSize, 0.03f, 0.08f);
 
-				SECTION_ENTRY(SECTION_LABEL("Aura texture"),
+				layout.AddField("##auraTexture", "Aura texture",
+					[&]()
 					{
 						std::filesystem::path path = settings.auraTexture;
 						Utils::AddFilePickerField("##auraTexture", path, "png,jpg,jpeg");
@@ -1248,12 +1210,11 @@ void MIDIRendererMIDITrail::RenderSettings()
 							LoadAuraTexture();
 						}
 					});
-
-				END_SECTION;
 			}
 
 			ImGui::EndTabItem();
 		}
+
 		ImGui::EndTabBar();
 	}
 	AbstractMIDIRenderer::RenderSettings();

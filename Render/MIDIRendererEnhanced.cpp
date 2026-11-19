@@ -7,6 +7,7 @@
 #include "App/Models.h"
 #include "Utils.h"
 #include "App/Dialog/DialogMacros.h"
+#include "App/UI/Layout/ForumLayout.h"
 #include "RenderView.h"
 
 #include "MIDI/Timer/MIDITimer.h"
@@ -26,6 +27,7 @@
 namespace
 {
     using namespace Config;
+    using namespace Comet::UI::Layout;
 
     const float keyPosDiff[] = {
         0.6F, 0.4F, 0.8F, 0.2F, 1.0F, 0.6F, 0.4F, 0.675F, 0.325F, 0.8F, 0.2F, 1.0F
@@ -1790,22 +1792,15 @@ void MIDIRendererEnhanced::RenderSettings()
     {
         if (ImGui::BeginTabItem("Visual"))
         {
-            SECTION_HEADER("Rendering");
-            BEGIN_SECTION("##rendering")
             {
-                SETUP_SECTION;
+                ForumLayout layout("##rendering");
+                layout.AddHeader("Rendering");
 
-                SECTION_ENTRY(SECTION_LABEL("Exposure"),
-                    {
-                        float exposure = rendererSettings.exposure;
+                SliderFloatField(layout, "##exposure", "Exposure", nullptr,
+                    rendererSettings.exposure, 0.05f, 5.0f);
 
-                        if (ImGui::SliderFloat("##exposure", &exposure, 0.05f, 5.0f))
-                        {
-                            rendererSettings.exposure = std::clamp(exposure, 0.05f, 5.0f);
-                        }
-                    });
-
-                SECTION_ENTRY(SECTION_LABEL("Anti-aliasing"),
+                layout.AddField("##msaa", "Anti-aliasing",
+                    [&]()
                     {
                         MSAASetting previousMSAA = rendererSettings.msaa;
 
@@ -1817,47 +1812,31 @@ void MIDIRendererEnhanced::RenderSettings()
                         if (previousMSAA != rendererSettings.msaa)
                             UpdateMSAAFramebuffer();
                     });
-
-                END_SECTION;
             }
-
             ImGui::EndTabItem();
         }
 
         if (ImGui::BeginTabItem("Notes"))
         {
-            SECTION_HEADER("Note Appearance");
-            BEGIN_SECTION("##noteAppearance")
             {
-                SETUP_SECTION;
+                ForumLayout layout("##notes");
 
-                SECTION_ENTRY(SECTION_LABEL("Outline emission"),
+                layout.AddHeader("Note Appearance");
+
+                if (SliderFloatField(layout, "##noteOutlineGlow", "Outline emission", nullptr,
+                    rendererSettings.noteOutlineGlowFactor, 1.0f, 8.0f))
+                {
+                    ShaderBind notesBind(*notesProgram);
+                    notesProgram->SetFloat("noteOutlineGlow", rendererSettings.noteOutlineGlowFactor);
+                }
+
+                layout.AddHeader("HSV Shift");
+
+                layout.AddFieldWithTooltip("##hsvShift", "Enable HSV Shift",
+                    "Applies a hue, saturation, and value gradient shift to notes.",
+                    [&]()
                     {
-                        float glow = rendererSettings.noteOutlineGlowFactor;
-
-                        if (ImGui::SliderFloat("##noteOutlineGlow", &glow, 1.0f, 8.0f))
-                        {
-                            rendererSettings.noteOutlineGlowFactor = std::clamp(glow, 1.0f, 8.0f);
-                            ShaderBind notesBind(*notesProgram);
-                            notesProgram->SetFloat("noteOutlineGlow", rendererSettings.noteOutlineGlowFactor);
-                        }
-                    });
-
-                END_SECTION;
-            }
-
-            SECTION_HEADER("HSV Shift");
-            BEGIN_SECTION("##hsvShift")
-            {
-                SETUP_SECTION;
-
-                SECTION_ENTRY(
-                    TABLE_LABEL_TOOLTIP(
-                        "Enable HSV shift",
-                        "Applies a hue, saturation, and value gradient shift to notes."
-                    ),
-                    {
-                        if (ImGui::Checkbox("##hsvShift", &rendererSettings.hsvShiftEnabled))
+                        if (ImGui::Checkbox("", &rendererSettings.hsvShiftEnabled))
                         {
                             {
                                 ShaderBind notesBind(*notesProgram);
@@ -1873,62 +1852,29 @@ void MIDIRendererEnhanced::RenderSettings()
 
                 if (rendererSettings.hsvShiftEnabled)
                 {
-                    SECTION_ENTRY(SECTION_LABEL("Strength"),
+                    if (SliderFloatField(layout, "##hsvStrength", "Strength", nullptr,
+                        rendererSettings.hsvShiftStrength, 0.0f, 1.0f))
+                    {
                         {
-                            float strength = rendererSettings.hsvShiftStrength;
+                            ShaderBind notesBind(*notesProgram);
+                            notesProgram->SetFloat("noteHsvShiftStrength", rendererSettings.hsvShiftStrength);
+                        }
 
-                            if (ImGui::SliderFloat("##hsvStrength", &strength, 0.0f, 1.0f))
-                            {
-                                rendererSettings.hsvShiftStrength = std::clamp(strength, 0.0f, 1.0f);
-
-                                {
-                                    ShaderBind notesBind(*notesProgram);
-                                    notesProgram->SetFloat("noteHsvShiftStrength", rendererSettings.hsvShiftStrength);
-                                }
-
-                                {
-                                    ShaderBind keyboardBind(*keyboardProgram);
-                                    keyboardProgram->SetFloat("noteHsvShiftStrength", rendererSettings.hsvShiftStrength);
-                                }
-                            }
-                        });
-
-                    bool shouldForwardUniform = false;
-
-                    SECTION_ENTRY(SECTION_LABEL("Hue shift"),
                         {
-                            float value = rendererSettings.hsvShifts.x;
+                            ShaderBind keyboardBind(*keyboardProgram);
+                            keyboardProgram->SetFloat("noteHsvShiftStrength", rendererSettings.hsvShiftStrength);
+                        }
+                    }
 
-                            if (ImGui::SliderFloat("##hsvHueShift", &value, -1.0f, 1.0f))
-                            {
-                                rendererSettings.hsvShifts.x = std::clamp(value, -1.0f, 1.0f);
-                                shouldForwardUniform = true;
-                            }
-                        });
+                    bool shiftsChanged = false;
+                    shiftsChanged |= SliderFloatField(layout, "##hsvHueShift", "Hue shift", nullptr,
+                        rendererSettings.hsvShifts.x, -1.0f, 1.0f);
+                    shiftsChanged |= SliderFloatField(layout, "##hsvSatShift", "Saturation shift", nullptr,
+                        rendererSettings.hsvShifts.y, -1.0f, 1.0f);
+                    shiftsChanged |= SliderFloatField(layout, "##hsvValShift", "Value shift", nullptr,
+                        rendererSettings.hsvShifts.z, -1.0f, 1.0f);
 
-                    SECTION_ENTRY(SECTION_LABEL("Saturation shift"),
-                        {
-                            float value = rendererSettings.hsvShifts.y;
-
-                            if (ImGui::SliderFloat("##hsvSatShift", &value, -1.0f, 1.0f))
-                            {
-                                rendererSettings.hsvShifts.y = std::clamp(value, -1.0f, 1.0f);
-                                shouldForwardUniform = true;
-                            }
-                        });
-
-                    SECTION_ENTRY(SECTION_LABEL("Value shift"),
-                        {
-                            float value = rendererSettings.hsvShifts.z;
-
-                            if (ImGui::SliderFloat("##hsvValShift", &value, -1.0f, 1.0f))
-                            {
-                                rendererSettings.hsvShifts.z = std::clamp(value, -1.0f, 1.0f);
-                                shouldForwardUniform = true;
-                            }
-                        });
-
-                    if (shouldForwardUniform)
+                    if (shiftsChanged)
                     {
                         {
                             ShaderBind notesBind(*notesProgram);
@@ -1941,8 +1887,6 @@ void MIDIRendererEnhanced::RenderSettings()
                         }
                     }
                 }
-
-                END_SECTION;
             }
 
             ImGui::EndTabItem();
@@ -1950,48 +1894,26 @@ void MIDIRendererEnhanced::RenderSettings()
 
         if (ImGui::BeginTabItem("Keyboard"))
         {
-            SECTION_HEADER("Keyboard Appearance");
-            BEGIN_SECTION("##keyboardAppearance")
             {
-                SETUP_SECTION;
+                ForumLayout layout("##keyboardAppearance");
+                layout.AddHeader("Keyboard");
 
-                SECTION_ENTRY(SECTION_LABEL("Key glow"),
-                    {
-                        float value = rendererSettings.keyGlowFactor;
+                if (SliderFloatField(layout, "##keyGlowFactor", "Key glow", nullptr,
+                    rendererSettings.keyGlowFactor, 1.0f, 8.0f))
+                {
+                    ShaderBind keyboardBind(*keyboardProgram);
+                    keyboardProgram->SetFloat("keyGlowFactor", rendererSettings.keyGlowFactor);
+                }
 
-                        if (ImGui::SliderFloat("##keyGlowFactor", &value, 1.0f, 8.0f))
-                        {
-                            rendererSettings.keyGlowFactor = std::clamp(value, 1.0f, 8.0f);
+                if (SliderFloatField(layout, "##keyboardBrightness", "Brightness", nullptr,
+                    rendererSettings.keyboardBrightness, 0.1f, 1.0f))
+                {
+                    ShaderBind keyboardBind(*keyboardProgram);
+                    keyboardProgram->SetFloat("keyboardBrightness", rendererSettings.keyboardBrightness);
+                }
 
-                            ShaderBind keyboardBind(*keyboardProgram);
-                            keyboardProgram->SetFloat("keyGlowFactor", rendererSettings.keyGlowFactor);
-                        }
-                    });
-
-                SECTION_ENTRY(SECTION_LABEL("Brightness"),
-                    {
-                        float value = rendererSettings.keyboardBrightness;
-
-                        if (ImGui::SliderFloat("##keyboardBrightness", &value, 0.1f, 1.0f))
-                        {
-                            rendererSettings.keyboardBrightness = std::clamp(value, 0.1f, 1.0f);
-
-                            ShaderBind keyboardBind(*keyboardProgram);
-                            keyboardProgram->SetFloat("keyboardBrightness", rendererSettings.keyboardBrightness);
-                        }
-                    });
-
-                SECTION_ENTRY(SECTION_LABEL("Field of view"),
-                    {
-                        float value = rendererSettings.keyboardFOV;
-
-                        if (ImGui::SliderFloat("##keyboardFov", &value, 20.0f, 89.9f))
-                        {
-                            rendererSettings.keyboardFOV = std::clamp(value, 20.0f, 89.9f);
-                        }
-                    });
-
-                END_SECTION;
+                SliderFloatField(layout, "##keyboardFOV", "Field of View", nullptr,
+                    rendererSettings.keyboardFOV, 20.0f, 89.9f);
             }
 
             ImGui::EndTabItem();
@@ -1999,29 +1921,22 @@ void MIDIRendererEnhanced::RenderSettings()
 
         if (ImGui::BeginTabItem("Saber"))
         {
-            SECTION_HEADER("Saber Appearance");
-            BEGIN_SECTION("##saberAppearance")
             {
-                SETUP_SECTION;
+                ForumLayout layout("##saberAppearance");
+                layout.AddHeader("Saber Appearance");
 
-                SECTION_ENTRY(SECTION_LABEL("Color"),
+                layout.AddField("##saberColor", "Color",
+                    [&]()
                     {
-                        if (ImGui::ColorEdit3("##saberColor", &rendererSettings.saberColor.x))
+                        if (ImGui::ColorEdit3("", &rendererSettings.saberColor.x))
                         {
                             ShaderBind mistBind(*mistProgram);
                             mistProgram->SetVec3("mistColor", rendererSettings.saberColor);
                         }
                     });
 
-                SECTION_ENTRY(SECTION_LABEL("Brightness"),
-                    {
-                        if (ImGui::SliderFloat("##saberBrightness", &rendererSettings.saberBrightness, 0.0f, 20.0f))
-                        {
-                            rendererSettings.saberBrightness = std::clamp(rendererSettings.saberBrightness, 0.0f, 20.0f);
-                        }
-                    });
-
-                END_SECTION;
+                SliderFloatField(layout, "##saberBrightness", "Brightness", nullptr,
+                    rendererSettings.saberBrightness, 0.0f, 20.0f);
             }
 
             ImGui::EndTabItem();
@@ -2029,17 +1944,15 @@ void MIDIRendererEnhanced::RenderSettings()
 
         if (ImGui::BeginTabItem("Mist"))
         {
-            SECTION_HEADER("Mist");
-            BEGIN_SECTION("##mist")
             {
-                SETUP_SECTION;
+                ForumLayout layout("##mist");
+                layout.AddHeader("Mist");
 
-                SECTION_ENTRY(SECTION_LABEL("Enable mist"),
+                layout.AddField("##enableMist", "Enable mist",
+                    [&]()
                     {
-                        ImGui::Checkbox("##enableMist", &rendererSettings.mistEnabled);
+                        ImGui::Checkbox("", &rendererSettings.mistEnabled);
                     });
-
-                END_SECTION;
             }
 
             ImGui::EndTabItem();
@@ -2047,215 +1960,79 @@ void MIDIRendererEnhanced::RenderSettings()
 
         if (ImGui::BeginTabItem("Particle system"))
         {
-            SECTION_HEADER("Particles");
-            BEGIN_SECTION("##particles")
             {
-                SETUP_SECTION;
+                ForumLayout layout("##particles");
+                auto& p = rendererSettings.particleSettings;
 
-                SECTION_ENTRY(SECTION_LABEL("Enable particles"),
+                layout.AddHeader("Particles");
+
+                layout.AddField("##enableParticles", "Enable particles",
+                    [&]()
                     {
-                        ImGui::Checkbox("##enableParticles", &rendererSettings.particlesEnabled);
+                        ImGui::Checkbox("", &rendererSettings.particlesEnabled);
                     });
 
-                END_SECTION;
-            }
-
-            if (rendererSettings.particlesEnabled)
-            {
-                auto& pSettings = rendererSettings.particleSettings;
-
-                SECTION_HEADER("Appearance");
-                BEGIN_SECTION("##particleAppearance")
+                if (rendererSettings.particlesEnabled)
                 {
-                    SETUP_SECTION;
+                    layout.AddHeader("Appearance");
 
-                    SECTION_ENTRY(
-                        SECTION_LABEL("Particle brightness"),
-                        {
-                            float value = pSettings.brightness;
-                            if (ImGui::SliderFloat("##particleBrightness", &value, 1.0f, 20.0f))
-                            {
-                                pSettings.brightness = std::clamp(value, 1.0f, 20.0f);
-                            }
-                        });
+                    SliderFloatField(layout, "##particleBrightness", "Particle brightness", nullptr,
+                        p.brightness, 1.0f, 20.0f);
 
-                    END_SECTION;
-                }
+                    layout.AddHeader("Behaviour");
 
-                SECTION_HEADER("Behaviour");
-                BEGIN_SECTION("##particleBehaviour")
-                {
-                    SETUP_SECTION;
+                    SliderIntField(layout, "##particleEmission", "Emission",
+                        "Controls how many particles are emitted (spawned) at once. Default is 12. Higher values are not recommended on Black MIDIs.",
+                        p.emission, 1, 50);
 
-                    SECTION_ENTRY(
-                        TABLE_LABEL_TOOLTIP(
-                            "Emission",
-                            "Controls how many particles are emitted (spawned) at once. Default is 12. Higher values are not recommended on Black MIDIs."
-                        ),
-                        {
-                            int value = pSettings.emission;
-                            if (ImGui::SliderInt("##particleEmission", &value, 1, 50))
-                            {
-                                pSettings.emission = std::clamp(value, 1, 50);
-                            }
-                        });
+                    SliderFloatField(layout, "##particleSpawnRate", "Spawn rate",
+                        "Controls how frequently particle bursts are emitted. Default is 0.05. Higher values are not recommended on Black MIDIs.",
+                        p.spawnRate, 0.01f, 1.0f);
 
-                    SECTION_ENTRY(
-                        TABLE_LABEL_TOOLTIP(
-                            "Spawn rate",
-                            "Controls how frequently particle bursts are emitted. Default is 0.05. Higher values are not recommended on Black MIDIs."
-                        ),
-                        {
-                            float value = pSettings.spawnRate;
-                            if (ImGui::SliderFloat("##particleSpawnRate", &value, 0.01f, 1.0f))
-                            {
-                                pSettings.spawnRate = std::clamp(value, 0.01f, 1.0f);
-                            }
-                        });
+                    SliderFloatField(layout, "##particleInitialSpeed", "Initial speed",
+                        "Controls how fast particles fly out from the key on emission.",
+                        p.initialSpeed, 0.1f, 3.0f);
 
-                    SECTION_ENTRY(
-                        TABLE_LABEL_TOOLTIP(
-                            "Initial speed",
-                            "Controls how fast particles fly out from the key on emission."
-                        ),
-                        {
-                            float value = pSettings.initialSpeed;
-                            if (ImGui::SliderFloat("##particleInitialSpeed", &value, 0.1f, 3.0f))
-                            {
-                                pSettings.initialSpeed = std::clamp(value, 0.1f, 3.0f);
-                            }
-                        });
+                    SliderFloatField(layout, "##particleLifetime", "Lifetime",
+                        "Controls how long particles survive before fading out.",
+                        p.lifetime, 0.2f, 5.0f);
 
-                    SECTION_ENTRY(
-                        TABLE_LABEL_TOOLTIP(
-                            "Lifetime",
-                            "Controls how long particles survive before fading out."
-                        ),
-                        {
-                            float value = pSettings.lifetime;
-                            if (ImGui::SliderFloat("##particleLifetime", &value, 0.2f, 5.0f))
-                            {
-                                pSettings.lifetime = std::clamp(value, 0.2f, 5.0f);
-                            }
-                        });
+                    SliderFloatField(layout, "##particleLifetimeVar", "Lifetime Variance",
+                        "Controls the variance of particle lifetimes. Default is 0.5. 0 = Same lifetime for all particles, 1 = random lifetime between 0 and current lifetime",
+                        p.lifetimeVariance, 0.0f, 1.0f);
 
-                    SECTION_ENTRY(
-                        TABLE_LABEL_TOOLTIP(
-                            "Lifetime Variance",
-                            "Controls the variance of particle lifetimes. Default is 0.5. 0 = Same lifetime for all particles, 1 = random lifetime between 0 and current lifetime"
-                        ),
-                        {
-                            float value = pSettings.lifetimeVariance;
-                            if (ImGui::SliderFloat("##particleLifetimeVar", &value, 0.0f, 1.0f))
-                            {
-                                pSettings.lifetimeVariance = std::clamp(value, 0.0f, 1.0f);
-                            }
-                        }
-                    );
+                    layout.AddHeader("Dynamics & Forces");
 
-                    END_SECTION;
-                }
+                    SliderFloatField(layout, "##particleGravity", "Gravity",
+                        "Pulls particles downward over their lifetime. Negative values make them float upward.",
+                        p.gravityFactor, -2.0f, 2.0f);
 
-                SECTION_HEADER("Dynamics & Forces");
-                BEGIN_SECTION("##dynamicsForces")
-                {
-                    SETUP_SECTION;
+                    SliderFloatField(layout, "##particleDrag", "Drag",
+                        "Bleeds off particle velocity over time. Higher values make particles slow down and stop faster.",
+                        p.drag, 0.0f, 3.0f);
 
-                    SECTION_ENTRY(
-                        TABLE_LABEL_TOOLTIP(
-                            "Gravity",
-                            "Pulls particles downward over their lifetime. Negative values make them float upward."
-                        ),
-                        {
-                            float value = pSettings.gravityFactor;
-                            if (ImGui::SliderFloat("##particleGravity", &value, -2.0f, 2.0f))
-                            {
-                                pSettings.gravityFactor = std::clamp(value, -2.0f, 2.0f);
-                            }
-                        });
+                    SliderFloatField(layout, "##particleTurbulence", "Turbulence",
+                        "Adds a wobbling sideways drift to each particle's path. 0 is a straight arc.",
+                        p.turbulence, 0.0f, 2.0f);
 
-                    SECTION_ENTRY(
-                        TABLE_LABEL_TOOLTIP(
-                            "Drag",
-                            "Bleeds off particle velocity over time. Higher values make particles slow down and stop faster."
-                        ),
-                        {
-                            float value = pSettings.drag;
-                            if (ImGui::SliderFloat("##particleDrag", &value, 0.0f, 3.0f))
-                            {
-                                pSettings.drag = std::clamp(value, 0.0f, 3.0f);
-                            }
-                        });
+                    SliderFloatField(layout, "##particleTurbulenceVariance", "Turbulence variation",
+                        "Controls how much the wobble differs from one particle to the next. 0 makes every particle wobble identically; higher values spread them out.",
+                        p.turbulenceVariance, 0.0f, 1.0f);
 
-                    SECTION_ENTRY(
-                        TABLE_LABEL_TOOLTIP(
-                            "Turbulence",
-                            "Adds a wobbling sideways drift to each particle's path. 0 is a straight arc."
-                        ),
-                        {
-                            float value = pSettings.turbulence;
-                            if (ImGui::SliderFloat("##particleTurbulence", &value, 0.0f, 2.0f))
-                            {
-                                pSettings.turbulence = std::clamp(value, 0.0f, 2.0f);
-                            }
-                        });
+                    SliderFloatField(layout, "##particleSwirlStrength", "Swirl strength",
+                        "Pulls particles through ambient swirling eddies as they fly, rather than a straight or purely turbulent path. 0 disables it.",
+                        p.swirlStrength, 0.0f, 3.0f);
 
-                    SECTION_ENTRY(
-                        TABLE_LABEL_TOOLTIP(
-                            "Turbulence variation",
-                            "Controls how much the wobble differs from one particle to the next. 0 makes every particle wobble identically; higher values spread them out."
-                        ),
-                        {
-                            float value = pSettings.turbulenceVariance;
-                            if (ImGui::SliderFloat("##particleTurbulenceVariance", &value, 0.0f, 1.0f))
-                            {
-                                pSettings.turbulenceVariance = std::clamp(value, 0.0f, 1.0f);
-                            }
-                        });
-
-                    SECTION_ENTRY(
-                        TABLE_LABEL_TOOLTIP(
-                            "Swirl strength",
-                            "Pulls particles through ambient swirling eddies as they fly, rather than a straight or purely turbulent path. 0 disables it."
-                        ),
-                        {
-                            float value = pSettings.swirlStrength;
-                            if (ImGui::SliderFloat("##particleSwirlStrength", &value, 0.0f, 3.0f))
-                            {
-                                pSettings.swirlStrength = std::clamp(value, 0.0f, 3.0f);
-                            }
-                        });
-
-                    if (pSettings.swirlStrength > 0.0f)
+                    if (p.swirlStrength > 0.0f)
                     {
-                        SECTION_ENTRY(
-                            TABLE_LABEL_TOOLTIP(
-                                "Swirl scale",
-                                "Spatial frequency of the swirl field. Lower values make broad, sweeping eddies; higher values make tight, small ones."
-                            ),
-                            {
-                                float value = pSettings.swirlScale;
-                                if (ImGui::SliderFloat("##particleSwirlScale", &value, 1.0f, 40.0f))
-                                {
-                                    pSettings.swirlScale = std::clamp(value, 1.0f, 40.0f);
-                                }
-                            });
+                        SliderFloatField(layout, "##particleSwirlScale", "Swirl scale",
+                            "Spatial frequency of the swirl field. Lower values make broad, sweeping eddies; higher values make tight, small ones.",
+                            p.swirlScale, 1.0f, 40.0f);
 
-                        SECTION_ENTRY(
-                            TABLE_LABEL_TOOLTIP(
-                                "Swirl speed",
-                                "How fast the vortex field itself drifts and evolves over time. 0 freezes it into a static field."
-                            ),
-                            {
-                                float value = pSettings.swirlSpeed;
-                                if (ImGui::SliderFloat("##particleSwirlSpeed", &value, 0.0f, 2.0f))
-                                {
-                                    pSettings.swirlSpeed = std::clamp(value, 0.0f, 2.0f);
-                                }
-                            });
+                        SliderFloatField(layout, "##particleSwirlSpeed", "Swirl speed",
+                            "How fast the vortex field itself drifts and evolves over time. 0 freezes it into a static field.",
+                            p.swirlSpeed, 0.0f, 2.0f);
                     }
-
-                    END_SECTION;
                 }
             }
 
@@ -2264,38 +2041,25 @@ void MIDIRendererEnhanced::RenderSettings()
 
         if (ImGui::BeginTabItem("Flares"))
         {
-            BEGIN_SECTION("##flares")
             {
-                SETUP_SECTION;
+                ForumLayout layout("##flares");
 
-                SECTION_ENTRY(SECTION_LABEL("Enable flares"),
+                layout.AddField("##enableFlares", "Enable flares",
+                    [&]()
                     {
-                        ImGui::Checkbox("##enableFlares", &rendererSettings.flaresEnabled);
+                        ImGui::Checkbox("", &rendererSettings.flaresEnabled);
                     });
 
-                SECTION_ENTRY(SECTION_LABEL("Height"),
-                    {
-                        float val = rendererSettings.flareHeight;
-                        if (ImGui::SliderFloat("##flareHeight", &val, 0.1f, 0.9f))
-                            rendererSettings.flareHeight = std::clamp(val, 0.1f, 0.9f);
-                    });
+                SliderFloatField(layout, "##flareHeight", "Height", nullptr,
+                    rendererSettings.flareHeight, 0.1f, 0.9f);
 
-                SECTION_ENTRY(SECTION_LABEL("Brightness"),
-                    {
-                        float val = rendererSettings.flareBrightness;
-                        if (ImGui::SliderFloat("##flareBrightness", &val, 0.1f, 3.0f))
-                        rendererSettings.flareBrightness = std::clamp(val, 0.1f, 3.0f);
-                    });
+                SliderFloatField(layout, "##flareBrightness", "Brightness", nullptr,
+                    rendererSettings.flareBrightness, 0.1f, 3.0f);
 
-                SECTION_ENTRY(SECTION_LABEL("Fade duration"),
-                    {
-                        float val = rendererSettings.flareFadeDuration;
-                        if (ImGui::SliderFloat("##flareFadeDuration", &val, 0.0f, 1.0f))
-                        rendererSettings.flareFadeDuration = std::clamp(val, 0.0f, 1.0f);
-                    });
-
-                END_SECTION;
+                SliderFloatField(layout, "##flareFadeDuration", "Fade duration", nullptr,
+                    rendererSettings.flareFadeDuration, 0.0f, 1.0f);
             }
+
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();

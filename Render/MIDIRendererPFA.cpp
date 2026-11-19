@@ -8,12 +8,14 @@
 #include "Render/RenderView.h"
 #include "App/Dialog/DialogMacros.h"
 #include "Config/ConfigUtils.h"
+#include "App/UI/Layout/ForumLayout.h"
 
 #define NUM_WHITE_KEYS 75
 
 namespace
 {
 	using namespace Config;
+	using namespace Comet::UI::Layout;
 
 	static const float SharpRatio = 0.65f;
 	static const float KBPercent = 0.25f;
@@ -1012,37 +1014,40 @@ void MIDIRendererPFA::RenderSettings()
 {
 	MIDIPlayerConfig* config = app->GetConfig();
 
-	BEGIN_SECTION("##pfaSettings")
 	{
-		SETUP_SECTION;
+		ForumLayout layout("##pfaSettings");
 
-		SECTION_ENTRY(SECTION_LABEL("Show Middle C Square"), {
-			ImGui::Checkbox("##middleCSquare", &settings.showMiddleCSquare);
-		});
-
-		SECTION_ENTRY(SECTION_LABEL("Show lines"), {
-			ImGui::Checkbox("##showLines", &settings.showLines);
-		});
-
-		SECTION_ENTRY(
-			TABLE_LABEL_TOOLTIP("Rounded note lengths",
-			"In the original PFA renderer, notes that were visually too short were invisible due to rounded note lengths. This option replicates that behaviour."),
-		{
-			ImGui::Checkbox("##roundedNoteLengths", &settings.roundedNoteLengths);
-		});
-
-		SECTION_ENTRY(SECTION_LABEL("Bar color"), {
-			ImVec4 barColor = config->render.GetBarColor();
-			float barColorV[3]{ barColor.x, barColor.y, barColor.z };
-			if (ImGui::ColorEdit3("##barColor", barColorV))
+		layout.AddField("##middleCSquare", "Show Middle C Square",
+			[&]()
 			{
-				ImVec4 newBarColor(barColorV[0], barColorV[1], barColorV[2], 1.0);
-				SetBarColor(newBarColor);
-				config->render.SetBarColor(barColorV[0], barColorV[1], barColorV[2]);
-			}
-		});
+				ImGui::Checkbox("", &settings.showMiddleCSquare);
+			});
 
-		END_SECTION;
+		layout.AddField("##showLines", "Show lines",
+			[&]()
+			{
+				ImGui::Checkbox("", &settings.showLines);
+			});
+
+		layout.AddFieldWithTooltip("##pixelSnap", "Pixel-snapped notes",
+			"In the original PFA renderer, notes that were visually too short were invisible due to rounded note lengths. This option replicates that behaviour.",
+			[&]()
+			{
+				ImGui::Checkbox("", &settings.roundedNoteLengths);
+			});
+
+		layout.AddField("##barColor", "Bar color",
+			[&]()
+			{
+				ImVec4 barColor = config->render.GetBarColor();
+				float barColorV[3]{ barColor.x, barColor.y, barColor.z };
+				if (ImGui::ColorEdit3("", barColorV))
+				{
+					ImVec4 newBarColor(barColorV[0], barColorV[1], barColorV[2], 1.0);
+					SetBarColor(newBarColor);
+					config->render.SetBarColor(barColorV[0], barColorV[1], barColorV[2]);
+				}
+			});
 	}
 
 	AbstractMIDIRenderer::RenderSettings();

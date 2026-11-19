@@ -14,10 +14,12 @@
 #include "App/Dialog/DialogMacros.h"
 
 #include "Config/ConfigUtils.h"
+#include "App/UI/Layout/ForumLayout.h"
 
 namespace
 {
 	using namespace Config;
+	using namespace Comet::UI::Layout;
 
 	constexpr const std::array<uint32_t, 12> nativeSynthesiaColors = {
 		// blue
@@ -1809,32 +1811,32 @@ void MIDIRendererSynthesia::RenderSettings()
 	{
 		if (ImGui::BeginTabItem("General"))
 		{
-			BEGIN_SECTION("##sGeneral")
 			{
-				SETUP_SECTION;
+				ForumLayout layout("##sGeneral");
 
-				SECTION_ENTRY(SECTION_LABEL("Synthesia style"),
+				layout.AddField("##synthesiaStyle", "Synthesia style",
+					[&]()
 					{
 						auto style = renderSettings.style;
 						std::string previewText = "";
 
 						switch (style)
 						{
-							case SYNTHESIA_8:
-								previewText = "Synthesia 8";
-								break;
-							case SYNTHESIA_9:
-								previewText = "Synthesia 9";
-								break;
-							case SYNTHESIA_10:
-								previewText = "Synthesia 10";
-								break;
-							case GLOW:
-								previewText = "Glow";
-								break;
+						case SYNTHESIA_8:
+							previewText = "Synthesia 8";
+							break;
+						case SYNTHESIA_9:
+							previewText = "Synthesia 9";
+							break;
+						case SYNTHESIA_10:
+							previewText = "Synthesia 10";
+							break;
+						case GLOW:
+							previewText = "Glow";
+							break;
 						}
 
-						if (ImGui::BeginCombo("##synthesiaStyle", previewText.c_str()))
+						if (ImGui::BeginCombo("", previewText.c_str()))
 						{
 							if (ImGui::Selectable("Synthesia 8", style == SYNTHESIA_8))
 							{
@@ -1846,13 +1848,11 @@ void MIDIRendererSynthesia::RenderSettings()
 								renderSettings.style = SYNTHESIA_9;
 								UpdateStyle();
 							}
-
 							if (ImGui::Selectable("Synthesia 10", style == SYNTHESIA_10))
 							{
 								renderSettings.style = SYNTHESIA_10;
 								UpdateStyle();
 							}
-
 							if (ImGui::Selectable("Glow", style == GLOW))
 							{
 								renderSettings.style = GLOW;
@@ -1863,52 +1863,58 @@ void MIDIRendererSynthesia::RenderSettings()
 						}
 					});
 
-				SECTION_ENTRY(TABLE_LABEL_TOOLTIP("Native note colors", "Uses built-in synthesia colors instead of the color palette shared between renderers."),
+				layout.AddFieldWithTooltip("##nativeCols", "Native note colors",
+					"Uses built-in synthesia colors instead of the color palette shared between renderers.",
+					[&]()
 					{
-						if (ImGui::Checkbox("##nativeCols", &renderSettings.useNativeNoteColors))
+						if (ImGui::Checkbox("", &renderSettings.useNativeNoteColors))
 						{
 							ShaderBind shaderBind(*notesProgram);
 							notesProgram->SetInt("nativeColors", renderSettings.useNativeNoteColors ? 1 : 0);
 						}
 					});
 
-				SECTION_ENTRY(SECTION_LABEL("Out-of-bound notes"),
+				layout.AddField("##oobNotes", "Out-of-bound notes",
+					[&]()
 					{
-						ImGui::Checkbox("##oobNotes", &renderSettings.showOutOfBoundNotes);
+						ImGui::Checkbox("", &renderSettings.showOutOfBoundNotes);
 					});
 
-				SECTION_ENTRY(SECTION_LABEL("Background"),
+				layout.AddField("##background", "Background",
+					[&]()
 					{
-						ImGui::Checkbox("##background", &renderSettings.renderBackground);
+						ImGui::Checkbox("", &renderSettings.renderBackground);
 					});
-
-				END_SECTION;
 			}
 
 			ImGui::EndTabItem();
 		}
+
 		if (ImGui::BeginTabItem("Keyboard"))
 		{
-			BEGIN_SECTION("##sKeyboard")
 			{
-				SETUP_SECTION;
-				SECTION_ENTRY(SECTION_LABEL("Key sparkles"),
+				ForumLayout layout("##sKeyboard");
+
+				layout.AddField("##keySpark", "Key sparkles",
+					[&]()
 					{
-						ImGui::Checkbox("##keySpark", &renderSettings.renderKeySparkle);
+						ImGui::Checkbox("", &renderSettings.renderKeySparkle);
 					});
-				SECTION_ENTRY(SECTION_LABEL("Bar color"),
+
+				layout.AddField("##barColor", "Bar color",
+					[&]()
 					{
 						ImVec4 barColor = config->render.GetBarColor();
-						if (ImGui::ColorEdit3("##barColor", &barColor.x))
+						if (ImGui::ColorEdit3("", &barColor.x))
 						{
 							config->render.SetBarColor(barColor.x, barColor.y, barColor.z);
 						}
 					});
-				END_SECTION;
 			}
 
 			ImGui::EndTabItem();
 		}
+
 		RenderStyleSettings();
 
 		ImGui::EndTabBar();
@@ -1925,15 +1931,16 @@ void MIDIRendererSynthesia::RenderStyleSettings()
 	{
 		if (ImGui::BeginTabItem("Synthesia 9"))
 		{
-			BEGIN_SECTION("##sStyle")
 			{
-				SETUP_SECTION;
-				SECTION_ENTRY(SECTION_LABEL("Key octaves"),
+				ForumLayout layout("##sStyle");
+
+				layout.AddField("##keyOctaves", "Key octaves",
+					[&]()
 					{
-						ImGui::Checkbox("##keyOctaves", &renderSettings.showKeyOctaves);
+						ImGui::Checkbox("", &renderSettings.showKeyOctaves);
 					});
-				END_SECTION;
 			}
+
 			ImGui::EndTabItem();
 		}
 		break;

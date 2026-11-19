@@ -14,9 +14,12 @@
 #include "Utils.h"
 #include <algorithm>
 #include "App/Dialog/DialogMacros.h"
+#include "App/UI/Layout/ForumLayout.h"
 
 namespace
 {
+	using namespace Comet::UI::Layout;
+
 #pragma region Shaders
 	static constexpr const char* keyboardvert = R"(#version 330 core
 layout (location = 0) in vec2 aPos;
@@ -626,14 +629,12 @@ void MIDIRenderer::RenderSettings()
 	{
 		if (ImGui::BeginTabItem("Piano"))
 		{
-			auto colors = config->render.GetBarColor();
-
-			BEGIN_SECTION("##pianoSettings")
 			{
-				SETUP_SECTION;
-
-				SECTION_ENTRY(SECTION_LABEL("Bar color"),
+				ForumLayout layout("##pianoSettings");
+				layout.AddField("##barColor", "Bar color",
+					[&]()
 					{
+						auto colors = config->render.GetBarColor();
 						float barColor[3]{ colors.x, colors.y, colors.z };
 						if (ImGui::ColorEdit3("##barColor", barColor))
 						{
@@ -641,8 +642,6 @@ void MIDIRenderer::RenderSettings()
 							SetBarColor(barColor[0], barColor[1], barColor[2]);
 						}
 					});
-
-				END_SECTION;
 			}
 
 			ImGui::EndTabItem();
