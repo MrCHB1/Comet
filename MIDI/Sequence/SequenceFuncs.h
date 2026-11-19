@@ -47,9 +47,10 @@ public:
     }
 
     template <typename T>
-    static std::vector<T> FlattenSequence(std::vector<std::vector<T>>&& tracks)
+    static std::vector<T> FlattenSequence(std::vector<std::vector<T>>&& tracks, size_t* outProcessed = nullptr)
     {
         static_assert(std::is_base_of_v<MIDIEvent, T>, "T must derive from MIDIEvent.");
+        if (outProcessed) (*outProcessed) = 0;
 
         if (tracks.empty()) return {};
         if (tracks.size() == 1) return std::move(tracks[0]);
@@ -95,6 +96,8 @@ public:
             TrackHead& head = heap.back();
 
             result.emplace_back(std::move(*head.ptr));
+            if (outProcessed) (*outProcessed)++;
+
             head.ptr++;
 
             if (head.ptr != head.end)
@@ -103,6 +106,7 @@ public:
                 heap.pop_back();
         }
 
+        std::vector<std::vector<T>>().swap(tracks);
         return result;
     }
 
@@ -127,8 +131,7 @@ public:
         }
     }
 
-    // static std::vector<std::vector<NoteEvent>> DistributeNotes(std::vector<NoteEvent>&& notes);
-    static NoteSequence FlattenSequence(std::vector<NoteSequence>&& tracks);
-    static std::vector<NoteSequence> DistributeNotes(NoteSequence&& notes);
+    static NoteSequence FlattenSequence(std::vector<NoteSequence>&& tracks, size_t* outProcessed = nullptr);
+    static std::array<NoteSequence, MIDI_KEYS> DistributeNotes(NoteSequence&& notes, size_t* outNotesProcessed = nullptr);
     static void ApplyTempoEvents(uint16_t ppq, TempoMap* tempoMap, NoteSequence& notes);
 };

@@ -37,6 +37,7 @@ class MIDISequence;
 enum ImGuiKey : int;
 
 struct InputState;
+struct KeyNoteIndexData;
 
 class MIDIApp
 {
@@ -147,6 +148,7 @@ private:
 
 	// staging variables for thread-safe loading
 	std::unique_ptr<MIDISequence> pendingSeq = nullptr;
+	std::unique_ptr<KeyNoteIndexData> pendingKeyIndex = nullptr;
 	std::string pendingTitle = "";
 	std::atomic_bool hasPendingSeq{ false };
 

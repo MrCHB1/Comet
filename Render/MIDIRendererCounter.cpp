@@ -3,6 +3,9 @@
 #include "MIDI/TempoMap.h"
 #include "MIDI/Timer/MIDITimer.h"
 
+MIDIRendererCounter::MIDIRendererCounter(MIDIApp* app) : AbstractMIDIRenderer(app) {}
+MIDIRendererCounter::~MIDIRendererCounter() = default;
+
 void MIDIRendererCounter::Initialize()
 {
 	AbstractMIDIRenderer::Initialize();
@@ -22,7 +25,7 @@ void MIDIRendererCounter::LoadSequence(MIDISequence* sequence)
 void MIDIRendererCounter::Render(double deltaTime)
 {
 	if (!seq) return;
-	std::vector<NoteSequence>& notes = seq->mergedNotes;
+	auto& notes = seq->mergedNotes;
 	if (notes.empty()) return;
 
 	double playbackSeconds = app->GetTimer()->Elapsed();

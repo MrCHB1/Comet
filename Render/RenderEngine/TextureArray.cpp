@@ -1,7 +1,14 @@
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
+#include <glad/glad.h>
 #include "TextureArray.h"
 #include <iostream>
 #include <vector>
 #include <algorithm>
+
+// REFACTOR (compile-memory): stb_image.h is no longer part of the precompiled
+// header, so the only translation units that decode images include it directly.
+#include "stb_image.h"
 
 TextureArray::TextureArray(int width, int height, int layerCount, GLenum internalFormat)
 	: width(width), height(height), layerCount(layerCount), internalFormat(internalFormat), layerAspectRatios(layerCount, 1.0f)
@@ -142,6 +149,19 @@ void TextureArray::Bind(GLuint slot)
 }
 
 void TextureArray::Unbind() const
+{
+	glActiveTexture(GL_TEXTURE0 + slot);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+}
+
+TextureArrayBind::TextureArrayBind(TextureArray& array, GLuint slot)
+	: array(array), slot(slot)
+{
+	glActiveTexture(GL_TEXTURE0 + slot);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, array.texture);
+}
+
+TextureArrayBind::~TextureArrayBind()
 {
 	glActiveTexture(GL_TEXTURE0 + slot);
 	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);

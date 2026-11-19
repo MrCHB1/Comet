@@ -1,3 +1,10 @@
+#include <memory>
+#include <algorithm>
+
+#include "RenderEngine/Shaders.h"
+#include "RenderEngine/Buffers.h"
+#include "RenderEngine/TextureArray.h"
+
 #include "MIDIRendererSynthesia.h"
 #include "Utils.h"
 #include "App/MIDIApp.h"
@@ -5,14 +12,105 @@
 #include "MIDI/TempoMap.h"
 #include "RenderView.h"
 #include "App/Dialog/DialogMacros.h"
-#include <memory>
-#include <algorithm>
 
-#define LOAD_VAL(n, key, target) \
-        if (n && n[key]) { target = n[key].as<std::decay_t<decltype(target)>>(); }
+#include "Config/ConfigUtils.h"
+
+namespace
+{
+	using namespace Config;
+
+	constexpr const std::array<uint32_t, 12> nativeSynthesiaColors = {
+		// blue
+		0x80A3CB,
+		0x2A5EA7,
+		// green
+		0x9DE04D,
+		0x4C9301,
+		// orange
+		0xF8A829,
+		0xEF7100,
+		// yellow
+		0xFAE944,
+		0xDFCA24,
+		// purple
+		0xC48ACB,
+		0x7E6583,
+		// red
+		0xE76F6D,
+		0xE13C34,
+	};
+
+#pragma region Texture enums
+
+	// Index of each source image within the shared texture array. Order must
+	// match the LoadLayer() calls in Initialize().
+	enum S9TextureLayer : int
+	{
+		S9_LAYER_BAR = 0,
+		S9_LAYER_KEY_BLACK,
+		S9_LAYER_KEY_BLACK_PRESSED,
+		S9_LAYER_KEY_WHITE,
+		S9_LAYER_KEY_WHITE_PRESSED,
+		S9_LAYER_KEY_WHITE_WHOLE,
+		S9_LAYER_KEY_WHITE_WHOLE_PRESSED,
+		S9_LAYER_SHADOW_LARGE,
+		S9_LAYER_SHADOW_UNPRESSED,
+		S9_LAYER_SHADOW_PRESSED,
+
+		S9_LAYER_COUNT
+	};
+
+	enum S8TextureLayer : int
+	{
+		S8_LAYER_BAR = 0,
+		S8_LAYER_KEY_BLACK,
+		S8_LAYER_KEY_BLACK_PRESSED,
+		S8_LAYER_KEY_WHITE,
+		S8_LAYER_KEY_WHITE_PRESSED,
+		S8_LAYER_KEY_WHITE_WHOLE,
+		S8_LAYER_KEY_WHITE_WHOLE_PRESSED,
+
+		S8_LAYER_COUNT
+	};
+
+	enum S7TextureLayer : int
+	{
+		S7_LAYER_BAR = 0,
+		S7_LAYER_KEY_BLACK,
+		S7_LAYER_KEY_BLACK_PRESSED,
+		S7_LAYER_KEY_WHITE,
+		S7_LAYER_KEY_WHITE_PRESSED,
+		S7_LAYER_KEY_WHITE_WHOLE,
+		S7_LAYER_KEY_WHITE_WHOLE_PRESSED,
+
+		S7_LAYER_COUNT
+	};
+
+	enum GlowTextureLayer : int
+	{
+		GLOW_LAYER_BAR = 0,
+		GLOW_LAYER_KEY_BLACK,
+		GLOW_LAYER_KEY_BLACK_PRESSED,
+		GLOW_LAYER_KEY_WHITE,
+		GLOW_LAYER_KEY_WHITE_PRESSED,
+		GLOW_LAYER_KEY_WHITE_WHOLE,
+		GLOW_LAYER_KEY_WHITE_WHOLE_PRESSED,
+
+		GLOW_LAYER_COUNT
+	};
+
+	enum ParticleTextureLayer : int
+	{
+		LAYER_PARTICLE_DEBRIS = 0,
+		LAYER_PARTICLE_SPARKLE,
+		LAYER_PARTICLE_HAZE,
+		PARTICLE_LAYER_COUNT
+	};
+
+#pragma endregion
 
 #pragma region Shaders
-inline constexpr const char* rectVert = R"(#version 330 core
+	constexpr const char* rectVert = R"(#version 330 core
 layout (location = 0) in vec2 aPos;
 layout (location = 1) in vec2 rectPos;
 layout (location = 2) in vec2 rectSize;
@@ -55,7 +153,7 @@ void main()
     gl_Position = vec4(pos * 2.0 - 1.0, 0.0, 1.0);
 })";
 
-inline constexpr const char* rectFrag = R"(#version 330 core
+	constexpr const char* rectFrag = R"(#version 330 core
 flat in uint meta;
 flat in int texID;
 in vec2 uv;
@@ -79,7 +177,7 @@ void main()
 		fragColor = rectColor;
 })";
 
-inline constexpr const char* notesVert = R"(#version 330 core
+	constexpr const char* notesVert = R"(#version 330 core
 layout (location = 0) in vec2 vPos;
 layout (location = 1) in vec2 aPos;
 layout (location = 2) in vec2 aSize;
@@ -106,7 +204,7 @@ void main()
 	gl_Position = vec4(pos * 2.0 - 1.0, 0.0, 1.0);
 })";
 
-inline constexpr const char* notesFrag = R"(#version 330 core
+	constexpr const char* notesFrag = R"(#version 330 core
 in vec2 noteSize;
 in vec2 uv;
 flat in uint meta;
@@ -194,6 +292,7 @@ void main()
 	
 })";
 #pragma endregion
+}
 
 #pragma region Particles
 
@@ -258,28 +357,7 @@ void KeyDebrisParticle::Step(double delta)
 	vel.y -= 0.001 * delta * 60;
 }
 
-#pragma endregion
-
-inline std::vector<uint32_t> nativeSynthesiaColors = {
-	// blue
-	0x80A3CB,
-	0x2A5EA7,
-	// green
-	0x9DE04D,
-	0x4C9301,
-	// orange
-	0xF8A829,
-	0xEF7100,
-	// yellow
-	0xFAE944,
-	0xDFCA24,
-	// purple
-	0xC48ACB,
-	0x7E6583,
-	// red
-	0xE76F6D,
-	0xE13C34,
-};
+#pragma endregion 
 
 inline uint32_t SampleNativeColor(uint16_t track, uint8_t channel, bool isBlack)
 {
@@ -287,6 +365,11 @@ inline uint32_t SampleNativeColor(uint16_t track, uint8_t channel, bool isBlack)
 	index = index % nativeSynthesiaColors.size();
 	return nativeSynthesiaColors[index | isBlack];
 }
+
+MIDIRendererSynthesia::MIDIRendererSynthesia(MIDIApp* app) : AbstractMIDIRenderer(app)
+{ }
+
+MIDIRendererSynthesia::~MIDIRendererSynthesia() = default;
 
 void MIDIRendererSynthesia::Initialize()
 {
@@ -1370,7 +1453,7 @@ void MIDIRendererSynthesia::RenderNotes()
 void MIDIRendererSynthesia::RenderOutOfBoundNotes()
 {
 	if (!seq) return;
-	std::vector<NoteSequence>& notes = seq->mergedNotes;
+	auto& notes = seq->mergedNotes;
 	if (notes.empty()) return;
 	auto* renderView = app->GetRenderView();
 	if (!renderView) return;
@@ -1894,14 +1977,14 @@ void MIDIRendererSynthesia::LoadSettings(const YAML::Node& node)
 	if (!node) return;
 
 	int styleInt;
-	LOAD_VAL(node, "style", styleInt);
+	LoadValue(node, "style", styleInt);
 	renderSettings.style = static_cast<SynthesiaStyle>(styleInt);
 
-	LOAD_VAL(node, "nativeColors", renderSettings.useNativeNoteColors);
-	LOAD_VAL(node, "oobNotes", renderSettings.showOutOfBoundNotes);
-	LOAD_VAL(node, "keySparkle", renderSettings.renderKeySparkle);
-	LOAD_VAL(node, "background", renderSettings.renderBackground);
-	LOAD_VAL(node, "keyOctaves", renderSettings.showKeyOctaves);
+	LoadValue(node, "nativeColors", renderSettings.useNativeNoteColors);
+	LoadValue(node, "oobNotes", renderSettings.showOutOfBoundNotes);
+	LoadValue(node, "keySparkle", renderSettings.renderKeySparkle);
+	LoadValue(node, "background", renderSettings.renderBackground);
+	LoadValue(node, "keyOctaves", renderSettings.showKeyOctaves);
 
 	UpdateStyle();
 }

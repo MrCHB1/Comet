@@ -6,8 +6,8 @@
 #include "Dialog/SettingsDialog.h"
 #include "Dialog/MessageDialog.h"
 #include "imgui.h"
-#include "backends/imgui_impl_glfw.h"
-#include "backends/imgui_impl_opengl3.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 #include "Render/Renderer/PrimitiveShaders.h"
 #include "Fonts.h"
 #include <iostream>
@@ -19,6 +19,7 @@
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+#include <glad/glad.h>
 
 #include "stb_image.h"
 

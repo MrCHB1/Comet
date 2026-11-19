@@ -7,7 +7,9 @@
 class MIDIRendererCounter : public AbstractMIDIRenderer
 {
 public:
-	MIDIRendererCounter(MIDIApp* app) : AbstractMIDIRenderer(app) {}
+	MIDIRendererCounter(MIDIApp* app);
+	~MIDIRendererCounter() override;
+
 	void Initialize() override;
 	void LoadSequence(MIDISequence* sequence) override;
 	void Render(double deltaTime) override;

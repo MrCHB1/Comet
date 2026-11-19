@@ -1,4 +1,8 @@
+#include "GPUImage.h"
+#include "./RenderEngine/Shaders.h"
+#include "./RenderEngine/Buffers.h"
 #include "MIDIRenderer.h"
+
 #include "Comet.h"
 #include "Render/Renderer/PrimitiveShaders.h"
 #include "../App/MIDIApp.h"
@@ -11,9 +15,10 @@
 #include <algorithm>
 #include "App/Dialog/DialogMacros.h"
 
+namespace
+{
 #pragma region Shaders
-
-static constexpr const char* keyboardvert = R"(#version 330 core
+	static constexpr const char* keyboardvert = R"(#version 330 core
 layout (location = 0) in vec2 aPos;
 
 // instance data
@@ -43,7 +48,7 @@ void main()
 	kWidth = kRight - kLeft;
 })";
 
-static constexpr const char* keyboardfrag = R"(#version 330
+	static constexpr const char* keyboardfrag = R"(#version 330
 
 uniform sampler2D blackKey;
 uniform sampler2D whiteKey;
@@ -149,7 +154,7 @@ void main()
 	fragColor = vec4(texColor, 1.0);
 })";
 
-static constexpr const char* notesvert = R"(#version 330
+	static constexpr const char* notesvert = R"(#version 330
 
 layout (location = 0) in vec2 aPos;
 
@@ -178,7 +183,7 @@ void main()
 	noteHeight = nEnd - nStart;
 })";
 
-static constexpr const char* notesfrag = R"(#version 330
+	static constexpr const char* notesfrag = R"(#version 330
 
 in vec2 uv;
 flat in uint color;
@@ -229,8 +234,8 @@ void main()
 
 	fragColor = vec4(finalColor, 1.0f);
 })";
-
 #pragma endregion
+}
 
 void CheckGLError(const char* label)
 {
@@ -253,6 +258,14 @@ const std::array<unsigned int, 6> QUAD_INDICES = {
 	1, 2, 3
 };
 
+MIDIRenderer::MIDIRenderer(MIDIApp* app) : AbstractMIDIRenderer(app)
+{
+	keyboardData.fill(RenderKeyboardKey());
+	keyMetas.fill(KeyboardMeta());
+}
+
+MIDIRenderer::~MIDIRenderer() = default;
+
 void MIDIRenderer::LoadSequence(MIDISequence* sequence)
 {
 	std::lock_guard<std::mutex> lock(renderMutex);
@@ -272,6 +285,13 @@ void MIDIRenderer::UnloadSequence()
 {
 	std::lock_guard<std::mutex> lock(renderMutex);
 	AbstractMIDIRenderer::UnloadSequence();
+}
+
+void MIDIRenderer::SetBarColor(float r, float g, float b)
+{
+	if (!initialized) return;
+	ShaderBind bind(*keyboardProgram);
+	keyboardProgram->SetVec3("barColor", glm::vec3(r, g, b));
 }
 
 void MIDIRenderer::LoadResourcePack(std::shared_ptr<ResourcePack> pack, bool loadColors)

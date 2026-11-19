@@ -2,104 +2,128 @@
 #include <array>
 #include <vector>
 
-NoteSequence SequenceFuncs::FlattenSequence(std::vector<NoteSequence>&& tracks)
+NoteSequence SequenceFuncs::FlattenSequence(
+    std::vector<NoteSequence>&& tracks, size_t* outProcessed)
 {
+    if (outProcessed) *outProcessed = 0;
     if (tracks.empty()) return {};
     if (tracks.size() == 1) return std::move(tracks[0]);
 
     size_t totalSize = 0;
-    for (const auto& track : tracks)
-        totalSize += track.Size();
+    for (const auto& t : tracks) totalSize += t.Size();
 
     NoteSequence result;
     if (totalSize == 0) return result;
-    result.Reserve(totalSize);
+    result.Resize(totalSize);
 
-    struct TrackHead
-    {
-        size_t elementIdx;
-        uint32_t trackIdx;
-        uint32_t tick;
+    struct Head { uint64_t key; size_t idx; }; // key = tick<<32 | trackIdx
+    auto makeKey = [](uint32_t tick, uint32_t t) {
+        return (uint64_t(tick) << 32) | t;
+        };
 
-        bool operator<(const TrackHead& other) const
-        {
-            if (tick != other.tick)
-                return tick > other.tick;
-            return trackIdx > other.trackIdx;
-        }
-    };
-
-    std::vector<TrackHead> heap;
+    std::vector<Head> heap;
     heap.reserve(tracks.size());
-
-    for (size_t i = 0; i < tracks.size(); i++)
-    {
+    for (uint32_t i = 0; i < tracks.size(); i++)
         if (!tracks[i].Empty())
-        {
-            heap.push_back({ 0, static_cast<uint32_t>(i), tracks[i].tick[0] });
+            heap.push_back({ makeKey(tracks[i].tick[0], i), 0 });
+
+    auto siftDown = [&](size_t i) {
+        const size_t n = heap.size();
+        Head h = heap[i];
+        for (;;) {
+            size_t c = 2 * i + 1;
+            if (c >= n) break;
+            if (c + 1 < n && heap[c + 1].key < heap[c].key) ++c;
+            if (heap[c].key >= h.key) break;
+            heap[i] = heap[c];
+            i = c;
         }
-    }
+        heap[i] = h;
+        };
 
-    std::make_heap(heap.begin(), heap.end());
+    for (size_t i = heap.size() / 2; i-- > 0;) siftDown(i);
 
+    size_t dst = 0;
     while (!heap.empty())
     {
-        std::pop_heap(heap.begin(), heap.end());
-        TrackHead& head = heap.back();
+        const uint32_t t = uint32_t(heap[0].key & 0xFFFFFFFFu);
+        auto& src = tracks[t];
+        const size_t n = src.Size();
+        size_t i = heap[0].idx;
 
-        auto& src = tracks[head.trackIdx];
-        size_t idx = head.elementIdx;
+        // Runner-up key: everything from this track below it can be bulk-copied
+        uint64_t limit = UINT64_MAX;
+        if (heap.size() > 1) limit = heap[1].key;
+        if (heap.size() > 2 && heap[2].key < limit) limit = heap[2].key;
 
-        result.Emplace(
-            src.GetTrack(idx),
-            src.GetChannel(idx),
-            src.tick[idx],
-            src.GetKey(idx),
-            src.gate[idx],
-            src.GetVelocity(idx)
-        );
+        size_t j = i + 1;
+        while (j < n && makeKey(src.tick[j], t) < limit) ++j;
 
-        head.elementIdx++;
-        if (head.elementIdx < src.Size())
+        const size_t len = j - i;
+        if (len == 1)
         {
-            head.tick = src.tick[head.elementIdx];
-            std::push_heap(heap.begin(), heap.end());
+            result.tick[dst] = src.tick[i];
+            result.gate[dst] = src.gate[i];
+            result.packed[dst] = src.packed[i];
         }
         else
         {
+            std::copy_n(src.tick.data() + i, len, result.tick.data() + dst);
+            std::copy_n(src.gate.data() + i, len, result.gate.data() + dst);
+            std::copy_n(src.packed.data() + i, len, result.packed.data() + dst);
+        }
+        dst += len;
+        if (outProcessed) (*outProcessed) += len;
+        i = j;
+
+        if (i < n)
+        {
+            heap[0].key = makeKey(src.tick[i], t);
+            heap[0].idx = i;
+        }
+        else
+        {
+            // free this track's memory as soon as it's exhausted
+            src = NoteSequence{};
+            heap[0] = heap.back();
             heap.pop_back();
         }
+        if (!heap.empty()) siftDown(0);
     }
 
+    tracks.clear();
     return result;
 }
 
-std::vector<NoteSequence> SequenceFuncs::DistributeNotes(NoteSequence&& notes)
+std::array<NoteSequence, MIDI_KEYS> SequenceFuncs::DistributeNotes(NoteSequence&& notes, size_t* outNotesProcessed)
 {
-    std::vector<NoteSequence> result(MIDI_KEYS);
+    if (outNotesProcessed) (*outNotesProcessed) = 0;
+
+    std::array<NoteSequence, MIDI_KEYS> result{};
     const size_t numNotes = notes.Size();
 
     size_t counts[MIDI_KEYS]{};
+    size_t offsets[MIDI_KEYS]{};
+
     for (size_t n = 0; n < numNotes; n++)
         counts[notes.GetKey(n)]++;
 
     for (size_t n = 0; n < MIDI_KEYS; n++)
-        result[n].Reserve(counts[n]);
+        result[n].Resize(counts[n]);
 
     for (size_t i = 0; i < numNotes; ++i)
     {
-        uint8_t noteVal = notes.GetKey(i);
+        const uint8_t key = notes.GetKey(i);
+        const size_t dst = offsets[key]++;
 
-        result[noteVal].Emplace(
-            notes.GetTrack(i),
-            notes.GetChannel(i),
-            notes.tick[i],
-            noteVal,
-            notes.gate[i],
-            notes.GetVelocity(i)
-        );
+        result[key].tick[dst] = notes.tick[i];
+        result[key].gate[dst] = notes.gate[i];
+        result[key].packed[dst] = notes.packed[i];
+
+        if (outNotesProcessed) (*outNotesProcessed)++;
     }
 
+    notes.Clear();
     return result;
 }
 

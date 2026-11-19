@@ -10,7 +10,14 @@ struct ImVec4;
 class ColorAsset
 {
 public:
+	enum RndColorSampling
+	{
+		UMP, // Random colors generated like UMP
+		PFA  // or like PFA (both give off different random colors)
+	};
+
 	std::vector<ImVec4> colors{};
+	RndColorSampling rndSampling = RndColorSampling::PFA;
 
 	ColorAsset() : mt(rd()), random(0.0f, 1.0f) {}
 	void ResetColors();

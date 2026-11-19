@@ -132,7 +132,7 @@ void MIDIRendererVelocities::Render(double deltaTime)
 void MIDIRendererVelocities::RenderChannelKeys()
 {
 	if (!seq) return;
-	std::vector<NoteSequence>& notes = seq->mergedNotes;
+	auto& notes = seq->mergedNotes;
 	if (notes.empty()) return;
 
 	double playbackSeconds = app->GetTimer()->Elapsed();

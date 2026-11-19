@@ -6,6 +6,70 @@
 #include "MIDI/Timer/MIDITimer.h"
 #include "MIDI/TempoMap.h"
 
+#include "Render/RenderEngine/Buffers.h"
+
+AbstractMIDIRenderer::AbstractMIDIRenderer(MIDIApp* app) : app(app)
+{
+	for (size_t key = 0; key < MIDI_KEYS; key++)
+	{
+		size_t k = (key % 12);
+		blackArr[key] = k == 1 || k == 3 || k == 6 || k == 8 || k == 10;
+	}
+
+	size_t n = 0;
+	for (size_t k = 0; k < MIDI_KEYS; k++) if (!blackArr[k]) kbIDs[n++] = (uint8_t)k;
+	for (size_t k = 0; k < MIDI_KEYS; k++) if (blackArr[k])  kbIDs[n++] = (uint8_t)k;
+}
+
+AbstractMIDIRenderer::~AbstractMIDIRenderer() = default;
+
+void AbstractMIDIRenderer::LoadColors(const std::vector<std::array<float, 3>>& colors)
+{
+	if (colors.empty())
+	{
+		this->colors.ResetColors();
+		this->colors.LoadColors();
+	}
+	else
+	{
+		this->colors.LoadColors(colors, true);
+	}
+}
+
+void AbstractMIDIRenderer::LoadSequence(MIDISequence* sequence)
+{
+	if (!sequence)
+	{
+		std::cout << "Tried to load a null sequence." << std::endl;
+		UnloadSequence();
+		return;
+	}
+
+	if (!keyIndexData || keyIndexData->sourceSequenceID != sequence->GetSequenceID())
+	{
+		keyIndexData = std::make_unique<KeyNoteIndexData>();
+		keyIndexData->sourceSequenceID = sequence->GetSequenceID();
+
+		const auto* sequences = &sequence->mergedNotes;
+		for (std::size_t key = 0; key < MIDI_KEYS; key++)
+		{
+			const auto* notes = &(sequences->at(key));
+			keyIndexData->keyNoteIndices[key].Build(notes->tick.data(), notes->gate.data(), notes->Size());
+		}
+	}
+
+	seq = sequence;
+	isTimeBased = seq->timeBased;
+	noteCounterInfo->ppq = sequence->resolution;
+}
+
+void AbstractMIDIRenderer::UnloadSequence()
+{
+	if (noteCounterInfo)
+		noteCounterInfo->ResetCounter();
+	seq = nullptr;
+}
+
 void AbstractMIDIRenderer::Initialize()
 {
 	MIDIPlayerConfig* cfg = app->GetConfig();
@@ -216,4 +280,19 @@ void AbstractMIDIRenderer::RenderSettings()
 	}
 	
 	if (ImGui::Button("Reset settings")) ResetSettings();
+}
+
+void AbstractMIDIRenderer::OnResize(int newWidth, int newHeight)
+{
+	width = newWidth;
+	height = newHeight;
+	if (sceneFramebuffer)
+	{
+		sceneFramebuffer->Resize(width, height);
+	}
+}
+
+GLuint AbstractMIDIRenderer::GetSceneTexture()
+{
+	return sceneFramebuffer ? sceneFramebuffer->GetSceneTexture() : 0;
 }

@@ -1,9 +1,14 @@
+#include "RenderEngine/Shaders.h"
+#include "RenderEngine/Buffers.h"
 #include "MIDIRendererChannels.h"
 #include "App/MIDIApp.h"
 #include "MIDI/Timer/MIDITimer.h"
 #include "MIDI/TempoMap.h"
 
-static const char* channelsVert = R"(#version 330 core
+namespace
+{
+#pragma region Shaders
+	static const char* channelsVert = R"(#version 330 core
 layout (location = 0) in vec2 aPos;
 layout (location = 1) in int aKeyChannel;
 layout (location = 2) in uint aMeta;
@@ -35,7 +40,7 @@ void main()
 	meta = aMeta;
 })";
 
-static const char* channelsFrag = R"(#version 330 core
+	static const char* channelsFrag = R"(#version 330 core
 
 flat in uint meta;
 
@@ -51,6 +56,16 @@ void main()
 
 	fragColor = vec4(color, 1.0);
 })";
+#pragma endregion
+}
+
+MIDIRendererChannels::MIDIRendererChannels(MIDIApp* app) : AbstractMIDIRenderer(app)
+{
+	renderChannelKeys.fill(RenderChannelKey{});
+	channelKeyMetas.fill(ChannelKeyMeta{});
+}
+
+MIDIRendererChannels::~MIDIRendererChannels() = default;
 
 void MIDIRendererChannels::Initialize()
 {
@@ -133,7 +148,7 @@ void MIDIRendererChannels::Render(double deltaTime)
 void MIDIRendererChannels::RenderChannelKeys()
 {
 	if (!seq) return;
-	std::vector<NoteSequence>& notes = seq->mergedNotes;
+	auto& notes = seq->mergedNotes;
 	if (notes.empty()) return;
 
 	double playbackSeconds = app->GetTimer()->Elapsed();

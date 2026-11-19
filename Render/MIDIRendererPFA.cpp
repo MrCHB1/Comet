@@ -1,3 +1,5 @@
+#include "RenderEngine/Buffers.h"
+#include "RenderEngine/Shaders.h"
 #include "MIDIRendererPFA.h"
 #include "Utils.h"
 #include "App/MIDIApp.h"
@@ -5,43 +7,20 @@
 #include "MIDI/TempoMap.h"
 #include "Render/RenderView.h"
 #include "App/Dialog/DialogMacros.h"
+#include "Config/ConfigUtils.h"
 
 #define NUM_WHITE_KEYS 75
 
-void RenderColor::SetColor(uint32_t color, float dark, float veryDark)
+namespace
 {
-	origBgr = color;
-	primary = color;
+	using namespace Config;
 
-	uint32_t a_mask = color & 0xFF000000u;
+	static const float SharpRatio = 0.65f;
+	static const float KBPercent = 0.25f;
+	static const float KeyRatio = 0.1775f;
 
-	uint32_t r = (color >> 16u) & 0xFFu;
-	uint32_t g = (color >> 8u) & 0xFFu;
-	uint32_t b = color & 0xFFu;
-
-	// Convert the float multipliers to 8.8 fixed-point format (scale by 256)
-	// This reduces 6 floating point multiplies down to 2
-	uint32_t i_dark = static_cast<uint32_t>(dark * 256.0f);
-	uint32_t i_veryDark = static_cast<uint32_t>(veryDark * 256.0f);
-
-	uint32_t dr = std::min((r * i_dark) >> 8, 255u);
-	uint32_t dg = std::min((g * i_dark) >> 8, 255u);
-	uint32_t db = std::min((b * i_dark) >> 8, 255u);
-
-	uint32_t vdr = std::min((r * i_veryDark) >> 8, 255u);
-	uint32_t vdg = std::min((g * i_veryDark) >> 8, 255u);
-	uint32_t vdb = std::min((b * i_veryDark) >> 8, 255u);
-
-	this->dark = a_mask | (dr << 16) | (dg << 8) | db;
-	this->veryDark = a_mask | (vdr << 16) | (vdg << 8) | vdb;
-}
-
-static const float SharpRatio = 0.65f;
-static const float KBPercent = 0.25f;
-static const float KeyRatio = 0.1775f;
-
-#pragma region Shader code
-static const char* rectVert = R"(#version 330 core
+#pragma region Shaders
+	static const char* rectVert = R"(#version 330 core
 layout (location = 0) in vec2 aPos;
 layout (location = 1) in uint aColor;
 
@@ -63,7 +42,7 @@ void main()
 	color = vColor;
 })";
 
-static const char* rectFrag = R"(#version 330 core
+	static const char* rectFrag = R"(#version 330 core
 in vec3 color;
 
 out vec4 fragColor;
@@ -73,7 +52,7 @@ void main()
 	fragColor = vec4(color, 1.0);
 })";
 
-static const char* notesVert = R"(#version 330 core
+	static const char* notesVert = R"(#version 330 core
 layout (location = 0) in vec2 aPos; // normalized 0-1
 layout (location = 1) in float nX; // screen pixel number, not normalized
 layout (location = 2) in float nY;
@@ -110,7 +89,7 @@ void main()
 	uv = aPos;
 })";
 
-static const char* notesFrag = R"(#version 330 core
+	static const char* notesFrag = R"(#version 330 core
 in vec2 uv;
 in vec2 position;
 in vec3 color;
@@ -130,7 +109,7 @@ void main()
 	fragColor = vec4(noteColor, 1.0);
 })";
 
-static const char* notesCompute = R"(#version 430 core
+	static const char* notesCompute = R"(#version 430 core
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 struct GPUInputNote {
@@ -219,6 +198,38 @@ void main()
     outputs[id].meta = note.color;
 })";
 #pragma endregion
+}
+
+void RenderColor::SetColor(uint32_t color, float dark, float veryDark)
+{
+	origBgr = color;
+	primary = color;
+
+	uint32_t a_mask = color & 0xFF000000u;
+
+	uint32_t r = (color >> 16u) & 0xFFu;
+	uint32_t g = (color >> 8u) & 0xFFu;
+	uint32_t b = color & 0xFFu;
+
+	// Convert the float multipliers to 8.8 fixed-point format (scale by 256)
+	// This reduces 6 floating point multiplies down to 2
+	uint32_t i_dark = static_cast<uint32_t>(dark * 256.0f);
+	uint32_t i_veryDark = static_cast<uint32_t>(veryDark * 256.0f);
+
+	uint32_t dr = std::min((r * i_dark) >> 8, 255u);
+	uint32_t dg = std::min((g * i_dark) >> 8, 255u);
+	uint32_t db = std::min((b * i_dark) >> 8, 255u);
+
+	uint32_t vdr = std::min((r * i_veryDark) >> 8, 255u);
+	uint32_t vdg = std::min((g * i_veryDark) >> 8, 255u);
+	uint32_t vdb = std::min((b * i_veryDark) >> 8, 255u);
+
+	this->dark = a_mask | (dr << 16) | (dg << 8) | db;
+	this->veryDark = a_mask | (vdr << 16) | (vdg << 8) | vdb;
+}
+
+MIDIRendererPFA::MIDIRendererPFA(MIDIApp* app) : AbstractMIDIRenderer(app) {}
+MIDIRendererPFA::~MIDIRendererPFA() = default;
 
 void MIDIRendererPFA::PushRect(float x, float y, float cx, float cy, uint32_t color)
 {
@@ -1071,7 +1082,7 @@ void MIDIRendererPFA::LoadSettings(const YAML::Node& node)
 {
 	if (!node) return;
 
-	LOAD_VAL(node, "middleC", settings.showMiddleCSquare);
-	LOAD_VAL(node, "showLines", settings.showLines);
-	LOAD_VAL(node, "roundedNotes", settings.roundedNoteLengths);
+	LoadValue(node, "middleC", settings.showMiddleCSquare);
+	LoadValue(node, "showLines", settings.showLines);
+	LoadValue(node, "roundedNotes", settings.roundedNoteLengths);
 }

@@ -30,19 +30,23 @@ public:
 
 	inline uint8_t ReadFast()
 	{
-		if (bufferPos >= bufferLength) UpdateBuffer();
-		pos++;
+		if (bufferPos >= bufferValid) [[unlikely]]
+		{
+			UpdateBuffer();
+			if (bufferValid == 0) return 0;   // end of data: don't touch stale bytes
+		}
 		return bytes[bufferPos++];
 	}
+	bool Eof() const { return eof; }
 private:
 	void UpdateBuffer();
+	size_t Pos() const { return bufferStart + bufferPos; }
 
-	uint8_t* bytes;
-	size_t start;
-	size_t pos;
-	size_t length;
-	size_t bufferStart;
-	size_t bufferLength;
-	size_t bufferPos;
-	std::mutex* mtx;
+	uint8_t* bytes = nullptr;
+	size_t start = 0, length = 0;
+	size_t bufferStart = 0, bufferPos = 0;
+	size_t bufferLength = 0;   // capacity
+	size_t bufferValid = 0;    // bytes actually filled
+	bool eof = false;
+	std::mutex* mtx = nullptr;
 };

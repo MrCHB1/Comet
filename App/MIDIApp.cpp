@@ -9,7 +9,7 @@
 #include <thread>
 #include <memory>
 #include "imgui.h"
-#include "backends/imgui_impl_opengl3.h"
+#include "imgui_impl_opengl3.h"
 #include "FFmpeg/FFmpegCommandBuilder.h"
 #include "Utils.h"
 #include "../Render/MIDIRendererPFA.h"
@@ -20,6 +20,7 @@
 #include "../Render/MIDIRendererVelocities.h"
 #include "../Render/MIDIRendererCounter.h"
 #include "../Render/MIDIRenderer.h" // Textured renderer + AbstractMIDIRenderer full definition
+#include "Render/Renderer/KeyNoteIndexData.h"
 
 #include "../ResourcePack/DefaultResourcePack.h"
 #include "../ResourcePack/ResourcePackList.h"
@@ -133,6 +134,26 @@ void MIDIApp::LoadMIDI(const char* path)
 		{
 			this->pendingTitle = std::filesystem::path(pathStr).filename().string();
 			seq->SetSequenceID(MIDISequence::NextSequenceID()); // will be used for rebuilding key index data
+			
+			loader->SetName("Building note index...");
+			auto data = std::make_unique<KeyNoteIndexData>();
+			data->sourceSequenceID = seq->GetSequenceID();
+
+			std::atomic<size_t> next{ 0 };
+			auto worker = [&] {
+				for (size_t k; (k = next.fetch_add(1)) < MIDI_KEYS;)
+				{
+					const NoteSequence& n = seq->mergedNotes[k];
+					data->keyNoteIndices[k].Build(n.tick.data(), n.gate.data(), n.Size());
+				}
+				};
+			std::vector<std::future<void>> fs;
+			for (size_t w = 1; w < data->threadPool.WorkerCount(); ++w)
+				fs.push_back(data->threadPool.SubmitJobWithFuture(worker));
+			worker();
+			for (auto& f : fs) f.get();
+			this->pendingKeyIndex = std::move(data);
+
 			this->pendingSeq = std::move(seq);
 			this->hasPendingSeq.store(true);
 		}
@@ -148,6 +169,7 @@ void MIDIApp::UnloadMIDI()
 	timer->Pause();
 	midiAudio->Reset();
 	renderer->UnloadSequence();
+	pendingSeq.reset();
 	hasSequence = false;
 	mainWindow->SetTitleInfo();
 }
@@ -157,7 +179,7 @@ void MIDIApp::UpdatePendingSequence()
 	if (!hasPendingSeq.exchange(false)) return;
 
 	MIDISequence* seq = pendingSeq.get();
-
+	if (pendingKeyIndex) renderer->SetKeyIndexData(std::move(pendingKeyIndex));
 	renderer->LoadSequence(seq);
 	navigationBar->SetMIDILengthFromSeq(*seq);
 	noteCounterInfo->ppq.value = seq->resolution;

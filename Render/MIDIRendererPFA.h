@@ -3,9 +3,14 @@
 /* Mimicks how PFA(viz) does the rendering, ensuring a 1:1 replica (at least visually). */
 #include "MIDI/MIDIDefs.h"
 #include "Renderer/AbstractMIDIRenderer.h"
-#include "RenderEngine/Buffers.h"
-#include "RenderEngine/Shaders.h"
 #include "Renderer/NoteCuller.h"
+
+class ShaderProgram;
+class Buffer;
+class VertexArray;
+
+struct __GLsync;
+typedef struct __GLsync* GLsync;
 
 #define NOTES_MAX_BATCHES 131072
 
@@ -67,7 +72,9 @@ class NoteCuller;
 class MIDIRendererPFA : public AbstractMIDIRenderer
 {
 public:
-	MIDIRendererPFA(MIDIApp* app) : AbstractMIDIRenderer(app) {}
+	MIDIRendererPFA(MIDIApp* app);
+	~MIDIRendererPFA() override;
+
 	void Initialize() override;
 	void LoadSequence(MIDISequence* sequence) override;
 	void Render(double deltaTime) override;

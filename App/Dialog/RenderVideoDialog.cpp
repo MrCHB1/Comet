@@ -4,6 +4,7 @@
 #include <filesystem>
 #include "MIDI/MIDISequence.h"
 #include "App/UI/Widgets/TimeRange.h"
+#include "App/MIDIApp.h"
 
 #if defined(_WIN32)
 #include <Windows.h>

@@ -2,8 +2,9 @@
 
 #include <vector>
 #include "DiagnosisField.h"
-#include "../../App/MIDIApp.h"
 #include "DiagnosisMessage.h"
+
+class MIDIApp;
 
 class ADiagnosis
 {

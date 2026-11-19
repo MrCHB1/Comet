@@ -3,6 +3,8 @@
 #include "../SavedInputStream.h"
 #include "../MIDISequence.h"
 
+class MIDIApp;
+
 class BasicDiagnosis : public ADiagnosis
 {
 public:

@@ -23,7 +23,7 @@ public:
 	std::vector<MIDITrack> tracks{};
 	std::vector<TempoEvent> tempos{};
 	std::vector<TimeSignatureEvent> timeSignatures{};
-	std::vector<NoteSequence> mergedNotes{};
+	std::array<NoteSequence, MIDI_KEYS> mergedNotes{};
 	std::array<std::vector<NoteBlock>, MIDI_KEYS> noteBlocks{};
 	std::vector<MIDIMessageEvent> mergedEvents{};
 	std::unique_ptr<TempoMap> tempoMap = nullptr;

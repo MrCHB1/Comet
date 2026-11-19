@@ -7,7 +7,6 @@
 #include <functional>
 
 #include "../../MIDI/MIDISequence.h"
-#include "../RenderEngine/Buffers.h" // needed for getting Framebuffer
 #include "../ColorAsset.h"
 #include "../NoteCounter/NoteCounterInfo.h"
 #include "Config/MIDIPlayerConfig.h"
@@ -15,11 +14,12 @@
 #include "KeyNoteIndex.h"
 #include "KeyNoteIndexData.h"
 
-#define LOAD_VAL(n, key, target) \
-        if (n && n[key]) { target = n[key].as<std::decay_t<decltype(target)>>(); }
+// #define LOAD_VAL(n, key, target) \
+//         if (n && n[key]) { target = n[key].as<std::decay_t<decltype(target)>>(); }
 
 class AbstractMIDIRenderer;
 class MIDIApp;
+class Framebuffer;
 
 static std::vector<std::shared_ptr<AbstractMIDIRenderer>> RENDERERS = { };
 
@@ -134,33 +134,11 @@ protected:
 		}
 	}
 public:
-	AbstractMIDIRenderer(MIDIApp* app) : app(app)
-	{
-		for (size_t key = 0; key < MIDI_KEYS; key++)
-		{
-			size_t k = (key % 12);
-			blackArr[key] = k == 1 || k == 3 || k == 6 || k == 8 || k == 10;
-		}
-
-		size_t n = 0;
-		for (size_t k = 0; k < MIDI_KEYS; k++) if (!blackArr[k]) kbIDs[n++] = (uint8_t)k;
-		for (size_t k = 0; k < MIDI_KEYS; k++) if (blackArr[k])  kbIDs[n++] = (uint8_t)k;
-	}
-	virtual ~AbstractMIDIRenderer() = default;
+	AbstractMIDIRenderer(MIDIApp* app);
+	virtual ~AbstractMIDIRenderer();
 
 	virtual ColorAsset& GetColorAsset() { return colors; }
-	virtual void LoadColors(const std::vector<std::array<float, 3>>& colors)
-	{
-		if (colors.empty())
-		{
-			this->colors.ResetColors();
-			this->colors.LoadColors();
-		}
-		else
-		{
-			this->colors.LoadColors(colors, true);
-		}
-	}
+	virtual void LoadColors(const std::vector<std::array<float, 3>>& colors);
 
 	// Instead of recalculating key index data every time a 2d renderer is initialized (which is expensive on billion note midis), we would transfer ownership.
 	[[nodiscard]] std::unique_ptr<KeyNoteIndexData> TakeKeyIndexData()
@@ -173,68 +151,24 @@ public:
 		keyIndexData = std::move(indexData);
 	}
 
-	virtual void LoadSequence(MIDISequence* sequence)
-	{
-		if (!sequence)
-		{
-			std::cout << "Tried to load a null sequence." << std::endl;
-			UnloadSequence();
-			return;
-		}
-
-		if (!keyIndexData || keyIndexData->sourceSequenceID != sequence->GetSequenceID())
-		{
-			keyIndexData = std::make_unique<KeyNoteIndexData>();
-			keyIndexData->sourceSequenceID = sequence->GetSequenceID();
-
-			const auto* sequences = &sequence->mergedNotes;
-			for (std::size_t key = 0; key < MIDI_KEYS; key++)
-			{
-				const auto* notes = &(sequences->at(key));
-				keyIndexData->keyNoteIndices[key].Build(notes->tick.data(), notes->gate.data(), notes->Size());
-			}
-		}
-
-		seq = sequence;
-		isTimeBased = seq->timeBased;
-		noteCounterInfo->ppq = sequence->resolution;
-	}
-
-	virtual MIDISequence* GetSequence()
+	virtual void LoadSequence(MIDISequence* sequence);
+	[[nodiscard]] virtual MIDISequence* GetSequence()
 	{
 		return seq;
 	}
 
-	virtual void UnloadSequence()
-	{
-		if (noteCounterInfo)
-			noteCounterInfo->ResetCounter();
-
-		seq = nullptr;
-	}
+	virtual void UnloadSequence();
 
 	virtual void Initialize();
 	virtual void OnInput(InputState& inputState) { }
 	virtual void Render(double deltaTime) = 0;
 	virtual void RenderSettings();
 	virtual void ResetSettings() {}
-	virtual void OnResize(int newWidth, int newHeight)
-	{
-		width = newWidth;
-		height = newHeight;
-		if (sceneFramebuffer)
-		{
-			sceneFramebuffer->Resize(width, height);
-		}
-	}
+	virtual void OnResize(int newWidth, int newHeight);
 	// Usually called when switching between realtime playback and rendering.
 	virtual void ResetRenderer() {}
 
-	virtual GLuint GetSceneTexture()
-	{
-		return sceneFramebuffer ? sceneFramebuffer->GetSceneTexture() : 0;
-	}
-
+	virtual GLuint GetSceneTexture();
 	virtual void SetNoteCounter(std::shared_ptr<NoteCounterInfo> noteCounterInfo)
 	{
 		this->noteCounterInfo = noteCounterInfo;

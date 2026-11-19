@@ -1,5 +1,11 @@
 #include "SettingsDialog.h"
 #include "Utils.h"
+// REFACTOR (compile-memory): this dialog instantiates MIDIRenderer via
+// MIDIApp::SetRenderer<MIDIRenderer>(), so it needs the complete type. The
+// include used to arrive transitively through MIDIRendererMIDITrail.h, which no
+// longer pulls the renderer hub.
+#include "App/MIDIApp.h"
+#include "Render/MIDIRenderer.h"
 #include "Render/MIDIRendererPFA.h"
 #include "Render/MIDIRendererSynthesia.h"
 #include "Render/MIDIRendererEnhanced.h"
@@ -15,8 +21,12 @@
 #include "App/FontList.h"
 #include "MIDI/Audio/MIDIAudio.h"
 
+#include "App/UI/Layout/ForumLayout.h"
+
 namespace
 {
+	using namespace Comet::UI::Layout;
+
 	template <typename Enum, typename DrawContentFn>
 	void DrawSubTabs(const char* id, const char* heading,
 		Enum& selected, float sidebarWidth,
@@ -127,31 +137,28 @@ void SettingsDialog::DrawAppTab()
 			{
 			case General:
 			{
-				SECTION_HEADER("Rendering");
+				ForumLayout layout("##rendering");
 
-				BEGIN_SECTION("##renderSec")
-				{
-					SETUP_SECTION;
-					SECTION_ENTRY(SECTION_LABEL("VSync"),
+				layout.AddField("##vsync", "VSync",
+					[&]()
+					{
+						bool vsync = config->render.GetVSync();
+						if (ImGui::Checkbox("", &vsync))
 						{
-							bool vsync = config->render.GetVSync();
-							if (ImGui::Checkbox("##vsync", &vsync))
-							{
-								config->render.SetVSync(vsync);
-								glfwSwapInterval(vsync);
-							}
-						});
+							config->render.SetVSync(vsync);
+							glfwSwapInterval(vsync);
+						}
+					});
 
-					SECTION_ENTRY({ SECTION_LABEL("FPS Limit"); ImGui::SetItemTooltip("When set to 0 then the FPS will be uncapped"); },
+				layout.AddFieldWithTooltip("##fpsLimit", "FPS Limit", "0 = No FPS Limit",
+					[&]()
+					{
+						int fpsLimit = config->render.GetFPSLimit();
+						if (ImGui::InputInt("##fpsLimit", &fpsLimit))
 						{
-							int fpsLimit = config->render.GetFPSLimit();
-							if (ImGui::InputInt("##fpsLimit", &fpsLimit))
-							{
-								config->render.SetFPSLimit(fpsLimit);
-							}
-						});
-						END_SECTION;
-				}
+							config->render.SetFPSLimit(fpsLimit);
+						}
+					});
 
 				break;
 			}
@@ -240,42 +247,34 @@ void SettingsDialog::DrawAppTab()
 			}
 			case Navigation:
 			{
-				BEGIN_SECTION("##navi")
-				{
-					SETUP_SECTION;
+				ForumLayout layout("##navigation");
 
-					SECTION_ENTRY(
-						TABLE_LABEL_TOOLTIP(
-							"Always hide navigation bar",
-							"Enabling this will always hide the menu/navigation bar, unless the mouse is near it."
-						),
-						ImGui::Checkbox("##hideNavigationbar", &config->navigation.alwaysHideBar);
-					);
+				layout.AddFieldWithTooltip("##hideNavigationBar",
+					"Always hide navigation bar", "The navigation bar stays hidden unless the mouse hovers near the top of the window.",
+					[&]()
+					{
+						ImGui::Checkbox("", &config->navigation.alwaysHideBar);
+					});
 
-					SECTION_ENTRY(
-						SECTION_LABEL("Jump forward secs"),
+				layout.AddField("##forwardSecs", "Jump forward secs",
+					[&]()
+					{
+						float jumpForwardSecs = config->navigation.seekForwardSeconds;
+						if (ImGui::InputFloat("", &jumpForwardSecs, ImGuiInputTextFlags_NoHorizontalScroll))
 						{
-							float jumpForwardSecs = config->navigation.seekForwardSeconds;
-							if (ImGui::InputFloat("##forwardSecs", &jumpForwardSecs, ImGuiInputTextFlags_NoHorizontalScroll))
-							{
-								config->navigation.seekForwardSeconds = std::clamp(jumpForwardSecs, 0.0001f, 10.0f);
-							}
+							config->navigation.seekForwardSeconds = std::clamp(jumpForwardSecs, 0.0001f, 10.0f);
 						}
-					);
+					});
 
-					SECTION_ENTRY(
-						SECTION_LABEL("Jump backward secs"),
+				layout.AddField("##backwardSecs", "Jump backward secs",
+					[&]()
+					{
+						float jumpBackwardSecs = config->navigation.seekBackwardSeconds;
+						if (ImGui::InputFloat("", &jumpBackwardSecs, ImGuiInputTextFlags_NoHorizontalScroll))
 						{
-							float jumpBackwardSecs = config->navigation.seekBackwardSeconds;
-							if (ImGui::InputFloat("##backwardSecs", &jumpBackwardSecs, ImGuiInputTextFlags_NoHorizontalScroll))
-							{
-								config->navigation.seekBackwardSeconds = std::clamp(jumpBackwardSecs, 0.0001f, 10.0f);
-							}
+							config->navigation.seekBackwardSeconds = std::clamp(jumpBackwardSecs, 0.0001f, 10.0f);
 						}
-					);
-
-					END_SECTION;
-				}
+					});
 
 				break;
 			}
@@ -313,9 +312,8 @@ void SettingsDialog::DrawVisualTab()
 				MIDIPlayerConfig* config = app->GetConfig();
 				RendererType currRenderer = config->render.GetCurrentRenderer();
 
-				BEGIN_SECTION("##renderer")
 				{
-					SETUP_SECTION;
+					ForumLayout layout("##renderer");
 
 					#define RENDERER_COMBO_ENTRY(enumTarget, target) \
 						if (ImGui::Selectable(ToString(enumTarget).c_str(), currRenderer == enumTarget)) \
@@ -327,13 +325,13 @@ void SettingsDialog::DrawVisualTab()
 							} \
 						}
 
-					SECTION_ENTRY(
-						SECTION_LABEL("Renderer"),
+					layout.AddField("##rendererCombo", "Renderer",
+						[&]()
 						{
 							std::string currentRenderer = ToString(currRenderer);
-							if (ImGui::BeginCombo("##rendererCombo", currentRenderer.c_str()))
+							const char* name = currentRenderer.c_str();
+							if (ImGui::BeginCombo("", name))
 							{
-
 								RENDERER_COMBO_ENTRY(RendererType::PFA, MIDIRendererPFA);
 								RENDERER_COMBO_ENTRY(RendererType::Synthesia, MIDIRendererSynthesia);
 								RENDERER_COMBO_ENTRY(RendererType::Textured, MIDIRenderer);
@@ -345,12 +343,9 @@ void SettingsDialog::DrawVisualTab()
 
 								ImGui::EndCombo();
 							}
-						}
-					);
+						});
 
-#undef RENDERER_COMBO_ENTRY
-
-					END_SECTION;
+					#undef RENDERER_COMBO_ENTRY
 				}
 
 				ImGui::Spacing();
@@ -372,153 +367,149 @@ void SettingsDialog::DrawVisualTab()
 					bool setColorsFromPack = false;
 					bool setColorsFromList = false;
 
-					BEGIN_SECTION("##noteColors")
-					{
-						SETUP_SECTION;
-
-						SECTION_ENTRY(
-							SECTION_LABEL("Use colors from"),
+					ForumLayout layout("##noteColors");
+					layout.AddField("##colorRadio", "Use colors from",
+						[&]()
+						{
 							if (ImGui::RadioButton("Resource pack", !config->render.GetUseColorsFromImage()))
 							{
 								config->render.SetUseColorsFromImage(false);
 								setColorsFromPack = true;
 							}
 
-						if (ImGui::RadioButton("Color list", config->render.GetUseColorsFromImage()))
-						{
-							config->render.SetUseColorsFromImage(true);
-							setColorsFromList = true;
-						}
-							);
-
-						if (setColorsFromList)
-						{
-							auto& entry = colorList->GetCurrentPalette();
-							app->GetRenderer()->LoadColors(entry.palette);
-						}
-						else if (setColorsFromPack)
-						{
-							ResourcePackList* packList = app->GetPackList();
-							auto currPack = packList->GetActivePack();
-							auto noteColors = currPack->GetStream("noteColors.png");
-
-							auto& colorAsset = app->GetRenderer()->GetColorAsset();
-							if (noteColors != nullptr)
+							if (ImGui::RadioButton("Color list", config->render.GetUseColorsFromImage()))
 							{
-								colorAsset.LoadColors(noteColors, currPack->GetNoteInfo()->loopColors);
+								config->render.SetUseColorsFromImage(true);
+								setColorsFromList = true;
 							}
-							else
-							{
-								colorAsset.ResetColors();
-								colorAsset.LoadColors();
-							}
-						}
+						});
 
-						END_SECTION;
-					}
-
-					SECTION_HEADER("Palette list");
-
-					ImGui::BeginDisabled(!config->render.GetUseColorsFromImage());
-					if (ImGui::Button("Refresh palette list"))
+					if (setColorsFromList)
 					{
-						colorList->ReloadList();
 						auto& entry = colorList->GetCurrentPalette();
 						app->GetRenderer()->LoadColors(entry.palette);
 					}
-					ImGui::SameLine();
-					if (ImGui::Button("Open palette folder"))
+					else if (setColorsFromPack)
 					{
-						Utils::OpenFolder("./colors");
+						ResourcePackList* packList = app->GetPackList();
+						auto currPack = packList->GetActivePack();
+						auto noteColors = currPack->GetStream("noteColors.png");
+
+						auto& colorAsset = app->GetRenderer()->GetColorAsset();
+						if (noteColors != nullptr)
+						{
+							colorAsset.LoadColors(noteColors, currPack->GetNoteInfo()->loopColors);
+						}
+						else
+						{
+							colorAsset.ResetColors();
+							colorAsset.LoadColors();
+						}
 					}
 
-					ImGui::Spacing();
-
-					auto& palettes = colorList->GetPalettes();
-					const ColorPaletteEntry& currPalette = colorList->GetCurrentPalette();
-
-					ImGui::BeginChild("PaletteScroll", ImVec2(0, 260), true, ImGuiWindowFlags_HorizontalScrollbar);
-					ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 8));
-
-					for (size_t i = 0; i < palettes.size(); ++i)
+					ImGui::BeginDisabled(!config->render.GetUseColorsFromImage());
+					layout.AddHeader("Palette list");
 					{
-						const auto& palette = palettes[i];
-						bool isActivePalette = (&palette == &currPalette);
+						ForumLayoutBreak break_(&layout);
 
-						ImGui::PushID((int)i);
-						ImGui::BeginGroup();
-
-						ImVec2 cardSize(ImGui::GetContentRegionAvail().x, 62.0f);
-						if (ImGui::Selectable("##palette_card", isActivePalette,
-							0, cardSize))
+						if (ImGui::Button("Refresh palette list"))
 						{
-							colorList->SetPalette(i);
-							config->render.paletteID = i;
-							app->GetRenderer()->GetColorAsset().LoadColors(palette.palette, true);
+							colorList->ReloadList();
+							auto& entry = colorList->GetCurrentPalette();
+							app->GetRenderer()->LoadColors(entry.palette);
+						}
+						ImGui::SameLine();
+						if (ImGui::Button("Open palette folder"))
+						{
+							Utils::OpenFolder("./colors");
 						}
 
-						ImDrawList* dl = ImGui::GetWindowDrawList();
-						ImVec2 min = ImGui::GetItemRectMin();
-						ImVec2 max = ImGui::GetItemRectMax();
+						ImGui::Spacing();
 
-						ImU32 bg = isActivePalette
-							? ImGui::GetColorU32(ImGuiCol_FrameBgActive)
-							: ImGui::GetColorU32(ImGuiCol_FrameBg);
+						auto& palettes = colorList->GetPalettes();
+						const ColorPaletteEntry& currPalette = colorList->GetCurrentPalette();
 
-						dl->AddRect(min, max, ImGui::GetColorU32(isActivePalette ? ImGuiCol_CheckMark : ImGuiCol_Border), 4.0f, 0, 2.0f);
+						ImGui::BeginChild("PaletteScroll", ImVec2(0, 260), true, ImGuiWindowFlags_HorizontalScrollbar);
+						ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 8));
 
-						// Palette name
-						ImVec2 textPos(min.x + 12.0f, min.y + 10.0f);
-						dl->AddText(textPos, ImGui::GetColorU32(ImGuiCol_Text), palette.name.c_str());
-
-						// Small color preview strip
-						float swatchY = min.y + 34.0f;
-						float swatchW = 26.0f;
-						float swatchH = 14.0f;
-						float swatchX = min.x + 12.0f;
-						const int previewCount = (int)std::min<size_t>(10, palette.palette.size());
-
-						for (int s = 0; s < previewCount; ++s)
+						for (size_t i = 0; i < palettes.size(); ++i)
 						{
-							const auto& c = palette.palette[s];
-							ImU32 col = IM_COL32(c[0] * 255, c[1] * 255, c[2] * 255, 255);
+							const auto& palette = palettes[i];
+							bool isActivePalette = (&palette == &currPalette);
 
-							ImVec2 a(swatchX + s * (swatchW + 4.0f), swatchY);
-							ImVec2 b(a.x + swatchW, a.y + swatchH);
-							dl->AddRectFilled(a, b, col, 4.0f);
-							dl->AddRect(a, b, IM_COL32(0, 0, 0, 60), 4.0f);
+							ImGui::PushID((int)i);
+							ImGui::BeginGroup();
+
+							ImVec2 cardSize(ImGui::GetContentRegionAvail().x, 62.0f);
+							if (ImGui::Selectable("##palette_card", isActivePalette,
+								0, cardSize))
+							{
+								colorList->SetPalette(i);
+								config->render.paletteID = i;
+								app->GetRenderer()->GetColorAsset().LoadColors(palette.palette, true);
+							}
+
+							ImDrawList* dl = ImGui::GetWindowDrawList();
+							ImVec2 min = ImGui::GetItemRectMin();
+							ImVec2 max = ImGui::GetItemRectMax();
+
+							ImU32 bg = isActivePalette
+								? ImGui::GetColorU32(ImGuiCol_FrameBgActive)
+								: ImGui::GetColorU32(ImGuiCol_FrameBg);
+
+							dl->AddRect(min, max, ImGui::GetColorU32(isActivePalette ? ImGuiCol_CheckMark : ImGuiCol_Border), 4.0f, 0, 2.0f);
+
+							// Palette name
+							ImVec2 textPos(min.x + 12.0f, min.y + 10.0f);
+							dl->AddText(textPos, ImGui::GetColorU32(ImGuiCol_Text), palette.name.c_str());
+
+							// Small color preview strip
+							float swatchY = min.y + 34.0f;
+							float swatchW = 26.0f;
+							float swatchH = 14.0f;
+							float swatchX = min.x + 12.0f;
+							const int previewCount = (int)std::min<size_t>(10, palette.palette.size());
+
+							for (int s = 0; s < previewCount; ++s)
+							{
+								const auto& c = palette.palette[s];
+								ImU32 col = IM_COL32(c[0] * 255, c[1] * 255, c[2] * 255, 255);
+
+								ImVec2 a(swatchX + s * (swatchW + 4.0f), swatchY);
+								ImVec2 b(a.x + swatchW, a.y + swatchH);
+								dl->AddRectFilled(a, b, col, 4.0f);
+								dl->AddRect(a, b, IM_COL32(0, 0, 0, 60), 4.0f);
+							}
+
+							if (isActivePalette)
+							{
+								ImVec2 badgePos(max.x - 72.0f, min.y + 10.0f);
+								dl->AddText(badgePos, ImGui::GetColorU32(ImGuiCol_CheckMark), "In use");
+							}
+
+							ImGui::EndGroup();
+							ImGui::PopID();
 						}
 
-						if (isActivePalette)
-						{
-							ImVec2 badgePos(max.x - 72.0f, min.y + 10.0f);
-							dl->AddText(badgePos, ImGui::GetColorU32(ImGuiCol_CheckMark), "In use");
-						}
-
-						ImGui::EndGroup();
-						ImGui::PopID();
+						ImGui::PopStyleVar();
+						ImGui::EndChild();
 					}
 
-					ImGui::PopStyleVar();
-					ImGui::EndChild();
-
-					BEGIN_SECTION("##noteColorsEnd")
-					{
-						SETUP_SECTION;
-
-						SECTION_ENTRY(
-							SECTION_LABEL("Loop colors"),
-							if (ImGui::Checkbox("##loopColors", &config->render.loopColors))
+					layout.AddField("##loopColors", "Loop colors",
+						[&]()
+						{
+							if (ImGui::Checkbox("", &config->render.loopColors))
 							{
 								auto& currPalette = colorList->GetCurrentPalette();
 								ColorAsset& colorAsset = app->GetRenderer()->GetColorAsset();
 								colorAsset.LoadColors(currPalette.palette, config->render.loopColors);
 							}
-								);
+						});
 
-						SECTION_ENTRY(
-							SECTION_LABEL("Shuffle colors"),
-							if (ImGui::Checkbox("##shuffleColors", &config->render.shuffleColors))
+					layout.AddField("##shuffleColors", "Shuffle colors",
+						[&]()
+						{
+							if (ImGui::Checkbox("", &config->render.shuffleColors))
 							{
 								ColorAsset& colorAsset = app->GetRenderer()->GetColorAsset();
 								if (config->render.shuffleColors)
@@ -526,23 +517,22 @@ void SettingsDialog::DrawVisualTab()
 								else
 									colorAsset.RestoreColors();
 							}
-								);
+						});
 
-						if (config->render.shuffleColors)
-						{
-							SECTION_ENTRY(
-								SECTION_LABEL("Seed"),
+					if (config->render.shuffleColors)
+					{
+						layout.AddField("##shuffleSeed", "Seed",
+							[&]()
+							{
 								if (ImGui::InputInt("##shuffleSeed", &config->render.shuffleSeed))
 								{
 									if (config->render.shuffleSeed < 0) config->render.shuffleSeed = 0;
 									ColorAsset& colorAsset = app->GetRenderer()->GetColorAsset();
 									if (config->render.shuffleColors) colorAsset.ShuffleColors((uint32_t)config->render.shuffleSeed);
 								}
-									);
-						}
-
-						END_SECTION;
+							});
 					}
+
 					ImGui::EndDisabled();
 				}
 

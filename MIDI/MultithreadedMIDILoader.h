@@ -42,10 +42,11 @@ private:
 	{
 		size_t start;
 		size_t index;
-		std::unique_ptr<BufferedByteReader> reader;
+		size_t length;
+		// std::unique_ptr<BufferedByteReader> reader;
 	};
 
 	// isolated worker task to optimize cache usage and eliminate synchronization locks
-	ParsedTrack ParseTrackData(const RawTrackChunk& chunk);
-	uint32_t ReadVLQ(BufferedByteReader* reader);
+	ParsedTrack ParseTrackData(RawTrackChunk& chunk);
+	uint32_t ReadVLQ(const uint8_t*& bytesPtr);
 };

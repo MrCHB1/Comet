@@ -1,8 +1,10 @@
 #pragma once
-#include "../MIDIApp.h"
+
 #include "../../MIDI/Diagnosis/Diagnoses.h"
 #include "DiagnosisFieldView.h"
 #include <unordered_map>
+
+class MIDIApp;
 
 class DiagnosisPanel
 {

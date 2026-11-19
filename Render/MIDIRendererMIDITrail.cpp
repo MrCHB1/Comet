@@ -1,3 +1,7 @@
+#include "RenderEngine/Shaders.h"
+#include "RenderEngine/Buffers.h"
+#include "GPUImage.h"
+
 #include "MIDIRendererMIDITrail.h"
 #include "App/MIDIApp.h"
 #include "App/MainWindow.h"
@@ -7,41 +11,58 @@
 #include "App/Dialog/DialogMacros.h"
 #include "MIDI/Timer/MIDITimer.h"
 
-const std::array<float, 24> CUBE_VERTICES = {
-	0.0f, 1.0f, 0.0f,
-	1.0f, 1.0f, 0.0f,
-	1.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, 0.0f,
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
-	0.0f, 1.0f, 1.0f,
-	1.0f, 1.0f, 1.0f,
-	1.0f, 0.0f, 1.0f,
-	0.0f, 0.0f, 1.0f,
-};
+#include "Config/ConfigUtils.h"
 
-const std::array<unsigned int, 36> CUBE_INDICES = {
-	// top
-	0, 4, 1,
-	1, 4, 5,
-	// bottom
-	3, 2, 7,
-	2, 6, 7,
-	// front
-	0, 1, 3,
-	1, 2, 3,
-	// back
-	5, 4, 7,
-	7, 6, 5,
-	// left
-	0, 3, 4,
-	3, 7, 4,
-	// right
-	1, 5, 2,
-	2, 5, 6,
-};
+// REFACTOR (compile-memory): this renderer no longer includes MIDIRenderer.h (the
+// aggregator hub), which is where keyPosDiff used to come from. The table is
+// repeated locally here, with the same values the piano-roll renderer uses and
+// mirroring the local copy MIDIRendererEnhanced.cpp already keeps.
+namespace
+{
+	using namespace Config;
+	static const float keyPosDiff[12] = {
+		0.6F, 0.4F, 0.8F, 0.2F, 1.0F, 0.6F, 0.4F, 0.675F, 0.325F, 0.8F, 0.2F, 1.0F
+	};
 
-// will be shared between white and black key shaders, as they are similar
-static const char* keyShaderVert = R"(#version 330 core
+	const std::array<float, 24> CUBE_VERTICES = {
+		0.0f, 1.0f, 0.0f,
+		1.0f, 1.0f, 0.0f,
+		1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 0.0f,
+
+		0.0f, 1.0f, 1.0f,
+		1.0f, 1.0f, 1.0f,
+		1.0f, 0.0f, 1.0f,
+		0.0f, 0.0f, 1.0f,
+	};
+
+	const std::array<unsigned int, 36> CUBE_INDICES = {
+		// top
+		0, 4, 1,
+		1, 4, 5,
+		// bottom
+		3, 2, 7,
+		2, 6, 7,
+		// front
+		0, 1, 3,
+		1, 2, 3,
+		// back
+		5, 4, 7,
+		7, 6, 5,
+		// left
+		0, 3, 4,
+		3, 7, 4,
+		// right
+		1, 5, 2,
+		2, 5, 6,
+	};
+
+#pragma region Shaders
+	static const char* keyShaderVert = R"(#version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in float kColorFac;
 
@@ -69,7 +90,7 @@ void main()
 	colorFac = kColorFac;
 })";
 
-static const char* keyShaderFrag = R"(#version 330 core
+	static const char* keyShaderFrag = R"(#version 330 core
 in float colorFac;
 
 uniform uint meta;
@@ -92,7 +113,7 @@ void main()
 	fragColor = vec4(finalColor * colorFac, 1.0);
 })";
 
-static const char* noteShaderVert = R"(#version 330 core
+	static const char* noteShaderVert = R"(#version 330 core
 layout (location = 0) in vec3 aPos;
 
 layout (location = 1) in float nLeft;
@@ -128,7 +149,7 @@ void main()
 	noteY = aPos.z;
 })";
 
-static const char* noteShaderFrag = R"(#version 330 core
+	static const char* noteShaderFrag = R"(#version 330 core
 flat in uint meta;
 
 in vec3 fragPos;
@@ -154,7 +175,7 @@ void main()
 	fragColor = vec4(finalColor, mix(1.0, 1.0 - noteY, noteTransparency));
 })";
 
-static const char* separatorLineVert = R"(#version 330 core
+	static const char* separatorLineVert = R"(#version 330 core
 
 layout (location = 0) in vec3 aPos;
 
@@ -167,7 +188,7 @@ void main()
 	gl_Position = projection * view * model * vec4(aPos, 1.0);
 })";
 
-static const char* separatorLineFrag = R"(#version 330 core
+	static const char* separatorLineFrag = R"(#version 330 core
 
 out vec4 fragColor;
 
@@ -178,7 +199,7 @@ void main()
 	fragColor = vec4(vec3(1.0), 1.0 - lineTransparency);
 })";
 
-static const char* measureLineVert = R"(#version 330 core
+	static const char* measureLineVert = R"(#version 330 core
 layout (location = 0) in float aPos;
 layout (location = 1) in float aTime;
 
@@ -194,7 +215,7 @@ void main()
 	gl_Position = projection * view * model * vec4(aPos, 0.003, z, 1.0);
 })";
 
-static const char* auraVert = R"(#version 330 core
+	static const char* auraVert = R"(#version 330 core
 layout (location = 0) in vec2 aPos;
 layout (location = 1) in float size;
 layout (location = 2) in float pos;
@@ -218,7 +239,7 @@ void main()
 	meta = aMeta;
 })";
 
-static const char* auraFrag = R"(#version 330 core
+	static const char* auraFrag = R"(#version 330 core
 
 flat in uint meta;
 in vec2 uv;
@@ -239,6 +260,11 @@ void main()
 
 	fragColor = out_;
 })";
+#pragma endregion
+}
+
+MIDIRendererMIDITrail::MIDIRendererMIDITrail(MIDIApp* app) : AbstractMIDIRenderer(app) {}
+MIDIRendererMIDITrail::~MIDIRendererMIDITrail() = default;
 
 void MIDIRendererMIDITrail::Initialize()
 {
@@ -1409,7 +1435,9 @@ void MIDIRendererMIDITrail::RenderKeyboard()
 void MIDIRendererMIDITrail::RenderNotes()
 {
 	if (!seq) return;
-	std::vector<NoteSequence>& notes = seq->mergedNotes;
+	// REFACTOR: MIDISequence::mergedNotes is a std::array (one bucket per key),
+	// not a std::vector, so the element type is deduced instead of hard-coded.
+	auto& notes = seq->mergedNotes;
 	if (notes.empty()) return;
 	auto* renderView = app->GetRenderView();
 	if (!renderView) return;
@@ -1985,18 +2013,18 @@ void MIDIRendererMIDITrail::LoadSettings(const YAML::Node& node)
 		if (rendering["notes"])
 		{
 			auto notes = rendering["notes"];
-			LOAD_VAL(notes, "3d", settings.notes3D);
-			LOAD_VAL(notes, "eat", settings.eatNotes);
-			LOAD_VAL(notes, "transparency", settings.noteTransparency);
+			LoadValue(notes, "3d", settings.notes3D);
+			LoadValue(notes, "eat", settings.eatNotes);
+			LoadValue(notes, "transparency", settings.noteTransparency);
 		}
-		LOAD_VAL(rendering, "frontCutoff", settings.frontRenderCutoff);
-		LOAD_VAL(rendering, "backCutoff", settings.backRenderCutoff);
+		LoadValue(rendering, "frontCutoff", settings.frontRenderCutoff);
+		LoadValue(rendering, "backCutoff", settings.backRenderCutoff);
 	}
 
 	if (node["keyboard"])
 	{
 		auto keyboard = node["keyboard"];
-		LOAD_VAL(keyboard, "enabled", settings.showKeyboard);
+		LoadValue(keyboard, "enabled", settings.showKeyboard);
 	}
 
 	if (node["camera"])
@@ -2010,22 +2038,24 @@ void MIDIRendererMIDITrail::LoadSettings(const YAML::Node& node)
 		{
 			settings.cameraRotation = Utils::NodeToVec3(camera["rotation"]);
 		}
-		LOAD_VAL(camera, "fov", settings.cameraFOV);
+		LoadValue(camera, "fov", settings.cameraFOV);
 	}
 
 	if (node["meassureLinesBorders"])
 	{
 		auto measureLinesBorders = node["meassureLinesBorders"];
-		LOAD_VAL(measureLinesBorders, "measureLinesEnabled", settings.showMeasureLines);
-		LOAD_VAL(measureLinesBorders, "outerBordersEnabled", settings.showOuterBorders);
-		LOAD_VAL(measureLinesBorders, "lineTransparency", settings.lineTransparency);
+		LoadValue(measureLinesBorders, "measureLinesEnabled", settings.showMeasureLines);
+		LoadValue(measureLinesBorders, "outerBordersEnabled", settings.showOuterBorders);
+		LoadValue(measureLinesBorders, "lineTransparency", settings.lineTransparency);
 	}
 
 	if (node["aura"])
 	{
 		auto aura = node["aura"];
-		LOAD_VAL(aura, "enabled", settings.showAura);
-		LOAD_VAL(aura, "size", settings.auraSize);
-		LOAD_VAL(aura, "texture", settings.auraTexture.string());
+		LoadValue(aura, "enabled", settings.showAura);
+		LoadValue(aura, "size", settings.auraSize);
+		std::string auraTexturePath = settings.auraTexture.string();
+		LoadValue(aura, "texture", auraTexturePath);
+		settings.auraTexture = auraTexturePath;
 	}
 }

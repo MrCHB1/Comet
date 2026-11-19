@@ -1,0 +1,22 @@
+{
+    "name": "comet",
+    "version-string": "1.10.0",
+    "dependencies": [
+        "curl",
+        "glfw3",
+        "glm",
+        "miniz",
+        "nlohmann-json",
+        "rtmidi",
+        "yaml-cpp",
+        {
+            "name": "imgui",
+            "features": [
+                "docking-experimental",
+                "glfw-binding",
+                "opengl3-binding"
+            ]
+        }
+    ],
+    "builtin-baseline": "e55144c5a465b53bc71bd0b59111ea0b8bb039a5"
+}

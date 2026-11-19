@@ -6,14 +6,7 @@
 #include <iostream>
 #include "Utils.h"
 #include <filesystem>
-
-#define LOAD_VAL(n, key, target) \
-        if (n && n[key]) { target = n[key].as<std::decay_t<decltype(target)>>(); }
-
-#define LOAD_COLOR(n, key, var, def) \
-		uint32_t col = Utils::PackRGBA(def.x, def.y, def.z, def.w, Utils::ARGB); \
-		LOAD_VAL(n, key, col); \
-		auto var = Utils::UnpackRGBA(col, Utils::ARGB);
+#include "ConfigUtils.h"
 
 void MIDIPlayerConfig::LoadConfigOrDefault()
 {
@@ -48,12 +41,14 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 			overlay.selectedFontPath = overlaySec->GetString("fontPath", "");
 
 			{
-				LOAD_COLOR(root["overlay"], "background", bgColRgba, overlay.backgroundCol);
+				std::array<float, 4> bgColRgba{};
+				Config::LoadColor(root["overlay"], "background", bgColRgba, overlay.backgroundCol);
 				overlay.backgroundCol = ImVec4(bgColRgba[0], bgColRgba[1], bgColRgba[2], bgColRgba[3]);
 			}
 
 			{
-				LOAD_COLOR(root["overlay"], "text", txtColRgba, overlay.textCol);
+				std::array<float, 4> txtColRgba{};
+				Config::LoadColor(root["overlay"], "text", txtColRgba, overlay.textCol);
 				overlay.textCol = ImVec4(txtColRgba[0], txtColRgba[1], txtColRgba[2], 1.0);
 			}
 
@@ -95,13 +90,15 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 			render.SetVSync(renderSec->GetBoolean("vsync", true));
 
 			{
-				LOAD_COLOR(root["render"], "background", bgColRgba, render.GetBackground());
+				std::array<float, 4> bgColRgba{};
+				Config::LoadColor(root["render"], "background", bgColRgba, render.GetBackground());
 				render.SetBackground(bgColRgba[0], bgColRgba[1], bgColRgba[2]);
 			}
 
 			{
-				LOAD_COLOR(root["render"], "bar", barColRgba, render.GetBarColor());
-				render.SetBarColor(barColRgba[0], barColRgba[1], barColRgba[2]);
+				std::array<float, 4> barColorRgba{};
+				Config::LoadColor(root["render"], "bar", barColorRgba, render.GetBarColor());
+				render.SetBarColor(barColorRgba[0], barColorRgba[1], barColorRgba[2]);
 			}
 
 			render.SetUseColorsFromImage(renderSec->GetBoolean("useImageColors", false));

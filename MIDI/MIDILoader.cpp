@@ -104,7 +104,7 @@ std::unique_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 		SetName(("Loading track " + std::to_string(trk + 1) + "/" + std::to_string(tracks)).c_str());
 
 		ParsedTrack results = LoadTrack(pis, noteTrackIdx);
-		
+
 		if (!results.notes.Empty())
 		{
 			seq->notes += results.notes.Size();
@@ -287,7 +287,7 @@ std::unique_ptr<MIDISequence> MIDILoader::Load(bool timeBasedLoading)
 
 AbstractMIDILoader::ParsedTrack MIDILoader::LoadTrack(std::shared_ptr<InputStream> is, int track)
 {
-	std::array<std::vector<size_t>, 2048> unendedNotes{};
+	std::array<std::vector<size_t>, MIDI_KEYS << 4> unendedNotes{};
 	size_t currNoteId = 0;
 
 	uint8_t hdr[4];
@@ -299,7 +299,7 @@ AbstractMIDILoader::ParsedTrack MIDILoader::LoadTrack(std::shared_ptr<InputStrea
 	is->Read(hdr, 4);
 	const uint32_t trackLength = ToInt(hdr);
 
-	auto trackData = std::make_unique<uint8_t[]>(trackLength);
+	auto trackData = std::make_unique_for_overwrite<uint8_t[]>(trackLength);
 	is->Read(trackData.get(), trackLength); // may take up more memory than the buffered reader approach but oh well
 
 	const uint8_t* p = trackData.get();
@@ -439,7 +439,8 @@ AbstractMIDILoader::ParsedTrack MIDILoader::LoadTrack(std::shared_ptr<InputStrea
 					{
 						size_t n = un.back();
 						un.pop_back();
-						midiTrack.notes.gate[n] = tick - midiTrack.notes.tick[n];
+						NoteSequence& keyNotes = midiTrack.notes;
+						keyNotes.gate[n] = tick - keyNotes.tick[n];
 					}
 
 					continue;
@@ -458,14 +459,14 @@ AbstractMIDILoader::ParsedTrack MIDILoader::LoadTrack(std::shared_ptr<InputStrea
 						if (vel > 0)
 						{
 							midiTrack.notes.Emplace(track, channel, tick, data1, (uint32_t)(-1), vel);
-							un.push_back(currNoteId);
-							currNoteId++;
+							un.push_back(midiTrack.notes.Size() - 1);
 						}
 						else if (!un.empty())
 						{
 							size_t n = un.back();
 							un.pop_back();
-							midiTrack.notes.gate[n] = tick - midiTrack.notes.tick[n];
+							NoteSequence& keyNotes = midiTrack.notes;
+							keyNotes.gate[n] = tick - keyNotes.tick[n];
 						}
 
 						continue;

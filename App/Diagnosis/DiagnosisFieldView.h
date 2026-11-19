@@ -1,10 +1,11 @@
 #pragma once
 
-#include "../MIDIApp.h"
 #include "../../MIDI/Diagnosis/Diagnoses.h"
 #include <string>
 #include "imgui.h"
 #include <memory>
+
+class MIDIApp;
 
 class DiagnosisFieldView
 {

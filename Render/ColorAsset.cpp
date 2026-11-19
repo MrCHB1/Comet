@@ -172,7 +172,18 @@ void ColorAsset::LoadColors(std::shared_ptr<std::istream> paletteFile, bool loop
 
 ImVec4 ColorAsset::CreateRandomColor()
 {
-	ImColor col = ImColor::HSV(random(mt), 1.0f, 0.7f + random(mt) * 0.3f);
+	ImColor col;
+	switch (rndSampling)
+	{
+	case UMP:
+		col = ImColor::HSV(random(mt), 1.0f, 0.7f + random(mt) * 0.3f);
+		break;
+	case PFA:
+	{
+		col = ImColor::HSV(random(mt), random(mt) * 0.4f + 0.6f, random(mt) * 0.2f + 0.8f);
+		break;
+	}
+	}
 	return col.Value;
 }
 

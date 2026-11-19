@@ -1,3 +1,4 @@
+#include "App/MIDIApp.h"
 #include "DiagnosisFieldView.h"
 
 std::shared_ptr<DiagnosisFieldView> DiagnosisFieldView::CreateView(MIDIApp* app, ADiagnosis* diagnosis, std::shared_ptr<DiagnosisField> field)

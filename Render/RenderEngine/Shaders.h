@@ -1,12 +1,13 @@
 #pragma once
 
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
-#include <glad/glad.h>
+#include <string>
 #include <memory>
 #include <filesystem>
-#include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+
+typedef unsigned int GLuint;
 
 class ShaderProgram
 {
@@ -23,67 +24,17 @@ public:
 	ShaderProgram(const ShaderProgram&) = delete;
 	ShaderProgram& operator=(const ShaderProgram&) = delete;
 
-	ShaderProgram(ShaderProgram&& other) noexcept
-	{
-		program = other.program;
-		other.program = 0;
-	}
+	ShaderProgram(ShaderProgram&& other) noexcept;
+	ShaderProgram& operator=(ShaderProgram&& other) noexcept;
 
-	ShaderProgram& operator=(ShaderProgram&& other) noexcept
-	{
-		if (this != &other)
-		{
-			if (IsValidProgram())
-				glDeleteProgram(program);
+	~ShaderProgram();
 
-			program = other.program;
-			other.program = 0;
-		}
-		return *this;
-	}
-
-	~ShaderProgram()
-	{
-		// cleanup
-		if (IsValidProgram())
-			glDeleteProgram(program);
-	}
-
-	void SetInt(const char* uniform, int value)
-	{
-		if (!IsValidProgram()) return;
-		glUniform1i(glGetUniformLocation(program, uniform), value);
-	}
-
-	void SetUInt(const char* uniform, unsigned int value)
-	{
-		if (!IsValidProgram()) return;
-		glUniform1ui(glGetUniformLocation(program, uniform), value);
-	}
-
-	void SetFloat(const char* uniform, float value)
-	{
-		if (!IsValidProgram()) return;
-		glUniform1f(glGetUniformLocation(program, uniform), value);
-	}
-
-	void SetMat4(const char* uniform, const glm::mat4& matrix)
-	{
-		if (!IsValidProgram()) return;
-		glUniformMatrix4fv(glGetUniformLocation(program, uniform), 1, GL_FALSE, glm::value_ptr(matrix));
-	}
-
-	void SetVec2(const char* uniform, const glm::vec2& vector)
-	{
-		if (!IsValidProgram()) return;
-		glUniform2f(glGetUniformLocation(program, uniform), vector.x, vector.y);
-	}
-
-	void SetVec3(const char* uniform, const glm::vec3& vector)
-	{
-		if (!IsValidProgram()) return;
-		glUniform3f(glGetUniformLocation(program, uniform), vector.x, vector.y, vector.z);
-	}
+	void SetInt(const char* uniform, int value);
+	void SetUInt(const char* uniform, unsigned int value);
+	void SetFloat(const char* uniform, float value);
+	void SetMat4(const char* uniform, const glm::mat4& matrix);
+	void SetVec2(const char* uniform, const glm::vec2& vector);
+	void SetVec3(const char* uniform, const glm::vec3& vector);
 
 	GLuint GetID()
 	{
@@ -95,10 +46,7 @@ public:
 
 private:
 	GLuint program;
-	bool IsValidProgram()
-	{
-		return program != 0 && glIsProgram(program);
-	}
+	[[nodiscard]] bool IsValidProgram() noexcept;
 
 	friend class ShaderBind;
 };
@@ -107,6 +55,6 @@ private:
 class ShaderBind
 {
 public:
-	ShaderBind(ShaderProgram& s) { s.Bind(); }
-	~ShaderBind() { glUseProgram(0); }
+	ShaderBind(ShaderProgram& s);
+	~ShaderBind();
 };

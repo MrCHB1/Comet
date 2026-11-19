@@ -30,7 +30,7 @@ public:
 	virtual void Stop() { hasStopped = true; }
 
 	std::atomic<bool> hasStopped = false;
-protected:
+
 	void SetName(const char* name)
 	{
 		this->name = name;
@@ -41,6 +41,11 @@ protected:
 		bars.push_back(bar);
 	}
 
+	void ClearBars()
+	{
+		bars.clear();
+	}
+protected:
 	bool RemoveBar(std::function<double()> bar)
 	{
 		for (int i = 0; i < bars.size(); i++)
@@ -52,11 +57,6 @@ protected:
 			}
 		}
 		return false;
-	}
-
-	void ClearBars()
-	{
-		bars.clear();
 	}
 private:
 	std::string name;

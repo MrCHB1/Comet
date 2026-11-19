@@ -1,9 +1,10 @@
-﻿cmake_minimum_required(VERSION 3.16)
+﻿cmake_minimum_required(VERSION 3.21)
+
 cmake_policy(SET CMP0091 NEW)
-set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 
 project(Comet LANGUAGES C CXX)
 
+# Match the default vcpkg x64-windows triplet: /MD in Release, /MDd in Debug.
 set(CMAKE_MSVC_RUNTIME_LIBRARY
     "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
 )
@@ -11,27 +12,72 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-if(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP2")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
-    set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /DEBUG")
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG")
-endif()
 
-set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
-find_package(OpenGL REQUIRED)
-set(FETCHCONTENT_QUIET OFF)
+# REFACTOR (compile-memory): bound the number of concurrently running compiler
+# processes. Under Ninja every translation unit forks its own cl.exe, so a
+# Release build of ~170 heavy ImGui/glm TUs can exhaust system RAM even on a
+# large machine. The pool is sized to half the logical core count; override with
+# -DCOMET_MAX_COMPILE_JOBS=<n> (0 means "auto").
+# STRING (not BOOL) so the value stays numeric; a BOOL option would coerce 0 to
+# OFF and make -DCOMET_MAX_COMPILE_JOBS=<n> comparisons ambiguous.
+set(COMET_MAX_COMPILE_JOBS "0" CACHE STRING "Maximum concurrent compiler processes (0 = auto)")
 
-set(BUILD_CURL_EXE OFF CACHE BOOL "" FORCE)
-set(CURL_USE_LIBPSL OFF CACHE BOOL "" FORCE)
-if(WIN32)
-    set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE)
-else()
-    set(CURL_USE_OPENSSL ON CACHE BOOL "" FORCE)
+if(CMAKE_GENERATOR MATCHES "Ninja")
+    if(COMET_MAX_COMPILE_JOBS GREATER 0)
+        set(_comet_compile_jobs ${COMET_MAX_COMPILE_JOBS})
+    else()
+        include(ProcessorCount)
+        ProcessorCount(_comet_cores)
+        if(_comet_cores EQUAL 0)
+            set(_comet_cores 4)
+        endif()
+        math(EXPR _comet_compile_jobs "${_comet_cores} / 2")
+    endif()
+    if(_comet_compile_jobs LESS 1)
+        set(_comet_compile_jobs 1)
+    endif()
+
+    # link=1 keeps at most one link.exe running: the linker is the other peak.
+    set(CMAKE_JOB_POOLS "compile=${_comet_compile_jobs};link=1")
+    set(CMAKE_JOB_POOL_COMPILE compile)
+    set(CMAKE_JOB_POOL_LINK link)
+
+    message(STATUS "Comet: Ninja compile job pool = ${_comet_compile_jobs}")
 endif()
 
 include(FetchContent)
+set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
+set(FETCHCONTENT_QUIET OFF)
 
+find_package(OpenGL REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
+find_package(glm CONFIG REQUIRED)
+find_package(imgui CONFIG REQUIRED)
+find_package(yaml-cpp CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+find_package(CURL CONFIG REQUIRED)
+find_package(miniz CONFIG REQUIRED)
+
+# RtMidi's vcpkg port installs headers and a library. Create a stable imported
+# target instead of relying on a port-specific CMake target name.
+find_path(RTMIDI_INCLUDE_DIR NAMES RtMidi.h PATH_SUFFIXES rtmidi REQUIRED)
+find_library(RTMIDI_LIBRARY NAMES rtmidi RtMidi REQUIRED)
+add_library(RtMidi::RtMidi UNKNOWN IMPORTED)
+set_target_properties(RtMidi::RtMidi PROPERTIES
+    IMPORTED_LOCATION "${RTMIDI_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "${RTMIDI_INCLUDE_DIR}"
+)
+
+# The vcpkg ImGui port installs the core and selected backend headers.
+# Keep the flat backend include style used by the existing source files.
+find_path(IMGUI_BACKENDS_INCLUDE_DIR
+    NAMES imgui_impl_glfw.h
+    PATH_SUFFIXES backends
+    REQUIRED
+)
+
+# These dependencies are intentionally still built from source because this
+# project uses the existing versions / source layout directly.
 FetchContent_Declare(
     hwy
     GIT_REPOSITORY https://github.com/google/highway.git
@@ -41,123 +87,26 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(hwy)
 
 FetchContent_Declare(
-    imgui
-    GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG docking
+    glad
+    GIT_REPOSITORY https://github.com/Dav1dde/glad.git
+    GIT_TAG v0.1.36
     GIT_SHALLOW TRUE
 )
-FetchContent_MakeAvailable(imgui)
+FetchContent_MakeAvailable(glad)
 
-FetchContent_Declare(
-    glfw
-    GIT_REPOSITORY https://github.com/glfw/glfw.git
-    GIT_TAG 3.3.9
-    GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(glfw)
-
+# Native File Dialog's legacy repository is built as a small local target.
 FetchContent_Declare(
     nfd
     GIT_REPOSITORY https://github.com/mlabbe/nativefiledialog.git
     GIT_TAG master
     GIT_SHALLOW TRUE
 )
-
 FetchContent_MakeAvailable(nfd)
 
-FetchContent_Declare(
-    yaml-cpp
-    GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-    GIT_TAG master
-    GIT_SHALLOW TRUE
-)
-
-FetchContent_MakeAvailable(yaml-cpp)
-
-FetchContent_Declare(
-    glad
-    GIT_REPOSITORY https://github.com/Dav1dde/glad.git
-    GIT_TAG v0.1.36
-)
-
-FetchContent_MakeAvailable(glad)
-
-FetchContent_Declare(
-	glm
-	GIT_REPOSITORY	https://github.com/g-truc/glm.git
-	GIT_TAG 1.0.3
-)
-
-FetchContent_MakeAvailable(glm)
-
-FetchContent_Declare(
-    miniz
-    GIT_REPOSITORY https://github.com/richgel999/miniz.git
-    GIT_TAG master
-)
-
-FetchContent_MakeAvailable(miniz)
-
-FetchContent_Declare(
-    rtmidi
-    GIT_REPOSITORY https://github.com/thestk/rtmidi.git
-    GIT_TAG master
-)
-
-FetchContent_MakeAvailable(rtmidi)
-
-FetchContent_Declare(
-    imgui_knobs
-    GIT_REPOSITORY https://github.com/altschuler/imgui-knobs.git
-    GIT_TAG main
-)
-
-FetchContent_MakeAvailable(imgui_knobs)
-
-set(_prev_shared ${BUILD_SHARED_LIBS})
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-FetchContent_Declare(
-    curl
-    GIT_REPOSITORY https://github.com/curl/curl.git
-    GIT_TAG curl-8_16_0
-)
-
-FetchContent_MakeAvailable(curl)
-set(BUILD_SHARED_LIBS ${_prev_shared} CACHE BOOL "" FORCE)
-
-FetchContent_Declare(
-    json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG v3.12.0
-)
-
-FetchContent_MakeAvailable(json)
-
-file(GLOB IMGUI_SRC
-    ${imgui_SOURCE_DIR}/*.cpp
-)
-
-add_library(imgui STATIC
-    ${imgui_SOURCE_DIR}/imgui.cpp
-    ${imgui_SOURCE_DIR}/imgui_draw.cpp
-    ${imgui_SOURCE_DIR}/imgui_tables.cpp
-    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
-    ${imgui_SOURCE_DIR}/imgui_demo.cpp
-    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
-    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
-)
-
-target_include_directories(imgui PUBLIC
-    ${imgui_SOURCE_DIR}
-    ${imgui_SOURCE_DIR}/backends
-)
-
-target_link_libraries(imgui PUBLIC glfw OpenGL::GL)
-
 add_library(nfd STATIC
-    ${nfd_SOURCE_DIR}/src/nfd_common.c)
-
-if (WIN32)
+    ${nfd_SOURCE_DIR}/src/nfd_common.c
+)
+if(WIN32)
     target_sources(nfd PRIVATE ${nfd_SOURCE_DIR}/src/nfd_win.cpp)
 elseif(APPLE)
     target_sources(nfd PRIVATE ${nfd_SOURCE_DIR}/src/nfd_cocoa.m)
@@ -168,10 +117,17 @@ else()
     target_include_directories(nfd PRIVATE ${GTK3_INCLUDE_DIRS})
     target_link_libraries(nfd PRIVATE ${GTK3_LIBRARIES})
 endif()
-
 target_include_directories(nfd PUBLIC
     ${nfd_SOURCE_DIR}/src/include
 )
+
+FetchContent_Declare(
+    imgui_knobs
+    GIT_REPOSITORY https://github.com/altschuler/imgui-knobs.git
+    GIT_TAG main
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(imgui_knobs)
 
 add_executable(Comet
     # --- Root / entry point -------------------------------------------------
@@ -181,9 +137,7 @@ add_executable(Comet
     icon32.hpp
     RLEvec.h
     Utils.cpp
-    IntervalThread.h
     IntervalThread.cpp
-    UpdateChecker.h
     UpdateChecker.cpp
 
     # --- Vendored single-header libraries (repo root) ------------------------
@@ -195,182 +149,123 @@ add_executable(Comet
     # --- App ----------------------------------------------------------------
     App/MainWindow.cpp
     App/MIDIApp.cpp
-    App/Fonts.h
     App/Fonts.cpp
-    App/FontList.h
     App/FontList.cpp
-    App/Models.h
     App/Models.cpp
-    App/Diagnosis/DiagnosisDialog.h
     App/Diagnosis/DiagnosisDialog.cpp
-    App/Diagnosis/DiagnosisFieldView.h
     App/Diagnosis/DiagnosisFieldView.cpp
-    App/Diagnosis/DiagnosisPanel.h
     App/Diagnosis/DiagnosisPanel.cpp
     App/Dialog/DialogMacros.h
-    App/Dialog/LoadingDialog.h
     App/Dialog/LoadingDialog.cpp
-    App/Dialog/MessageDialog.h
     App/Dialog/MessageDialog.cpp
-    App/Dialog/RenderVideoDialog.h
     App/Dialog/RenderVideoDialog.cpp
-    App/Dialog/SettingsDialog.h
     App/Dialog/SettingsDialog.cpp
     App/UI/Dialog.h
-    App/UI/NavigationBar.h
     App/UI/NavigationBar.cpp
-    App/UI/Themes/Themes.h
     App/UI/Themes/Themes.cpp
-    App/UI/Widgets/ThinSlider.h
     App/UI/Widgets/ThinSlider.cpp
-    App/UI/Widgets/TimeRange.h
     App/UI/Widgets/TimeRange.cpp
     App/VideoRender/RenderSettings.h
 
     # --- MIDI ----------------------------------------------------------------
     MIDI/AbstractMIDILoader.h
     MIDI/MIDIDefs.h
-    MIDI/MIDILoader.h
     MIDI/MIDILoader.cpp
-    MIDI/MIDISequence.h
     MIDI/MIDISequence.cpp
-    MIDI/MultithreadedMIDILoader.h
     MIDI/MultithreadedMIDILoader.cpp
     MIDI/ProgressInputStream.cpp
     MIDI/SavedInputStream.cpp
-    MIDI/TempoMap.h
     MIDI/TempoMap.cpp
     MIDI/Events/MIDIMessageEvent.h
     MIDI/Events/NoteEvent.h
     MIDI/Events/TempoEvent.h
     MIDI/Events/TimeSignatureEvent.h
     MIDI/Events/TrackEvent.h
-    MIDI/Sequence/SequenceFuncs.h
     MIDI/Sequence/SequenceFuncs.cpp
-    MIDI/Timer/MIDITimer.h
+    MIDI/Sequence/SequenceOps.cpp
     MIDI/Timer/MIDITimer.cpp
-    MIDI/Diagnosis/ADiagnosis.h
     MIDI/Diagnosis/ADiagnosis.cpp
     MIDI/Diagnosis/BasicDiagnosis.cpp
-    MIDI/Diagnosis/BlackMIDIDiagnosis.h
     MIDI/Diagnosis/BlackMIDIDiagnosis.cpp
-    MIDI/Diagnosis/Diagnoses.h
     MIDI/Diagnosis/Diagnoses.cpp
     MIDI/Diagnosis/DiagnosisException.h
     MIDI/Diagnosis/DiagnosisField.cpp
     MIDI/Diagnosis/DiagnosisMessage.h
-    MIDI/Audio/AudioThread.h
     MIDI/Audio/AudioThread.cpp
     MIDI/Audio/MaestroEngine.cpp
-    MIDI/Audio/MIDIAudio.h
     MIDI/Audio/MIDIAudio.cpp
-    MIDI/Audio/MIDIOut.h
     MIDI/Audio/MIDIOut.cpp
     MIDI/Audio/SoundfontList.cpp
-    MIDI/Audio/PrerenderEngine/BASSMIDI.h
     MIDI/Audio/PrerenderEngine/BASSMIDI.cpp
-    MIDI/Audio/PrerenderEngine/PrerenderedEngine.h
     MIDI/Audio/PrerenderEngine/PrerenderedEngine.cpp
 
     # --- IO ------------------------------------------------------------------
-    IO/BufferedByteReader.h
     IO/BufferedByteReader.cpp
-    IO/InputStream.h
     IO/InputStream.cpp
 
     # --- Config --------------------------------------------------------------
-    Config/ConfigSection.h
     Config/ConfigSection.cpp
-    Config/MIDIPlayerConfig.h
     Config/MIDIPlayerConfig.cpp
 
     # --- ResourcePack --------------------------------------------------------
-    ResourcePack/DefaultResourcePack.h
     ResourcePack/DefaultResourcePack.cpp
-    ResourcePack/FolderResourcePack.h
     ResourcePack/FolderResourcePack.cpp
-    ResourcePack/ResourcePack.h
     ResourcePack/ResourcePack.cpp
     ResourcePack/ResourcePackInfo.h
-    ResourcePack/ResourcePackList.h
     ResourcePack/ResourcePackList.cpp
     ResourcePack/ResourcePackVerifier.h
     ResourcePack/SignatureState.h
-    ResourcePack/ZipResourcePack.h
     ResourcePack/ZipResourcePack.cpp
 
     # --- Render (renderers) --------------------------------------------------
     Render/RenderUtils.h
     Render/RenderView.h
+    Render/RenderNote.h
     Render/BlurredQuadRenderer.h
-    Render/ColorAsset.h
     Render/ColorAsset.cpp
-    Render/GPUImage.h
     Render/GPUImage.cpp
-    Render/MIDIRenderer.h
     Render/MIDIRenderer.cpp
-    Render/MIDIRendererChannels.h
     Render/MIDIRendererChannels.cpp
     Render/MIDIRendererCounter.cpp
-    Render/MIDIRendererEnhanced.h
     Render/MIDIRendererEnhanced.cpp
-    Render/MIDIRendererEnhancedShaders.h
-    Render/MIDIRendererMIDITrail.h
     Render/MIDIRendererMIDITrail.cpp
-    Render/MIDIRendererPFA.h
     Render/MIDIRendererPFA.cpp
-    Render/MIDIRendererSynthesia.h
     Render/MIDIRendererSynthesia.cpp
-    Render/MIDIRendererVelocities.h
     Render/MIDIRendererVelocities.cpp
 
     # --- Render/RenderEngine -------------------------------------------------
-    Render/RenderEngine/Buffers.h
     Render/RenderEngine/Buffers.cpp
-    Render/RenderEngine/OBJMesh.h
     Render/RenderEngine/OBJMesh.cpp
-    Render/RenderEngine/Shaders.h
     Render/RenderEngine/Shaders.cpp
-    Render/RenderEngine/TextureArray.h
     Render/RenderEngine/TextureArray.cpp
 
     # --- Render/Renderer -----------------------------------------------------
     Render/Renderer/AbstractMIDIRenderer.cpp
     Render/Renderer/KeyNoteIndex.h
     Render/Renderer/KeyNoteIndexData.h
-    Render/Renderer/NoteCuller.h
     Render/Renderer/NoteCuller.cpp
-    Render/Renderer/PrimitiveDrawer.h
     Render/Renderer/PrimitiveDrawer.cpp
     Render/Renderer/PrimitiveShaders.h
     Render/Renderer/QuadDrawer.h
 
     # --- Render/NoteCounter --------------------------------------------------
-    Render/NoteCounter/AbstractOverlayRenderer.h
     Render/NoteCounter/AbstractOverlayRenderer.cpp
-    Render/NoteCounter/NoteCounterInfo.h
     Render/NoteCounter/NoteCounterInfo.cpp
-    Render/NoteCounter/NoteCounterRenderer.h
     Render/NoteCounter/NoteCounterRenderer.cpp
     Render/NoteCounter/NoteCounterStyles.h
-    Render/NoteCounter/StatsOverlayRenderer.h
     Render/NoteCounter/StatsOverlayRenderer.cpp
 
     # --- FFmpeg --------------------------------------------------------------
-    FFmpeg/FFmpegCommandBuilder.h
     FFmpeg/FFmpegCommandBuilder.cpp
-    FFmpeg/FFmpegGPU.h
     FFmpeg/FFmpegGPU.cpp
     FFmpeg/FFmpegPipe.h
 
     # --- Concurrency ---------------------------------------------------------
-    Concurrency/ThreadPool.h
     Concurrency/ThreadPool.cpp
 
     # --- ColorPalette --------------------------------------------------------
-    ColorPalette/ColorPaletteList.h
     ColorPalette/ColorPaletteList.cpp
-)
+  "App/UI/Layout/ForumLayout.cpp" "U32Vec.h")
 
 target_precompile_headers(Comet PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/pch.h"
@@ -382,29 +277,30 @@ set_source_files_properties(
         SKIP_PRECOMPILE_HEADERS ON
 )
 
- target_include_directories(Comet PRIVATE
+target_include_directories(Comet PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
- target_sources(Comet PRIVATE
+target_sources(Comet PRIVATE
     ${imgui_knobs_SOURCE_DIR}/imgui-knobs.cpp
 )
 
-  target_include_directories(Comet PRIVATE
+target_include_directories(Comet PRIVATE
     ${imgui_knobs_SOURCE_DIR}
+    ${IMGUI_BACKENDS_INCLUDE_DIR}
 )
 
 target_link_libraries(Comet PRIVATE
     hwy
-    imgui
+    imgui::imgui
     nfd
     glad
     glfw
     OpenGL::GL
-    yaml-cpp
+    yaml-cpp::yaml-cpp
     glm::glm
-    miniz
-    rtmidi
+    miniz::miniz
+    RtMidi::RtMidi
     CURL::libcurl
     nlohmann_json::nlohmann_json
 )
@@ -451,17 +347,28 @@ if(NOT WIN32)
     target_link_libraries(Comet PRIVATE ${CMAKE_DL_LIBS})
 endif()
 
+# REFACTOR (compile-memory): whole-program optimization was removed from the
+# Release configuration. INTERPROCEDURAL_OPTIMIZATION_RELEASE injected /GL into
+# every translation unit (the compiler keeps the cross-TU call graph in memory)
+# and /LTCG into the link step (whole-program analysis), which together were the
+# dominant cause of the machine running out of memory. Codegen now comes from
+# the plain /O2 /Ob2 in CMAKE_CXX_FLAGS_RELEASE; /Ob3 was dropped because
+# aggressive inlining multiplies the optimizer's in-memory IR for negligible
+# runtime gain. The duplicate per-target /Zi and the unconditional /DEBUG link
+# flag were replaced by /DEBUG:FASTLINK, which still produces a usable PDB but
+# avoids the full debug-info merge that spiked linker memory.
 if(MSVC)
     target_compile_options(Comet PRIVATE
-        $<$<CONFIG:Release>:/O2>
-        $<$<CONFIG:Release>:/GL>
-        $<$<CONFIG:Release>:/Ot>
-        $<$<CONFIG:Release>:/Ob3>
+        $<$<CONFIG:Release>:/bigobj>          # headroom for large generated/TMP-heavy TUs
+        $<$<CONFIG:Release>:/permissive->     # cheaper, more constrained overload resolution
+        $<$<CONFIG:Release>:/Zc:__cplusplus>  # correct __cplusplus for third-party headers
+        $<$<CONFIG:Release>:/external:W0>     # do not analyse third-party header warnings
     )
-
-    # target_link_options(Comet PRIVATE
-    #     $<$<CONFIG:Release>:/LTCG>
-    # )
+    target_link_options(Comet PRIVATE
+        $<$<CONFIG:Release>:/DEBUG:FASTLINK>
+    )
+    # TEMPORARY
+    add_compile_options(/showIncludes)
 else()
     target_compile_options(Comet PRIVATE
         $<$<CONFIG:Release>:-O3>
@@ -478,7 +385,3 @@ add_custom_command(
             ${CMAKE_SOURCE_DIR}/assets
             $<TARGET_FILE_DIR:Comet>/assets
 )
-
-if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET Comet PROPERTY CXX_STANDARD 20)
-endif()

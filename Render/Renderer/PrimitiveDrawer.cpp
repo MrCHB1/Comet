@@ -1,3 +1,11 @@
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
+#include <glad/glad.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include "../RenderEngine/Buffers.h"
+#include "../RenderEngine/Shaders.h"
 #include "PrimitiveDrawer.h"
 #include "PrimitiveShaders.h"
 
@@ -23,6 +31,13 @@ Primitive::Primitive(const std::vector<Vertex>& vertices, const std::vector<uint
 		vao->SetFloatAttribute(0, 2, sizeof(Vertex), offsetof(Vertex, position));
 		vao->SetFloatAttribute(1, 2, sizeof(Vertex), offsetof(Vertex, uv));
 	}
+}
+
+Primitive::~Primitive() = default;
+
+void Primitive::SetShader(std::shared_ptr<ShaderProgram> program)
+{
+	this->program = program;
 }
 
 // apply scale then position

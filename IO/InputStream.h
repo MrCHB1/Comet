@@ -8,6 +8,7 @@
 class InputStream
 {
 public:
+	InputStream() = default;
 	InputStream(std::shared_ptr<std::ifstream> stream)
 		: stream(stream)
 	{
@@ -36,12 +37,13 @@ public:
 
 	virtual void Read(uint8_t* dst, size_t size)
 	{
-		stream->read((char*)dst, size);
+		stream->read(reinterpret_cast<char*>(dst), size);
 		if (stream->gcount() < size)
 		{
 			throw std::runtime_error("End of Stream");
 		}
 	}
+
 	virtual void Seek(size_t offset, int whence)
 	{
 		if (whence == SEEK_CUR)
@@ -82,6 +84,6 @@ public:
 		return stream->is_open();
 	}
 protected:
-	std::shared_ptr<std::ifstream> stream;
-	size_t size;
+	std::shared_ptr<std::ifstream> stream = nullptr;
+	size_t size = 0;
 };

@@ -1,9 +1,6 @@
 #pragma once
 #include "./Renderer/AbstractMIDIRenderer.h"
 #include "../ResourcePack/ResourcePack.h"
-#include "GPUImage.h"
-#include "./RenderEngine/Shaders.h"
-#include "./RenderEngine/Buffers.h"
 #include <array>
 #include "Renderer/QuadDrawer.h"
 #include "NoteCounter/NoteCounterInfo.h"
@@ -16,10 +13,19 @@
 #include "Concurrency/ThreadPool.h"
 #include "Renderer/KeyNoteIndex.h"
 
+// REFACTOR (compile-memory): RenderNote was moved to its own header so that
+// translation units which only need the note vertex struct no longer have to
+// include this aggregator header.
+#include "RenderNote.h"
+
 #define NOTE_BUFFER_SIZE 65536
 #define NOTES_MAX_BATCHES 128
 
 class MIDIApp;
+class GPUImage;
+class ShaderProgram;
+class Buffer;
+class VertexArray;
 
 #pragma region Piano Keyboard Data
 
@@ -70,21 +76,6 @@ struct KeyboardMeta
 
 #pragma region Note Data
 
-#pragma pack(push, 1)
-struct RenderNote
-{
-	float left;
-	float right;
-	float start;
-	float end;
-	uint32_t color;
-	RenderNote() = default;
-	RenderNote(float left, float right, float start, float end, uint32_t color)
-		: left(left), right(right), start(start), end(end), color(color) {
-	}
-};
-#pragma pack(pop)
-
 #pragma endregion
 
 #define KEY_IS_BLACK(n) \
@@ -101,11 +92,8 @@ const float keyPosDiff[] = {
 class MIDIRenderer : public AbstractMIDIRenderer
 {
 public:
-	MIDIRenderer(MIDIApp* app) : AbstractMIDIRenderer(app)
-	{
-		keyboardData.fill(RenderKeyboardKey());
-		keyMetas.fill(KeyboardMeta());
-	}
+	MIDIRenderer(MIDIApp* app);
+	~MIDIRenderer() override;
 	void LoadResourcePack(std::shared_ptr<ResourcePack> pack, bool loadColors);
 
 	void Initialize() override;
@@ -118,12 +106,7 @@ public:
 	void RenderSettings() override;
 	void ResetSettings() override;
 	void OnResize(int width, int height) override;
-	void SetBarColor(float r, float g, float b)
-	{
-		if (!initialized) return;
-		ShaderBind bind(*keyboardProgram);
-		keyboardProgram->SetVec3("barColor", glm::vec3(r, g, b));
-	}
+	void SetBarColor(float r, float g, float b);
 	void SetBackgroundColor(float r, float g, float b)
 	{
 		if (!initialized) return;

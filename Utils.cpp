@@ -612,4 +612,29 @@ namespace Utils
 
         return stream;
     }
+
+    void ProgressEstimator::Update(size_t completed)
+    {
+        const auto now = Clock::now();
+
+        const double elapsed = std::chrono::duration<double>(now - lastUpdate).count();
+
+        // Avoid updating too frequently.
+        if (elapsed < 0.25) return;
+
+        const double instantRate = static_cast<double>(completed - lastCompleted) / elapsed;
+        constexpr double alpha = 0.2;
+
+        if (smoothedRate == 0.0) smoothedRate = instantRate;
+        else smoothedRate = alpha * instantRate + (1.0 - alpha) * smoothedRate;
+
+        lastCompleted = completed;
+        lastUpdate = now;
+    }
+
+    double ProgressEstimator::GetETA(size_t completed, size_t total) const
+    {
+        if (smoothedRate <= 0.0 || completed >= total) return 0.0;
+        return static_cast<double>(total - completed) / smoothedRate;
+    }
 }

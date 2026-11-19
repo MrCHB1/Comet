@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Renderer/AbstractMIDIRenderer.h"
-#include "RenderEngine/TextureArray.h"
 #include <vector>
 #include <array>
 #include <glm/glm.hpp>
@@ -20,6 +19,8 @@
 
 #define NUM_TEXTURES 13
 #define TEXTURE_ARRAY_SLOT 0
+
+class TextureArray;
 
 enum SynthesiaStyle
 {
@@ -138,77 +139,13 @@ public:
 
 #pragma endregion
 
-// Index of each source image within the shared texture array. Order must
-// match the LoadLayer() calls in Initialize().
-enum S9TextureLayer : int
-{
-	S9_LAYER_BAR = 0,
-	S9_LAYER_KEY_BLACK,
-	S9_LAYER_KEY_BLACK_PRESSED,
-	S9_LAYER_KEY_WHITE,
-	S9_LAYER_KEY_WHITE_PRESSED,
-	S9_LAYER_KEY_WHITE_WHOLE,
-	S9_LAYER_KEY_WHITE_WHOLE_PRESSED,
-	S9_LAYER_SHADOW_LARGE,
-	S9_LAYER_SHADOW_UNPRESSED,
-	S9_LAYER_SHADOW_PRESSED,
-
-	S9_LAYER_COUNT
-};
-
-enum S8TextureLayer : int
-{
-	S8_LAYER_BAR = 0,
-	S8_LAYER_KEY_BLACK,
-	S8_LAYER_KEY_BLACK_PRESSED,
-	S8_LAYER_KEY_WHITE,
-	S8_LAYER_KEY_WHITE_PRESSED,
-	S8_LAYER_KEY_WHITE_WHOLE,
-	S8_LAYER_KEY_WHITE_WHOLE_PRESSED,
-
-	S8_LAYER_COUNT
-};
-
-enum S7TextureLayer : int
-{
-	S7_LAYER_BAR = 0,
-	S7_LAYER_KEY_BLACK,
-	S7_LAYER_KEY_BLACK_PRESSED,
-	S7_LAYER_KEY_WHITE,
-	S7_LAYER_KEY_WHITE_PRESSED,
-	S7_LAYER_KEY_WHITE_WHOLE,
-	S7_LAYER_KEY_WHITE_WHOLE_PRESSED,
-	 
-	S7_LAYER_COUNT
-};
-
-enum GlowTextureLayer : int
-{
-	GLOW_LAYER_BAR = 0,
-	GLOW_LAYER_KEY_BLACK,
-	GLOW_LAYER_KEY_BLACK_PRESSED,
-	GLOW_LAYER_KEY_WHITE,
-	GLOW_LAYER_KEY_WHITE_PRESSED,
-	GLOW_LAYER_KEY_WHITE_WHOLE,
-	GLOW_LAYER_KEY_WHITE_WHOLE_PRESSED,
-
-	GLOW_LAYER_COUNT
-};
-
-enum ParticleTextureLayer : int
-{
-	LAYER_PARTICLE_DEBRIS = 0,
-	LAYER_PARTICLE_SPARKLE,
-	LAYER_PARTICLE_HAZE,
-	PARTICLE_LAYER_COUNT
-};
-
 // static_assert(LAYER_COUNT == NUM_TEXTURES, "TextureLayer enum must match NUM_TEXTURES");
 
 class MIDIRendererSynthesia : public AbstractMIDIRenderer
 {
 public:
-	MIDIRendererSynthesia(MIDIApp* app) : AbstractMIDIRenderer(app) {}
+	MIDIRendererSynthesia(MIDIApp* app);
+	~MIDIRendererSynthesia() override;
 	void Initialize() override;
 	void LoadSequence(MIDISequence* sequence) override;
 	void Render(double deltaTime) override;

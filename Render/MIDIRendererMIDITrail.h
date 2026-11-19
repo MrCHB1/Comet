@@ -2,13 +2,24 @@
 
 #include "Renderer/AbstractMIDIRenderer.h"
 #include <memory>
-#include "RenderEngine/Buffers.h"
 #include <glm/glm.hpp>
 #include "MIDI/MIDIDefs.h"
-#include "MIDIRenderer.h" // for RenderNote struct
 #include <filesystem>
 
-struct RenderNote;
+// REFACTOR (compile-memory): this header used to include "MIDIRenderer.h" purely
+// to obtain the RenderNote struct, which dragged the whole renderer hub
+// (ResourcePack.h, ColorAsset.h, QuadDrawer.h, NoteCounterInfo.h, ThreadPool.h,
+// KeyNoteIndex.h) into every translation unit that includes this header.
+// RenderNote now comes from its own header, and the includes below are exactly
+// the types this renderer actually uses.
+#include "RenderNote.h"
+#include "RenderView.h"                   // RenderView member access in the .cpp
+#include "NoteCounter/NoteCounterInfo.h"  // NoteCounterInfo member access in the .cpp
+
+class GPUImage;
+class VertexArray;
+class Buffer;
+class ShaderProgram;
 
 struct MIDITrailSettings
 {
@@ -122,7 +133,8 @@ struct Inputstate;
 class MIDIRendererMIDITrail : public AbstractMIDIRenderer
 {
 public:
-	MIDIRendererMIDITrail(MIDIApp* app) : AbstractMIDIRenderer(app) {}
+	MIDIRendererMIDITrail(MIDIApp* app);
+	~MIDIRendererMIDITrail() override;
 
 	void Initialize() override;
 	void OnInput(InputState& inputState) override;

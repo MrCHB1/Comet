@@ -1,12 +1,12 @@
 #include "UI/MenuBuilder.h"
 #include "UI/Dialog.h"
 #include "UI/NavigationBar.h"
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
+
 #include <string>
 
 class MIDIApp;
 class UpdateChecker;
+struct GLFWwindow;
 
 struct WindowRect
 {

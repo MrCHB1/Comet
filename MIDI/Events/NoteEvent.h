@@ -4,7 +4,7 @@
 #include <vector>
 #include <cstdint>
 #include <algorithm>
-#include "RLEvec.h"
+#include "U32Vec.h"
 
 #define NOTE_VELOCITY_MASK 0x7F
 #define NOTE_VELOCITY_BIT_IDX 8
@@ -16,9 +16,9 @@
 // Changed from AoS to SoA for cache optimizations. This is generally better for rendering
 struct NoteSequence
 {
-	std::vector<uint32_t> tick;
-	std::vector<uint32_t> gate;
-	std::vector<uint32_t> packed;
+	U32Vec tick;
+	U32Vec gate;
+	U32Vec packed;
 
 	void Emplace(uint16_t trk, uint8_t ch, uint32_t tk, uint8_t nt, uint32_t gt, uint8_t vl)
 	{

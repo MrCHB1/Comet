@@ -3,9 +3,10 @@
 #include "../../MIDI/Diagnosis/Diagnoses.h"
 #include "../../MIDI/Diagnosis/BlackMIDIDiagnosis.h"
 #include "DiagnosisPanel.h"
-#include "../MIDIApp.h"
 #include <fstream>
 #include "../../IntervalThread.h"
+
+class MIDIApp;
 
 class DiagnosisDialog : public Dialog
 {

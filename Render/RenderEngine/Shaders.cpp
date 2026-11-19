@@ -1,3 +1,9 @@
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
+#include <glad/glad.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include "Shaders.h"
 #include "Comet.h"
 #include <fstream>
@@ -6,7 +12,7 @@
 #include <sstream>
 #include <optional>
 
-static std::optional<std::string> ReadFile(const std::string & path)
+static std::optional<std::string> ReadFile(const std::string& path)
 {
 	std::ifstream fileStream(path.c_str(), std::ios::in | std::ios::binary);
 	if (!fileStream)
@@ -193,6 +199,68 @@ std::unique_ptr<ShaderProgram> ShaderProgram::CreateCompute(const char* computeS
 	return std::make_unique<ShaderProgram>(program);
 }
 
+ShaderProgram::ShaderProgram(ShaderProgram&& other) noexcept
+{
+	program = other.program;
+	other.program = 0;
+}
+
+ShaderProgram& ShaderProgram::operator=(ShaderProgram&& other) noexcept
+{
+	if (this != &other)
+	{
+		if (IsValidProgram())
+			glDeleteProgram(program);
+
+		program = other.program;
+		other.program = 0;
+	}
+	return *this;
+}
+
+ShaderProgram::~ShaderProgram()
+{
+	// cleanup
+	if (!IsValidProgram()) return;
+	glDeleteProgram(program);
+}
+
+void ShaderProgram::SetInt(const char* uniform, int value)
+{
+	if (!IsValidProgram()) return;
+	glUniform1i(glGetUniformLocation(program, uniform), value);
+}
+
+void ShaderProgram::SetUInt(const char* uniform, unsigned int value)
+{
+	if (!IsValidProgram()) return;
+	glUniform1ui(glGetUniformLocation(program, uniform), value);
+}
+
+void ShaderProgram::SetFloat(const char* uniform, float value)
+{
+	if (!IsValidProgram()) return;
+	glUniform1f(glGetUniformLocation(program, uniform), value);
+}
+
+void ShaderProgram::SetMat4(const char* uniform, const glm::mat4& matrix)
+{
+	if (!IsValidProgram()) return;
+	glUniformMatrix4fv(glGetUniformLocation(program, uniform), 1, GL_FALSE, glm::value_ptr(matrix));
+}
+
+void ShaderProgram::SetVec2(const char* uniform, const glm::vec2& vector)
+{
+	if (!IsValidProgram()) return;
+	glUniform2f(glGetUniformLocation(program, uniform), vector.x, vector.y);
+}
+
+void ShaderProgram::SetVec3(const char* uniform, const glm::vec3& vector)
+{
+	if (!IsValidProgram()) return;
+	glUniform3f(glGetUniformLocation(program, uniform), vector.x, vector.y, vector.z);
+}
+
 void ShaderProgram::Bind()
 {
 	if (!IsValidProgram()) return;
@@ -203,3 +271,11 @@ void ShaderProgram::Unbind()
 {
 	glUseProgram(0);
 }
+
+bool ShaderProgram::IsValidProgram() noexcept
+{
+	return program != 0 && glIsProgram(program);
+}
+
+ShaderBind::ShaderBind(ShaderProgram& s) { s.Bind(); }
+ShaderBind::~ShaderBind() { glUseProgram(0); }

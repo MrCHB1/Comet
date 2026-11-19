@@ -1,3 +1,4 @@
+#include "App/MIDIApp.h"
 #include "DiagnosisPanel.h"
 #include "imgui.h"
 #include <chrono>

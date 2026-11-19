@@ -3,10 +3,9 @@
 #include <iostream>
 #include <fstream>
 #include <memory>
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
-#include <glad/glad.h>
 #include <vector>
+
+typedef unsigned int GLuint;
 
 inline std::vector<unsigned char> MISSING_TEXTURE_DATA = {
 	0, 0, 0, 255,
@@ -63,32 +62,7 @@ private:
 	void DeleteTexture();
 	void Bind(GLuint slot);
 	void Unbind() const;
-	void LoadMissingTexture()
-	{
-		glGenTextures(1, &texture);
-		glBindTexture(GL_TEXTURE_2D, texture);
-
-		glTexImage2D(
-			GL_TEXTURE_2D,
-			0,
-			GL_RGBA,
-			2,
-			2,
-			0,
-			GL_RGBA,
-			GL_UNSIGNED_BYTE,
-			MISSING_TEXTURE_DATA.data()
-		);
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-		glBindTexture(GL_TEXTURE_2D, 0);
-		this->width = 2;
-		this->height = 2;
-	}
+	void LoadMissingTexture();
 
 	friend class TextureBind;
 };
@@ -96,23 +70,9 @@ private:
 class TextureBind
 {
 public:
-	TextureBind(GPUImage& image, GLuint slot) : slot(slot), texture(image.GetRawTexture())
-	{
-		glActiveTexture(GL_TEXTURE0 + slot);
-		glBindTexture(GL_TEXTURE_2D, texture);
-	}
-
-	TextureBind(GLuint texture, GLuint slot) : slot(slot), texture(texture)
-	{
-		glActiveTexture(GL_TEXTURE0 + slot);
-		glBindTexture(GL_TEXTURE_2D, texture);
-	}
-
-	~TextureBind()
-	{
-		glActiveTexture(GL_TEXTURE0 + slot);
-		glBindTexture(GL_TEXTURE_2D, 0);
-	}
+	TextureBind(GPUImage& image, GLuint slot);
+	TextureBind(GLuint texture, GLuint slot);
+	~TextureBind();
 private:
 	GLuint slot;
 	GLuint texture;

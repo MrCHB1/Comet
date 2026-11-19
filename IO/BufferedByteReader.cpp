@@ -2,19 +2,19 @@
 #include <cstring>
 
 BufferedByteReader::BufferedByteReader(std::shared_ptr<std::ifstream> stream, size_t start, size_t length, size_t bufferLength, std::mutex* mtx)
-	: InputStream(stream)
 {
+	this->stream = stream;
 	this->mtx = mtx;
 	this->bufferLength = bufferLength;
 	if (this->bufferLength > length)
 	{
 		this->bufferLength = length;
 	}
-	this->bufferStart = 0;
+	this->bufferStart = start;
 	this->bufferPos = 0;
 	this->start = start;
-	this->pos = start;
 	this->length = length;
+	this->size = length;
 	this->bytes = new uint8_t[this->bufferLength];
 
 	UpdateBuffer();
@@ -22,23 +22,23 @@ BufferedByteReader::BufferedByteReader(std::shared_ptr<std::ifstream> stream, si
 
 void BufferedByteReader::UpdateBuffer()
 {
-	size_t read = bufferLength;
-	if (pos + read > start + length)
+	const size_t abs = bufferStart + bufferPos;
+	const size_t end = start + length;
+	const size_t want = abs < end ? std::min(bufferLength, end - abs) : 0;
+	size_t got = 0;
+	if (want)
 	{
-		read = start + length - pos;
+		if (mtx) mtx->lock();
+		stream->clear();
+		stream->seekg((std::streamoff)abs, std::ios::beg);
+		stream->read((char*)bytes, (std::streamsize)want);
+		got = (size_t)stream->gcount();
+		if (mtx) mtx->unlock();
 	}
-
-	if (read == 0 && bufferLength != 0)
-		throw std::runtime_error("Outside buffer");
-
-	{
-		std::lock_guard<std::mutex> lock(*mtx);
-		stream->seekg(pos, std::ios::beg);
-		stream->read((char*)bytes, read);
-	}
-
-	bufferStart = pos;
+	bufferStart = abs;
 	bufferPos = 0;
+	bufferValid = got;
+	eof = (got == 0);
 }
 
 void BufferedByteReader::Seek(size_t offset, int whence)
@@ -47,42 +47,40 @@ void BufferedByteReader::Seek(size_t offset, int whence)
 		throw std::runtime_error("Invalid seek whence");
 
 	long long realOffset = offset;
-	if (whence == SEEK_SET)
-		realOffset += start;
-	else
-		realOffset += pos;
+	realOffset += (whence == SEEK_SET) ? start : Pos();
 
 	if (realOffset < (long long)start)
 		throw std::runtime_error("Attempted to seek before start");
 	if (realOffset > (long long)(start + length))
 		throw std::runtime_error("Attempted to seek past end");
 
-	pos = (size_t)realOffset;
-	if (bufferStart <= realOffset && realOffset < bufferStart + bufferLength)
+	if (bufferStart <= (size_t)realOffset && (size_t)realOffset < bufferStart + bufferValid)
 	{
-		bufferPos = pos - bufferStart;
+		bufferPos = (size_t)realOffset - bufferStart;
 		return;
 	}
+	bufferStart = realOffset;
+	bufferPos = 0;
 
 	UpdateBuffer();
 }
 
 void BufferedByteReader::Read(uint8_t* dst, size_t size)
 {
-	if (pos + size > start + length)
-		throw std::runtime_error("Attempted to read past end");
-	if (size > bufferLength)
-		throw std::runtime_error("(UNIMPLEMENTED) read size larger than buffer size");
+	if (Pos() + size > start + length) throw std::runtime_error("Attempted to read past end");
+	if (size > bufferLength) throw std::runtime_error("(UNIMPLEMENTED) read size larger than buffer size");
 
-	if (bufferStart + bufferPos + size > bufferStart + bufferLength)
+	if (bufferPos + size > bufferValid)
+	{
 		UpdateBuffer();
-
+		if (bufferValid < size) throw std::runtime_error("Unexpected end of data");
+	}
 	std::memcpy(dst, bytes + bufferPos, size);
-	pos += size;
 	bufferPos += size;
 }
 
 void BufferedByteReader::Skip(size_t size)
 {
-	Seek(size, SEEK_CUR);
+	const size_t remaining = start + length - Pos();
+	Seek(std::min(size, remaining), SEEK_CUR);
 }

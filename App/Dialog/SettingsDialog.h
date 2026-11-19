@@ -1,7 +1,8 @@
 #pragma once
 
-#include "App/MIDIApp.h"
 #include "App/UI/Dialog.h"
+
+class MIDIApp;
 
 class SettingsDialog : public Dialog
 {

@@ -1,11 +1,14 @@
 #pragma once
 
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
-#include <glad/glad.h>
-#include <glm/glm.hpp>
-#include "../RenderEngine/Buffers.h"
-#include "../RenderEngine/Shaders.h"
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <glm/mat4x4.hpp>
+
+typedef int GLsizei;
+
+class ShaderProgram;
+class VertexArray;
+class Buffer;
 
 #pragma pack(push, 1)
 struct Vertex
@@ -25,10 +28,9 @@ class Primitive
 {
 public:
 	Primitive(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
-	void SetShader(std::shared_ptr<ShaderProgram> program)
-	{
-		this->program = program;
-	}
+	~Primitive();
+
+	void SetShader(std::shared_ptr<ShaderProgram> program);
 	void SetTransform(const PrimitiveTransform& transform, bool resetTransform = true);
 	void SetColor(const glm::vec3& color);
 	void Draw() const;

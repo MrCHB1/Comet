@@ -1,12 +1,14 @@
 #pragma once
 
 #include "Renderer/AbstractMIDIRenderer.h"
-#include "RenderEngine/Shaders.h"
-#include "RenderEngine/Buffers.h"
 #include "MIDI/MIDIDefs.h"
 #include <memory>
 #include <array>
 #include <mutex>
+
+class ShaderProgram;
+class Buffer;
+class VertexArray;
 
 // #define KEY_BUFFER_SIZE MIDI_KEYS * 16
 inline constexpr size_t CHANNEL_BUFFER_SIZE = MIDI_KEYS * 16;
@@ -59,11 +61,8 @@ struct ChannelKeyMeta
 class MIDIRendererChannels : public AbstractMIDIRenderer
 {
 public:
-	MIDIRendererChannels(MIDIApp* app) : AbstractMIDIRenderer(app)
-	{
-		renderChannelKeys.fill(RenderChannelKey{});
-		channelKeyMetas.fill(ChannelKeyMeta{});
-	}
+	MIDIRendererChannels(MIDIApp* app);
+	~MIDIRendererChannels() override;
 
 	void Initialize() override;
 

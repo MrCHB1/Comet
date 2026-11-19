@@ -12,7 +12,8 @@
 #include <type_traits>
 #include <chrono>
 #include <filesystem>
-#include <glm/glm.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 #include <yaml-cpp/yaml.h>
 
 #include <cmath>
@@ -181,6 +182,20 @@ namespace Utils
 	private:
 		const char* sectionName = nullptr;
 		Clock::time_point startTime;
+	};
+
+	class ProgressEstimator
+	{
+		using Clock = std::chrono::steady_clock;
+
+		Clock::time_point lastUpdate = Clock::now();
+
+		size_t lastCompleted = 0;
+		double smoothedRate = 0.0;
+	public:
+		void Reset() { lastCompleted = 0; smoothedRate = 0.0; }
+		void Update(size_t completed);
+		double GetETA(size_t completed, size_t total) const;
 	};
 
 	// Round half to even. One instruction on x64; independent of the FP rounding mode there.

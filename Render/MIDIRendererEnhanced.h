@@ -277,11 +277,8 @@ struct RenderFlare
 class MIDIRendererEnhanced : public AbstractMIDIRenderer
 {
 public:
-    MIDIRendererEnhanced(MIDIApp* app) : AbstractMIDIRenderer(app)
-    {
-        keyboardData.fill(RenderKeyboardKey3D());
-        keyMetas.fill(KeyboardMeta3D());
-    }
+    MIDIRendererEnhanced(MIDIApp* app);
+    ~MIDIRendererEnhanced() override;
 
     void LoadSequence(MIDISequence* sequence) override;
 
