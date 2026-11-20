@@ -94,6 +94,7 @@ void PrerenderedEngine::Destroy()
     BASS_Free();
 
     if (timerCheckThread.joinable()) timerCheckThread.join();
+    lastSeq = nullptr;
 }
 
 void PrerenderedEngine::SyncPlayer(double time)
@@ -126,7 +127,7 @@ void PrerenderedEngine::Start(MIDISequence* seq, std::shared_ptr<MIDITimer> time
     bufferWritePos = 0;
     bufferReadPos = 0;
 
-    if (seq != lastSeq)
+    if (!lastSeq || (lastSeq->GetSequenceID() != seq->GetSequenceID()))
     {
         lastSeq = seq;
         eventsReady = false;
