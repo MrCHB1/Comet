@@ -147,8 +147,8 @@ private:
 	std::unique_ptr<FFmpegPipe> ffmpegPipe;
 
 	// staging variables for thread-safe loading
-	std::unique_ptr<MIDISequence> pendingSeq = nullptr;
-	std::unique_ptr<KeyNoteIndexData> pendingKeyIndex = nullptr;
+	std::unique_ptr<MIDISequence> pendingSeq;
+	std::unique_ptr<KeyNoteIndexData> pendingKeyIndex;
 	std::string pendingTitle = "";
 	std::atomic_bool hasPendingSeq{ false };
 
