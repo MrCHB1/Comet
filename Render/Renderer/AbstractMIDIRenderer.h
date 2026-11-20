@@ -48,6 +48,7 @@ struct NoteAreaParams
 	double yBase;                  // pixel row where "now" sits (usually == noteAreaPx)
 	double minVisualPx = 0;        // renderer draws notes at least this tall (Synthesia caps)
 	bool   pixelSnap = false;      // PFA "rounded note lengths": bottom and height rounded separately
+	double rowScale = 1.0;         // >1 = finer culling rows (use with anti-aliasing)
 };
 
 // One note that survived culling and de-duplication.

@@ -108,6 +108,7 @@ struct EnhancedRendererSettings
 {
     // visual settings
     MSAASetting msaa = MSAASetting::None;
+    float supersample = 1.0f;
 
     float exposure = 0.25f;
     float noteOutlineGlowFactor = 6.5f;
@@ -115,7 +116,7 @@ struct EnhancedRendererSettings
     // keyboard settings
     float keyGlowFactor = 5.0f;
     float keyboardFOV = 45.0f;
-    float keyboardBrightness = 1.0f;
+    float keyboardBrightness = 0.5f;
 
     // hsv shift settings
     bool hsvShiftEnabled = true;
@@ -129,9 +130,15 @@ struct EnhancedRendererSettings
 
     // mist settings
     bool mistEnabled = true;
-    float mistOpacity = 0.9f;
-    float mistSpeed = 0.2f;
-    float mistScale = 10.0f;
+    float mistOpacity = 1.0f;        // fog density
+    float mistSpeed = 0.05f;
+    float mistScale = 14.0f;
+    float mistDepth = 0.15f;         // thickness of the fog slab above the playing surface (keyboard width = 1)
+    float mistHeight = 0.6f;         // how far up the note area the fog reaches (fraction), lower = faster
+    int mistSteps = 16;              // ray march steps per pixel
+    float mistLightStrength = 1.0f;  // how strongly the saber + pressed keys light the fog
+    float mistLightReach = 0.12f;    // distance at which a pressed key's light has fallen to half
+    float mistAmbient = 0.05f;       // faint saber coloured glow so the fog is visible with no light
 
     // particle settings
     bool particlesEnabled = true;
@@ -142,6 +149,25 @@ struct EnhancedRendererSettings
     float flareHeight = 0.25f;
     float flareBrightness = 1.0f;
     float flareFadeDuration = 0.25f;
+
+    // caustic settings (notes + pressed keys)
+    float causticStrength = 1.0f;
+    float causticScale = 5.0f;   // tiles per unit of note size (higher = finer pattern)
+    float causticSpeed = 0.6f;
+
+    // keyboard lighting
+    bool giEnabled = true;
+    float giStrength = 1.0f;      // how strongly pressed keys light up their neighbours
+    float giRadius = 0.02f;       // emitter size in world units (x spans 0..1); bigger = wider, softer spread
+    float giSaberStrength = 1.0f; // how strongly the saber lights up the keys
+    float reflectionStrength = 1.0f;
+
+    // screen space reflections (keys reflect keys only, never notes)
+    bool ssrEnabled = true;
+    float ssrStrength = 1.0f;      // gain on the reflected radiance (1 = as the neighbour looks)
+    float ssrMaxDistance = 0.12f;  // world units (keyboard width = 1)
+    int ssrSteps = 32;
+    float ssrThickness = 0.012f;   // how far behind a surface a ray may be and still count as a hit
 
     static EnhancedRendererSettings Default()
     {
@@ -313,11 +339,18 @@ private:
     void CalcKeyPosAndWidth();
     void RebindKeyboardDrawRange();
     void UpdateKeyboardInstance(double deltaTime);
+    void UpdateKeyboardLayout();
+    void UpdateKeyGlow(float dt);
+    void UpdateGIEmitters();
     void UploadNoteBuffer(size_t count);
     void RenderKeyboard();
     void RenderNotes();
     void RenderSaber();
     void RenderMist();
+    void CreateFogNoiseTexture();
+    void CreateSsrTargets();
+    void DestroySsrTargets();
+    void UpdateFogLight();
 
     // particles
     void EmitNoteExplosion(uint8_t keyID, uint32_t hexColor);
@@ -356,6 +389,23 @@ private:
     std::array<float, MIDI_KEYS> keyWidth;
     std::array<RenderKeyboardKey3D, MIDI_KEYS> keyboardData;
     std::array<KeyboardMeta3D, MIDI_KEYS> keyMetas;
+
+    // 1D (x across the keyboard) texture of key colours, only used for the glossy reflections
+    static constexpr int KEY_GLOW_TEX_WIDTH = 512;
+    uint32_t keyGlowTex = 0;
+    std::vector<float> glowProfile;
+
+    // light scatter: every pressed key is an area emitter, the saber is a line emitter.
+    // emitters are rebuilt every frame (no fading), so light appears the instant a key is pressed.
+    // layout: RGBA32F, MIDI_KEYS x 2. row 0 = (rgb radiance), row 1 = (x, y, z, area)
+    uint32_t giEmitTex = 0;
+    int giEmitCount = 0;
+    std::vector<float> giEmitData;
+
+    // keyboard-only prepass used as the SSR source (texture units 6 = colour, 7 = depth)
+    uint32_t kbSsrFBO = 0;
+    uint32_t kbSsrColorTex = 0;
+    uint32_t kbSsrDepthTex = 0;
 #pragma endregion
 
 #pragma region Note data
@@ -381,6 +431,16 @@ private:
 #pragma region Mist data
     std::unique_ptr<Quad> mistQuad;
     std::shared_ptr<ShaderProgram> mistProgram;
+
+    static constexpr int   FOG_NOISE_SIZE = 64;       // tileable 3D noise, size^3 texels
+    static constexpr int   FOG_LIGHT_TEX_WIDTH = 512; // 1D strip of pressed-key light along x (mip-mapped)
+    static constexpr int   FOG_LIGHT_ROWS = 24;      // blur levels, log-spaced gaussian widths
+    static constexpr float FOG_SIGMA_MIN = 0.002f;
+    static constexpr float FOG_SIGMA_MAX = 0.2f;
+
+    uint32_t fogNoiseTex = 0;                       // texture unit 5
+    uint32_t fogLightTex = 0;                       // texture unit 4
+    std::vector<float> fogLightData;
 #pragma endregion
 
 #pragma region Particle data
@@ -441,9 +501,15 @@ private:
     float keyboardMaxZ = 0.075f;
 
     float keyboardHeight = 0.13f;
+    float keyboardTopNorm = 0.0f;
     float keyboardZOffset = 0.0f; // calculated automatically
     float keyboardBottomFill = 0.008f;
 
+    // supersampling stuff
+    int outWidth, outHeight = 0;
+    std::unique_ptr<Framebuffer> resolvedFBO;
+    std::shared_ptr<ShaderProgram> resolveShader;
+    void ApplyRenderSize();
 
     static float Rand01()
     {

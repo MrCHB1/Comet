@@ -161,6 +161,7 @@ void AbstractMIDIRenderer::CollectNotes(NoteFrame& f, const NoteAreaParams& area
 
 	// pass 2 (parallel): collect per-key indices
 	const double ticksPerPixel = f.viewTicks / area.noteAreaPx;
+	const double rowsPerPixel = ticksPerPixel / area.rowScale;
 	// 0.499 rather than 0.5: slack for the shader's float math
 	const uint32_t minGate = area.pixelSnap ? (uint32_t)std::ceil(0.499 * ticksPerPixel) : 0u;
 	const double m = area.minVisualPx * ticksPerPixel;
@@ -182,7 +183,7 @@ void AbstractMIDIRenderer::CollectNotes(NoteFrame& f, const NoteAreaParams& area
 						.tNow = f.nowTicks, .ticksPerPixel = ticksPerPixel,
 						.yBase = area.yBase, .rowBegin = 0, .rowEnd = (int)height,
 						.marginPx = advancedSettings.rowMarginPx, .startCap = job.startCap,
-						.minGate = minGate, .minVisualPx = area.minVisualPx,
+						.minGate = minGate, .minVisualPx = area.minVisualPx * rowsPerPixel,
 						.pixelSnap = area.pixelSnap });
 			}
 		};
