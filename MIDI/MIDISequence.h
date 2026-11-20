@@ -26,7 +26,7 @@ public:
 	std::array<NoteSequence, MIDI_KEYS> mergedNotes{};
 	std::array<std::vector<NoteBlock>, MIDI_KEYS> noteBlocks{};
 	std::vector<MIDIMessageEvent> mergedEvents{};
-	std::unique_ptr<TempoMap> tempoMap = nullptr;
+	std::unique_ptr<TempoMap> tempoMap;
 	size_t noteTrackCount;
 	long long notes = 0;
 	long length = 0;

@@ -2,6 +2,16 @@
 
 cmake_policy(SET CMP0091 NEW)
 
+if(NOT CMAKE_TOOLCHAIN_FILE)
+    if(DEFINED ENV{VCPKG_ROOT})
+        set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
+    elseif(EXISTS "${CMAKE_CURRENT_LIST_DIR}/external/vcpkg/scripts/buildsystems/vcpkg.cmake")
+        set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/external/vcpkg/scripts/buildsystems/vcpkg.cmake")
+    else()
+        message(FATAL_ERROR "vcpkg not found. Run: git submodule update --init external/vcpkg")
+    endif()
+endif()
+
 project(Comet LANGUAGES C CXX)
 
 # Match the default vcpkg x64-windows triplet: /MD in Release, /MDd in Debug.
@@ -45,6 +55,8 @@ if(CMAKE_GENERATOR MATCHES "Ninja")
     message(STATUS "Comet: Ninja compile job pool = ${_comet_compile_jobs}")
 endif()
 
+# glad v0.1.36 declares cmake_minimum_required < 3.5, which CMake 4 rejects.
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 include(FetchContent)
 set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
 set(FETCHCONTENT_QUIET OFF)
