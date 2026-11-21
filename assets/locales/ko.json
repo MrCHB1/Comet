@@ -1,0 +1,177 @@
+{
+    "ID": "한국어",
+
+    "menu.file": "파일",
+    "menu.file.open": "열기...",
+    "menu.file.render": "동영상으로 렌더링...",
+    "menu.file.diagnose": "MIDI 진단...",
+    "menu.file.screenshot": "스크린샷 찍기",
+    "menu.file.quit": "종료",
+
+    "menu.play": "재생",
+    "menu.play.stop": "정지",
+    "menu.play.unload": "정지 및 언로드",
+
+    "menu.view": "보기",
+    "menu.view.counter": "노트 카운터 표시",
+
+    "menu.options": "옵션",
+    "menu.options.settings": "설정...",
+
+    "menu.help": "도움말",
+    "menu.help.kofi": "ponluxime에게 커피 사주기",
+    "menu.help.update": "업데이트 확인",
+
+    "nav.notesize": "노트 크기 (틱 단위)",
+    "nav.playspeed": "재생 속도 (%)",
+
+    "dialog.ok": "확인",
+    "dialog.cancel": "취소",
+    "dialog.close": "닫기",
+    "dialog.applyclose": "적용 후 닫기",
+    "dialog.yes": "예",
+    "dialog.no": "아니요",
+
+    "dialog.render.title": "동영상 렌더링",
+    "dialog.render.input": "입력",
+    "dialog.render.input.ffmpeg": "FFmpeg 실행 파일",
+    "dialog.render.input.ffmpeg.installed": "FFmpeg가 설치되어 있습니다!",
+    "dialog.render.input.ffmpeg.get": "FFmpeg 받기",
+    "dialog.render.input.ffmpeg.detect": "FFmpeg 감지",
+    "dialog.render.input.midi": "MIDI",
+    "dialog.render.input.midi.loaded": "현재 로드된 MIDI를 렌더링합니다",
+    "dialog.render.input.audio": "오디오 포함",
+
+    "dialog.render.output": "출력",
+    "dialog.render.output.format": "형식",
+    "dialog.render.output.gpu": "GPU 인코딩",
+    "dialog.render.output.gpu.tooltip": "가능한 경우 하드웨어 가속 FFmpeg 인코더를 사용합니다.",
+    "dialog.render.output.gpu.unavailable": "GPU 인코딩을 사용할 수 없습니다. FFmpeg가 올바르게 설치되었는지, 드라이버가 최신 상태인지 확인하세요.",
+    "dialog.render.output.codec": "코덱",
+    "dialog.render.output.advanced": "고급 옵션",
+    "dialog.render.output.advanced.tooltip": "고급 사용자를 위한 추가 FFmpeg 인코딩 옵션입니다. 무엇을 하는지 정확히 아는 경우에만 사용하세요.",
+
+    "dialog.render.encoding": "인코딩",
+    "dialog.render.encoding.preset": "프리셋",
+    "dialog.render.encoding.bitratemode": "비트레이트 모드",
+    "dialog.render.encoding.brm.const": "고정",
+    "dialog.render.encoding.brm.var": "가변",
+    "dialog.render.encoding.bitrate": "비트레이트 (Kbps)",
+    "dialog.render.encoding.crf": "CRF",
+
+    "dialog.render.rendering": "렌더링",
+    "dialog.render.rendering.resolution": "해상도",
+    "dialog.render.rendering.framerate": "프레임 레이트",
+    "dialog.render.rendering.outpath": "출력 경로",
+    "dialog.render.rendering.mask": "투명 마스크",
+    "dialog.render.rendering.renderrange": "렌더링 범위",
+    "dialog.render.rendering.renderrange.tooltip": "지정한 시간 구간의 MIDI를 렌더링합니다. 전체 MIDI의 짧은 미리보기를 공유할 때 유용합니다.",
+
+    "dialog.render.renderbtn": "렌더링 시작!",
+    "dialog.render.renderbtn.tooltip": "'esc' 키를 누르면 언제든지 렌더링을 취소할 수 있습니다. 동영상은 저장됩니다.",
+
+    "dialog.render.error.noffmpeg": "FFmpeg를 찾을 수 없습니다!",
+    "dialog.render.error.nomidi": "로드된 MIDI가 없습니다",
+    "dialog.render.error.nooutpath": "동영상의 출력 경로를 지정하세요.",
+    "dialog.render.error.nooutmaskpath": "투명 마스크의 출력 경로를 지정하세요.",
+    "dialog.render.error.invalidrange": "렌더링 범위가 올바르지 않습니다",
+    "dialog.render.error": "렌더링할 수 없습니다. 위의 오류를 확인하세요.",
+
+    "dialog.diagnose.title": "MIDI 진단",
+    "dialog.diagnose.alsorun": "함께 실행:",
+    "dialog.diagnose.bmdiag": "블랙 MIDI 진단",
+    "dialog.diagnose.clickhere": "MIDI 파일을 끌어다 놓거나 여기를 클릭하여 시작",
+
+    "dialog.settings.title": "설정",
+
+    "dialog.settings.app": "앱",
+    "dialog.settings.app.header": "앱 설정",
+    "dialog.settings.app.general": "일반",
+    "dialog.settings.app.general.language": "언어",
+    "dialog.settings.app.general.vsync": "VSync",
+    "dialog.settings.app.general.fps": "FPS 제한",
+    "dialog.settings.app.general.fps.tooltip": "0 = FPS 제한 없음",
+
+    "dialog.settings.app.theme": "테마",
+    "dialog.settings.app.theme.reload": "테마 목록 새로고침",
+    "dialog.settings.app.theme.open": "테마 폴더 열기",
+
+    "dialog.settings.app.nav": "탐색",
+    "dialog.settings.app.nav.hide": "탐색 막대 항상 숨기기",
+    "dialog.settings.app.nav.hide.tooltip": "마우스를 창 상단 근처로 가져가기 전까지 탐색 막대가 숨겨집니다.",
+    "dialog.settings.app.nav.forward": "앞으로 건너뛰기 (초)",
+    "dialog.settings.app.nav.backward": "뒤로 건너뛰기 (초)",
+
+    "dialog.settings.visual": "비주얼",
+    "dialog.settings.visual.disclaimer": "이 설정은 동영상 렌더링 시에도 적용됩니다!",
+    "dialog.settings.visual.header": "비주얼 설정",
+    "dialog.settings.visual.renderer": "렌더러",
+    "dialog.settings.visual.renderer.settings": "렌더러 설정",
+    "dialog.settings.visual.renderer.settings.reset": "설정 초기화",
+
+    "dialog.settings.visual.colors": "노트 색상",
+    "dialog.settings.visual.colors.use": "색상 사용 위치",
+    "dialog.settings.visual.colors.use.0": "리소스 팩",
+    "dialog.settings.visual.colors.use.1": "색상 목록",
+    "dialog.settings.visual.colors.palette": "팔레트 목록",
+    "dialog.settings.visual.colors.refresh": "팔레트 목록 새로고침",
+    "dialog.settings.visual.colors.open": "팔레트 폴더 열기",
+    "dialog.settings.visual.colors.loop": "색상 반복",
+    "dialog.settings.visual.colors.shuffle": "색상 섞기",
+    "dialog.settings.visual.colors.seed": "시드",
+
+    "dialog.settings.visual.counter": "카운터 및 통계",
+    "dialog.settings.visual.counter.appearance": "모양",
+    "dialog.settings.visual.counter.showcounter": "노트 카운터 표시",
+    "dialog.settings.visual.counter.showstats": "통계 표시",
+    "dialog.settings.visual.counter.scale": "크기 비율",
+    "dialog.settings.visual.counter.align": "정렬",
+    "dialog.settings.visual.counter.align.0": "왼쪽 위",
+    "dialog.settings.visual.counter.align.1": "위 가운데",
+    "dialog.settings.visual.counter.align.2": "오른쪽 위",
+    "dialog.settings.visual.counter.blur": "뒤쪽 흐림 효과",
+    "dialog.settings.visual.counter.font": "글꼴",
+    "dialog.settings.visual.counter.font.default": "기본값",
+    "dialog.settings.visual.counter.font.directory": "글꼴 폴더",
+
+    "dialog.settings.visual.counter.style": "스타일",
+    "dialog.settings.visual.counter.style.0": "Ultralight MIDI Player",
+    "dialog.settings.visual.counter.style.1": "MIDITrail",
+    "dialog.settings.visual.counter.background": "배경색",
+    "dialog.settings.visual.counter.text": "글자색",
+
+    "dialog.settings.visual.counter.fields": "필드",
+    "dialog.settings.visual.counter.fields.help": "별표(*)가 표시된 필드는 동영상 렌더링에서 제외됩니다.",
+
+    "dialog.settings.audio": "오디오",
+    "dialog.settings.audio.engine": "오디오 엔진",
+    "dialog.settings.audio.engine.unsupported": "이 엔진은 현재 플랫폼에서 지원되지 않습니다.",
+
+    "dialog.settings.midi": "MIDI",
+    "dialog.settings.midi.threads": "MIDI 로딩 스레드",
+    "dialog.settings.midi.threads.0": "단일 스레드",
+    "dialog.settings.midi.threads.1": "멀티 스레드",
+    "dialog.settings.midi.time": "시간 기반 로딩",
+
+    "dialog.update.available.title": "업데이트 사용 가능",
+    "dialog.update.available.content": "새 업데이트({})를 사용할 수 있습니다! GitHub를 여시겠습니까?",
+
+    "dialog.update.synced.title": "업데이트 확인",
+    "dialog.update.synced.content": "Comet이 이미 최신 버전입니다.",
+
+    "dialog.update.error.title": "업데이트 오류",
+    "dialog.update.error.content": "업데이트를 확인하는 중 오류가 발생했습니다.",
+
+    "counter.tick": "틱",
+    "counter.time": "시간",
+    "counter.bpm": "BPM",
+    "counter.notes": "노트",
+    "counter.nps": "NPS",
+    "counter.poly": "폴리포니",
+
+    "stats.fps": "FPS",
+    "stats.buffer": "버퍼",
+
+    "widget.file.browse": "찾아보기...",
+    "general.open": "열기"
+}

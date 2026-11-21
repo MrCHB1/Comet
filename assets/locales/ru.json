@@ -1,0 +1,177 @@
+{
+    "ID": "Русский",
+
+    "menu.file": "Файл",
+    "menu.file.open": "Открыть...",
+    "menu.file.render": "Рендер в видео...",
+    "menu.file.diagnose": "Диагностика MIDI...",
+    "menu.file.screenshot": "Сделать скриншот",
+    "menu.file.quit": "Выход",
+
+    "menu.play": "Воспроизведение",
+    "menu.play.stop": "Стоп",
+    "menu.play.unload": "Остановить и выгрузить",
+
+    "menu.view": "Вид",
+    "menu.view.counter": "Показывать счётчик нот",
+
+    "menu.options": "Параметры",
+    "menu.options.settings": "Настройки...",
+
+    "menu.help": "Справка",
+    "menu.help.kofi": "Угостить ponluxime кофе",
+    "menu.help.update": "Проверить обновления",
+
+    "nav.notesize": "Размер нот (в тиках)",
+    "nav.playspeed": "Скорость воспроизведения (%)",
+
+    "dialog.ok": "ОК",
+    "dialog.cancel": "Отмена",
+    "dialog.close": "Закрыть",
+    "dialog.applyclose": "Применить и закрыть",
+    "dialog.yes": "Да",
+    "dialog.no": "Нет",
+
+    "dialog.render.title": "Рендер видео",
+    "dialog.render.input": "Вход",
+    "dialog.render.input.ffmpeg": "Исполняемый файл FFmpeg",
+    "dialog.render.input.ffmpeg.installed": "FFmpeg установлен!",
+    "dialog.render.input.ffmpeg.get": "Скачать FFmpeg",
+    "dialog.render.input.ffmpeg.detect": "Найти FFmpeg",
+    "dialog.render.input.midi": "MIDI",
+    "dialog.render.input.midi.loaded": "Будет выполнен рендер загруженного MIDI",
+    "dialog.render.input.audio": "Включить звук",
+
+    "dialog.render.output": "Выход",
+    "dialog.render.output.format": "Формат",
+    "dialog.render.output.gpu": "Кодирование на GPU",
+    "dialog.render.output.gpu.tooltip": "Использовать аппаратно ускоренные кодировщики FFmpeg, если они доступны.",
+    "dialog.render.output.gpu.unavailable": "Кодирование на GPU недоступно. Убедитесь, что FFmpeg установлен правильно, а драйверы обновлены.",
+    "dialog.render.output.codec": "Кодек",
+    "dialog.render.output.advanced": "Дополнительные параметры",
+    "dialog.render.output.advanced.tooltip": "Дополнительные параметры кодирования FFmpeg для опытных пользователей. Используйте их, только если понимаете, что делаете.",
+
+    "dialog.render.encoding": "Кодирование",
+    "dialog.render.encoding.preset": "Пресет",
+    "dialog.render.encoding.bitratemode": "Режим битрейта",
+    "dialog.render.encoding.brm.const": "Постоянный",
+    "dialog.render.encoding.brm.var": "Переменный",
+    "dialog.render.encoding.bitrate": "Битрейт (Кбит/с)",
+    "dialog.render.encoding.crf": "CRF",
+
+    "dialog.render.rendering": "Рендеринг",
+    "dialog.render.rendering.resolution": "Разрешение",
+    "dialog.render.rendering.framerate": "Частота кадров",
+    "dialog.render.rendering.outpath": "Путь сохранения",
+    "dialog.render.rendering.mask": "Маска прозрачности",
+    "dialog.render.rendering.renderrange": "Диапазон рендера",
+    "dialog.render.rendering.renderrange.tooltip": "Рендерит MIDI в указанном временном интервале. Удобно для коротких превью целого MIDI.",
+
+    "dialog.render.renderbtn": "Рендер!",
+    "dialog.render.renderbtn.tooltip": "Нажмите «Esc», чтобы отменить рендер в любой момент. Видео будет сохранено.",
+
+    "dialog.render.error.noffmpeg": "FFmpeg не найден!",
+    "dialog.render.error.nomidi": "MIDI не загружен",
+    "dialog.render.error.nooutpath": "Укажите путь сохранения видео.",
+    "dialog.render.error.nooutmaskpath": "Укажите путь сохранения маски прозрачности.",
+    "dialog.render.error.invalidrange": "Недопустимый диапазон рендера",
+    "dialog.render.error": "Невозможно выполнить рендер; проверьте ошибки выше.",
+
+    "dialog.diagnose.title": "Диагностика MIDI",
+    "dialog.diagnose.alsorun": "Также запустить:",
+    "dialog.diagnose.bmdiag": "Диагностика Black MIDI",
+    "dialog.diagnose.clickhere": "Перетащите MIDI-файл или нажмите здесь, чтобы начать",
+
+    "dialog.settings.title": "Настройки",
+
+    "dialog.settings.app": "Приложение",
+    "dialog.settings.app.header": "НАСТРОЙКИ ПРИЛОЖЕНИЯ",
+    "dialog.settings.app.general": "Общие",
+    "dialog.settings.app.general.language": "Язык",
+    "dialog.settings.app.general.vsync": "VSync",
+    "dialog.settings.app.general.fps": "Ограничение FPS",
+    "dialog.settings.app.general.fps.tooltip": "0 = без ограничения FPS",
+
+    "dialog.settings.app.theme": "Тема",
+    "dialog.settings.app.theme.reload": "Обновить список тем",
+    "dialog.settings.app.theme.open": "Открыть папку тем",
+
+    "dialog.settings.app.nav": "Навигация",
+    "dialog.settings.app.nav.hide": "Всегда скрывать панель навигации",
+    "dialog.settings.app.nav.hide.tooltip": "Панель навигации скрыта, пока курсор мыши не окажется у верхнего края окна.",
+    "dialog.settings.app.nav.forward": "Перемотка вперёд (с)",
+    "dialog.settings.app.nav.backward": "Перемотка назад (с)",
+
+    "dialog.settings.visual": "Графика",
+    "dialog.settings.visual.disclaimer": "Эти настройки также применяются при рендере видео!",
+    "dialog.settings.visual.header": "НАСТРОЙКИ ГРАФИКИ",
+    "dialog.settings.visual.renderer": "Рендерер",
+    "dialog.settings.visual.renderer.settings": "Настройки рендерера",
+    "dialog.settings.visual.renderer.settings.reset": "Сбросить настройки",
+
+    "dialog.settings.visual.colors": "Цвета нот",
+    "dialog.settings.visual.colors.use": "Брать цвета из",
+    "dialog.settings.visual.colors.use.0": "Набор ресурсов",
+    "dialog.settings.visual.colors.use.1": "Список цветов",
+    "dialog.settings.visual.colors.palette": "Список палитр",
+    "dialog.settings.visual.colors.refresh": "Обновить список палитр",
+    "dialog.settings.visual.colors.open": "Открыть папку палитр",
+    "dialog.settings.visual.colors.loop": "Зациклить цвета",
+    "dialog.settings.visual.colors.shuffle": "Перемешать цвета",
+    "dialog.settings.visual.colors.seed": "Сид",
+
+    "dialog.settings.visual.counter": "Счётчик и статистика",
+    "dialog.settings.visual.counter.appearance": "Внешний вид",
+    "dialog.settings.visual.counter.showcounter": "Показывать счётчик нот",
+    "dialog.settings.visual.counter.showstats": "Показывать статистику",
+    "dialog.settings.visual.counter.scale": "Масштаб",
+    "dialog.settings.visual.counter.align": "Выравнивание",
+    "dialog.settings.visual.counter.align.0": "Сверху слева",
+    "dialog.settings.visual.counter.align.1": "Сверху по центру",
+    "dialog.settings.visual.counter.align.2": "Сверху справа",
+    "dialog.settings.visual.counter.blur": "Размытие фона",
+    "dialog.settings.visual.counter.font": "Шрифт",
+    "dialog.settings.visual.counter.font.default": "По умолчанию",
+    "dialog.settings.visual.counter.font.directory": "Папка шрифтов",
+
+    "dialog.settings.visual.counter.style": "Стиль",
+    "dialog.settings.visual.counter.style.0": "Ultralight MIDI Player",
+    "dialog.settings.visual.counter.style.1": "MIDITrail",
+    "dialog.settings.visual.counter.background": "Цвет фона",
+    "dialog.settings.visual.counter.text": "Цвет текста",
+
+    "dialog.settings.visual.counter.fields": "Поля",
+    "dialog.settings.visual.counter.fields.help": "Поля, отмеченные звёздочкой (*), не включаются в рендер видео.",
+
+    "dialog.settings.audio": "Звук",
+    "dialog.settings.audio.engine": "Аудиодвижок",
+    "dialog.settings.audio.engine.unsupported": "Этот движок не поддерживается на вашей платформе.",
+
+    "dialog.settings.midi": "MIDI",
+    "dialog.settings.midi.threads": "Потоки загрузки MIDI",
+    "dialog.settings.midi.threads.0": "Один поток",
+    "dialog.settings.midi.threads.1": "Несколько потоков",
+    "dialog.settings.midi.time": "Загрузка по времени",
+
+    "dialog.update.available.title": "Доступно обновление",
+    "dialog.update.available.content": "Доступно новое обновление ({})! Открыть GitHub?",
+
+    "dialog.update.synced.title": "Проверка обновлений",
+    "dialog.update.synced.content": "Comet уже обновлён до последней версии.",
+
+    "dialog.update.error.title": "Ошибка обновления",
+    "dialog.update.error.content": "При проверке обновлений произошла ошибка.",
+
+    "counter.tick": "Тик",
+    "counter.time": "Время",
+    "counter.bpm": "BPM",
+    "counter.notes": "Ноты",
+    "counter.nps": "NPS",
+    "counter.poly": "Полифония",
+
+    "stats.fps": "FPS",
+    "stats.buffer": "Буфер",
+
+    "widget.file.browse": "Обзор...",
+    "general.open": "Открыть"
+}

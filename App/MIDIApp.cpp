@@ -40,11 +40,17 @@
 #include "Models.h"
 #include "UI/Themes/Themes.h"
 #include "FontList.h"
+#include "Localization/Localization.h"
+#include "App/Fonts.h"
 
 MIDIApp::MIDIApp(MainWindow* mainWindow)
 {
 	config = MIDIPlayerConfig{};
 	config.LoadConfigOrDefault();
+
+	localization = std::make_unique<Localization>();
+	localization->PreloadLanguages();
+	SetLanguage(config.app.language);
 
 	renderView = std::make_shared<RenderView>();
 	timer = std::make_shared<MIDITimer>();
@@ -73,6 +79,13 @@ MIDIApp::~MIDIApp()
 	}
 	config.SaveConfig();
 	Models::UnloadModels();
+}
+
+void MIDIApp::SetLanguage(const std::string& id)
+{
+	config.app.language = id;
+	localization->LoadLanguage(id);
+	localizationDirty = true;
 }
 
 bool MIDIApp::IsGLReady() const
@@ -338,16 +351,41 @@ void MIDIApp::LoadResources()
 	midiAudio->GetCurrentEngine()->Initialize();
 }
 
+namespace
+{
+	static void MergeCJK(ImGuiIO& io, const std::string& path, float size)
+	{
+		ImFontConfig cfg;
+		cfg.MergeMode = true;
+		cfg.PixelSnapH = true;
+		cfg.OversampleH = 1;
+		cfg.OversampleV = 1;
+#if IMGUI_VERSION_NUM < 19200
+		// static atlas: ranges are required
+		ImFont* f = io.Fonts->AddFontFromFileTTF(path.c_str(), size, &cfg,
+			io.Fonts->GetGlyphRangesJapanese());
+#else
+		// dynamic atlas: glyphs load on demand
+		ImFont* f = io.Fonts->AddFontFromFileTTF(path.c_str(), size, &cfg);
+#endif
+		if (!f) std::cout << "Failed to load CJK font: " << path << std::endl;
+	}
+}
+
 void MIDIApp::BuildFontAtlas()
 {
 	fontList = std::make_unique<FontList>();
-
 	auto& io = ImGui::GetIO();
-	io.Fonts->AddFontDefault();
 
+	// 1. default UI font (18px so it matches the CJK font), then CJK fallback
+	ImFontConfig defCfg;
+	defCfg.SizePixels = 18.0f;
+	io.Fonts->AddFontDefault(&defCfg);
+	Fonts::MergeCJK(18.0f);
+
+	// 2. each user-selectable font, each followed by its own CJK fallback
 	fontList->RegisterFontsIntoAtlas(io.Fonts, 18.0f);
 }
-
 void MIDIApp::LoadColorPalettes()
 {
 	if (colorList == nullptr)

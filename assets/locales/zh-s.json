@@ -1,0 +1,177 @@
+{
+    "ID": "简体中文",
+
+    "menu.file": "文件",
+    "menu.file.open": "打开...",
+    "menu.file.render": "渲染为视频...",
+    "menu.file.diagnose": "诊断 MIDI...",
+    "menu.file.screenshot": "截图",
+    "menu.file.quit": "退出",
+
+    "menu.play": "播放",
+    "menu.play.stop": "停止",
+    "menu.play.unload": "停止并卸载",
+
+    "menu.view": "视图",
+    "menu.view.counter": "显示音符计数器",
+
+    "menu.options": "选项",
+    "menu.options.settings": "设置...",
+
+    "menu.help": "帮助",
+    "menu.help.kofi": "请 ponluxime 喝杯咖啡",
+    "menu.help.update": "检查更新",
+
+    "nav.notesize": "音符大小（以 tick 计）",
+    "nav.playspeed": "播放速度 (%)",
+
+    "dialog.ok": "确定",
+    "dialog.cancel": "取消",
+    "dialog.close": "关闭",
+    "dialog.applyclose": "应用并关闭",
+    "dialog.yes": "是",
+    "dialog.no": "否",
+
+    "dialog.render.title": "渲染视频",
+    "dialog.render.input": "输入",
+    "dialog.render.input.ffmpeg": "FFmpeg 可执行文件",
+    "dialog.render.input.ffmpeg.installed": "已安装 FFmpeg！",
+    "dialog.render.input.ffmpeg.get": "获取 FFmpeg",
+    "dialog.render.input.ffmpeg.detect": "检测 FFmpeg",
+    "dialog.render.input.midi": "MIDI",
+    "dialog.render.input.midi.loaded": "将渲染当前已加载的 MIDI",
+    "dialog.render.input.audio": "包含音频",
+
+    "dialog.render.output": "输出",
+    "dialog.render.output.format": "格式",
+    "dialog.render.output.gpu": "GPU 编码",
+    "dialog.render.output.gpu.tooltip": "可用时使用硬件加速的 FFmpeg 编码器。",
+    "dialog.render.output.gpu.unavailable": "GPU 编码不可用。请确保已正确安装 FFmpeg，并将显卡驱动更新到最新版本。",
+    "dialog.render.output.codec": "编解码器",
+    "dialog.render.output.advanced": "高级选项",
+    "dialog.render.output.advanced.tooltip": "面向高级用户的额外 FFmpeg 编码选项。请仅在你清楚自己在做什么时使用。",
+
+    "dialog.render.encoding": "编码",
+    "dialog.render.encoding.preset": "预设",
+    "dialog.render.encoding.bitratemode": "码率模式",
+    "dialog.render.encoding.brm.const": "恒定",
+    "dialog.render.encoding.brm.var": "可变",
+    "dialog.render.encoding.bitrate": "码率 (Kbps)",
+    "dialog.render.encoding.crf": "CRF",
+
+    "dialog.render.rendering": "渲染",
+    "dialog.render.rendering.resolution": "分辨率",
+    "dialog.render.rendering.framerate": "帧率",
+    "dialog.render.rendering.outpath": "输出路径",
+    "dialog.render.rendering.mask": "透明遮罩",
+    "dialog.render.rendering.renderrange": "渲染范围",
+    "dialog.render.rendering.renderrange.tooltip": "按指定的时间区间渲染 MIDI。适合分享整个 MIDI 的简短预览。",
+
+    "dialog.render.renderbtn": "开始渲染！",
+    "dialog.render.renderbtn.tooltip": "随时按“Esc”键即可取消渲染，视频将被保存。",
+
+    "dialog.render.error.noffmpeg": "未找到 FFmpeg！",
+    "dialog.render.error.nomidi": "未加载 MIDI",
+    "dialog.render.error.nooutpath": "请指定视频的输出路径。",
+    "dialog.render.error.nooutmaskpath": "请指定透明遮罩的输出路径。",
+    "dialog.render.error.invalidrange": "渲染范围无效",
+    "dialog.render.error": "无法渲染；请检查上方的错误。",
+
+    "dialog.diagnose.title": "诊断 MIDI",
+    "dialog.diagnose.alsorun": "同时运行：",
+    "dialog.diagnose.bmdiag": "黑 MIDI 诊断",
+    "dialog.diagnose.clickhere": "拖放 MIDI 文件或点击此处开始",
+
+    "dialog.settings.title": "设置",
+
+    "dialog.settings.app": "应用",
+    "dialog.settings.app.header": "应用设置",
+    "dialog.settings.app.general": "常规",
+    "dialog.settings.app.general.language": "语言",
+    "dialog.settings.app.general.vsync": "VSync",
+    "dialog.settings.app.general.fps": "FPS 上限",
+    "dialog.settings.app.general.fps.tooltip": "0 = 不限制 FPS",
+
+    "dialog.settings.app.theme": "主题",
+    "dialog.settings.app.theme.reload": "重新加载主题列表",
+    "dialog.settings.app.theme.open": "打开主题文件夹",
+
+    "dialog.settings.app.nav": "导航",
+    "dialog.settings.app.nav.hide": "始终隐藏导航栏",
+    "dialog.settings.app.nav.hide.tooltip": "仅当鼠标悬停在窗口顶部附近时才会显示导航栏。",
+    "dialog.settings.app.nav.forward": "快进 (秒)",
+    "dialog.settings.app.nav.backward": "快退 (秒)",
+
+    "dialog.settings.visual": "视觉",
+    "dialog.settings.visual.disclaimer": "这些设置在渲染视频时同样生效！",
+    "dialog.settings.visual.header": "视觉设置",
+    "dialog.settings.visual.renderer": "渲染器",
+    "dialog.settings.visual.renderer.settings": "渲染器设置",
+    "dialog.settings.visual.renderer.settings.reset": "重置设置",
+
+    "dialog.settings.visual.colors": "音符颜色",
+    "dialog.settings.visual.colors.use": "颜色来源",
+    "dialog.settings.visual.colors.use.0": "资源包",
+    "dialog.settings.visual.colors.use.1": "颜色列表",
+    "dialog.settings.visual.colors.palette": "调色板列表",
+    "dialog.settings.visual.colors.refresh": "刷新调色板列表",
+    "dialog.settings.visual.colors.open": "打开调色板文件夹",
+    "dialog.settings.visual.colors.loop": "循环使用颜色",
+    "dialog.settings.visual.colors.shuffle": "随机打乱颜色",
+    "dialog.settings.visual.colors.seed": "种子",
+
+    "dialog.settings.visual.counter": "计数器与统计",
+    "dialog.settings.visual.counter.appearance": "外观",
+    "dialog.settings.visual.counter.showcounter": "显示音符计数器",
+    "dialog.settings.visual.counter.showstats": "显示统计信息",
+    "dialog.settings.visual.counter.scale": "缩放",
+    "dialog.settings.visual.counter.align": "对齐方式",
+    "dialog.settings.visual.counter.align.0": "左上",
+    "dialog.settings.visual.counter.align.1": "顶部居中",
+    "dialog.settings.visual.counter.align.2": "右上",
+    "dialog.settings.visual.counter.blur": "背景模糊",
+    "dialog.settings.visual.counter.font": "字体",
+    "dialog.settings.visual.counter.font.default": "默认",
+    "dialog.settings.visual.counter.font.directory": "字体目录",
+
+    "dialog.settings.visual.counter.style": "样式",
+    "dialog.settings.visual.counter.style.0": "Ultralight MIDI Player",
+    "dialog.settings.visual.counter.style.1": "MIDITrail",
+    "dialog.settings.visual.counter.background": "背景色",
+    "dialog.settings.visual.counter.text": "文字颜色",
+
+    "dialog.settings.visual.counter.fields": "字段",
+    "dialog.settings.visual.counter.fields.help": "带星号 (*) 的字段不会出现在视频渲染中。",
+
+    "dialog.settings.audio": "音频",
+    "dialog.settings.audio.engine": "音频引擎",
+    "dialog.settings.audio.engine.unsupported": "你的平台不支持此引擎。",
+
+    "dialog.settings.midi": "MIDI",
+    "dialog.settings.midi.threads": "MIDI 加载线程",
+    "dialog.settings.midi.threads.0": "单线程",
+    "dialog.settings.midi.threads.1": "多线程",
+    "dialog.settings.midi.time": "基于时间的加载",
+
+    "dialog.update.available.title": "有可用更新",
+    "dialog.update.available.content": "有新版本 ({}) 可用！是否打开 GitHub？",
+
+    "dialog.update.synced.title": "检查更新",
+    "dialog.update.synced.content": "Comet 已是最新版本。",
+
+    "dialog.update.error.title": "更新错误",
+    "dialog.update.error.content": "检查更新时出错。",
+
+    "counter.tick": "Tick",
+    "counter.time": "时间",
+    "counter.bpm": "BPM",
+    "counter.notes": "音符",
+    "counter.nps": "NPS",
+    "counter.poly": "复音数",
+
+    "stats.fps": "FPS",
+    "stats.buffer": "缓冲",
+
+    "widget.file.browse": "浏览...",
+    "general.open": "打开"
+}

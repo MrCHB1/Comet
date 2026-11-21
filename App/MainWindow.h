@@ -55,6 +55,7 @@ private:
 	void InitializeAppResources();
 	bool InitializeGLFW();
 	void InitializeUI();
+	void BuildMenuBar();
 	void InitializeDialogs();
 	void InitializeTheme();
 	void LoadWindowIcon();

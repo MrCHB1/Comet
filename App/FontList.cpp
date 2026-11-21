@@ -1,6 +1,7 @@
 #include "FontList.h"
 #include "Utils.h"
 #include "imgui.h"
+#include "Fonts.h"
 #include <iostream>
 
 FontList::FontList()
@@ -18,6 +19,8 @@ void FontList::ReloadList()
 	for (const auto& entry : std::filesystem::directory_iterator(FONT_FOLDER))
 	{
 		if (!entry.is_regular_file()) continue;
+		if (entry.path().filename() == "cjk.ttf") continue;
+
 		std::string ext = entry.path().extension().string();
 		if (ext != ".ttf" && ext != ".otf") continue;
 
@@ -61,7 +64,9 @@ void FontList::RegisterFontsIntoAtlas(ImFontAtlas* atlas, float defaultFontSize)
 			if (!entry.font)
 			{
 				std::cout << "Failed to load font from path: " << entry.path << std::endl;
+				continue;
 			}
+			Fonts::MergeCJK(18.0f);
 		}
 	}
 }

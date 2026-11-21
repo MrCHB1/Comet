@@ -13,8 +13,9 @@ public:
 				delete item;
 			}
 		}
+		menus.clear();
 	}
-	SubMenu& CreateMenu(const char* label)
+	SubMenu& CreateMenu(std::string label)
 	{
 		menus.emplace_back(label);
 		return menus.back();

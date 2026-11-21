@@ -1,0 +1,177 @@
+{
+    "ID": "日本語",
+
+    "menu.file": "ファイル",
+    "menu.file.open": "開く...",
+    "menu.file.render": "動画にレンダリング...",
+    "menu.file.diagnose": "MIDIを診断...",
+    "menu.file.screenshot": "スクリーンショットを撮影",
+    "menu.file.quit": "終了",
+
+    "menu.play": "再生",
+    "menu.play.stop": "停止",
+    "menu.play.unload": "停止してアンロード",
+
+    "menu.view": "表示",
+    "menu.view.counter": "ノートカウンターを表示",
+
+    "menu.options": "オプション",
+    "menu.options.settings": "設定...",
+
+    "menu.help": "ヘルプ",
+    "menu.help.kofi": "ponluximeにコーヒーをおごる",
+    "menu.help.update": "アップデートを確認",
+
+    "nav.notesize": "ノートサイズ（ティック単位）",
+    "nav.playspeed": "再生速度（％）",
+
+    "dialog.ok": "OK",
+    "dialog.cancel": "キャンセル",
+    "dialog.close": "閉じる",
+    "dialog.applyclose": "適用して閉じる",
+    "dialog.yes": "はい",
+    "dialog.no": "いいえ",
+
+    "dialog.render.title": "動画をレンダリング",
+    "dialog.render.input": "入力",
+    "dialog.render.input.ffmpeg": "FFmpeg実行ファイル",
+    "dialog.render.input.ffmpeg.installed": "FFmpegがインストールされています！",
+    "dialog.render.input.ffmpeg.get": "FFmpegを入手",
+    "dialog.render.input.ffmpeg.detect": "FFmpegを検出",
+    "dialog.render.input.midi": "MIDI",
+    "dialog.render.input.midi.loaded": "現在読み込まれているMIDIをレンダリングします",
+    "dialog.render.input.audio": "音声を含める",
+
+    "dialog.render.output": "出力",
+    "dialog.render.output.format": "フォーマット",
+    "dialog.render.output.gpu": "GPUエンコード",
+    "dialog.render.output.gpu.tooltip": "利用可能な場合、ハードウェアアクセラレーション対応のFFmpegエンコーダーを使用します。",
+    "dialog.render.output.gpu.unavailable": "GPUエンコードは利用できません。FFmpegが正しくインストールされていること、およびドライバーが最新であることを確認してください。",
+    "dialog.render.output.codec": "コーデック",
+    "dialog.render.output.advanced": "詳細オプション",
+    "dialog.render.output.advanced.tooltip": "上級者向けの追加のFFmpegエンコードオプションです。内容を理解している場合のみ使用してください。",
+
+    "dialog.render.encoding": "エンコード",
+    "dialog.render.encoding.preset": "プリセット",
+    "dialog.render.encoding.bitratemode": "ビットレートモード",
+    "dialog.render.encoding.brm.const": "固定",
+    "dialog.render.encoding.brm.var": "可変",
+    "dialog.render.encoding.bitrate": "ビットレート (Kbps)",
+    "dialog.render.encoding.crf": "CRF",
+
+    "dialog.render.rendering": "レンダリング",
+    "dialog.render.rendering.resolution": "解像度",
+    "dialog.render.rendering.framerate": "フレームレート",
+    "dialog.render.rendering.outpath": "出力パス",
+    "dialog.render.rendering.mask": "透過マスク",
+    "dialog.render.rendering.renderrange": "レンダリング範囲",
+    "dialog.render.rendering.renderrange.tooltip": "指定した時間範囲でMIDIをレンダリングします。MIDI全体の短いプレビューを共有するのに便利です。",
+
+    "dialog.render.renderbtn": "レンダリング開始！",
+    "dialog.render.renderbtn.tooltip": "「esc」キーを押すと、いつでもレンダリングをキャンセルできます。動画は保存されます。",
+
+    "dialog.render.error.noffmpeg": "FFmpegが見つかりません！",
+    "dialog.render.error.nomidi": "MIDIが読み込まれていません",
+    "dialog.render.error.nooutpath": "動画の出力パスを指定してください。",
+    "dialog.render.error.nooutmaskpath": "透過マスクの出力パスを指定してください。",
+    "dialog.render.error.invalidrange": "レンダリング範囲が無効です",
+    "dialog.render.error": "レンダリングできません。上記のエラーを確認してください。",
+
+    "dialog.diagnose.title": "MIDIを診断",
+    "dialog.diagnose.alsorun": "あわせて実行:",
+    "dialog.diagnose.bmdiag": "ブラックMIDI診断",
+    "dialog.diagnose.clickhere": "MIDIファイルをドロップするか、ここをクリックして開始",
+
+    "dialog.settings.title": "設定",
+
+    "dialog.settings.app": "アプリ",
+    "dialog.settings.app.header": "アプリ設定",
+    "dialog.settings.app.general": "一般",
+    "dialog.settings.app.general.language": "言語",
+    "dialog.settings.app.general.vsync": "VSync",
+    "dialog.settings.app.general.fps": "FPS上限",
+    "dialog.settings.app.general.fps.tooltip": "0 = FPS上限なし",
+
+    "dialog.settings.app.theme": "テーマ",
+    "dialog.settings.app.theme.reload": "テーマ一覧を再読み込み",
+    "dialog.settings.app.theme.open": "テーマフォルダを開く",
+
+    "dialog.settings.app.nav": "ナビゲーション",
+    "dialog.settings.app.nav.hide": "ナビゲーションバーを常に隠す",
+    "dialog.settings.app.nav.hide.tooltip": "マウスをウィンドウの上部に近づけたときのみ、ナビゲーションバーが表示されます。",
+    "dialog.settings.app.nav.forward": "早送りの秒数 (秒)",
+    "dialog.settings.app.nav.backward": "巻き戻しの秒数 (秒)",
+
+    "dialog.settings.visual": "ビジュアル",
+    "dialog.settings.visual.disclaimer": "これらの設定は動画のレンダリング時にも適用されます！",
+    "dialog.settings.visual.header": "ビジュアル設定",
+    "dialog.settings.visual.renderer": "レンダラー",
+    "dialog.settings.visual.renderer.settings": "レンダラー設定",
+    "dialog.settings.visual.renderer.settings.reset": "設定をリセット",
+
+    "dialog.settings.visual.colors": "ノートの色",
+    "dialog.settings.visual.colors.use": "使用する色の取得元",
+    "dialog.settings.visual.colors.use.0": "リソースパック",
+    "dialog.settings.visual.colors.use.1": "カラーリスト",
+    "dialog.settings.visual.colors.palette": "パレット一覧",
+    "dialog.settings.visual.colors.refresh": "パレット一覧を更新",
+    "dialog.settings.visual.colors.open": "パレットフォルダを開く",
+    "dialog.settings.visual.colors.loop": "色をループ",
+    "dialog.settings.visual.colors.shuffle": "色をシャッフル",
+    "dialog.settings.visual.colors.seed": "シード値",
+
+    "dialog.settings.visual.counter": "カウンターと統計",
+    "dialog.settings.visual.counter.appearance": "外観",
+    "dialog.settings.visual.counter.showcounter": "ノートカウンターを表示",
+    "dialog.settings.visual.counter.showstats": "統計を表示",
+    "dialog.settings.visual.counter.scale": "スケール",
+    "dialog.settings.visual.counter.align": "配置",
+    "dialog.settings.visual.counter.align.0": "左上",
+    "dialog.settings.visual.counter.align.1": "上中央",
+    "dialog.settings.visual.counter.align.2": "右上",
+    "dialog.settings.visual.counter.blur": "背景をぼかす",
+    "dialog.settings.visual.counter.font": "フォント",
+    "dialog.settings.visual.counter.font.default": "デフォルト",
+    "dialog.settings.visual.counter.font.directory": "フォントフォルダ",
+
+    "dialog.settings.visual.counter.style": "スタイル",
+    "dialog.settings.visual.counter.style.0": "Ultralight MIDI Player",
+    "dialog.settings.visual.counter.style.1": "MIDITrail",
+    "dialog.settings.visual.counter.background": "背景色",
+    "dialog.settings.visual.counter.text": "文字色",
+
+    "dialog.settings.visual.counter.fields": "フィールド",
+    "dialog.settings.visual.counter.fields.help": "アスタリスク (*) が付いたフィールドは、動画のレンダリングでは省略されます。",
+
+    "dialog.settings.audio": "オーディオ",
+    "dialog.settings.audio.engine": "オーディオエンジン",
+    "dialog.settings.audio.engine.unsupported": "このエンジンはあなたのプラットフォームではサポートされていません。",
+
+    "dialog.settings.midi": "MIDI",
+    "dialog.settings.midi.threads": "MIDI読み込みスレッド",
+    "dialog.settings.midi.threads.0": "シングルスレッド",
+    "dialog.settings.midi.threads.1": "マルチスレッド",
+    "dialog.settings.midi.time": "時間ベースの読み込み",
+
+    "dialog.update.available.title": "アップデートがあります",
+    "dialog.update.available.content": "新しいアップデート ({}) があります！GitHubを開きますか？",
+
+    "dialog.update.synced.title": "アップデートの確認",
+    "dialog.update.synced.content": "Cometは最新の状態です。",
+
+    "dialog.update.error.title": "アップデートエラー",
+    "dialog.update.error.content": "アップデートの確認中にエラーが発生しました。",
+
+    "counter.tick": "ティック",
+    "counter.time": "時間",
+    "counter.bpm": "BPM",
+    "counter.notes": "ノート数",
+    "counter.nps": "NPS",
+    "counter.poly": "ポリフォニー",
+
+    "stats.fps": "FPS",
+    "stats.buffer": "バッファ",
+
+    "widget.file.browse": "参照...",
+    "general.open": "開く"
+}

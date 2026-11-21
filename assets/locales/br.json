@@ -1,0 +1,177 @@
+{
+    "ID": "Português (Brasil)",
+
+    "menu.file": "Arquivo",
+    "menu.file.open": "Abrir...",
+    "menu.file.render": "Renderizar em vídeo...",
+    "menu.file.diagnose": "Diagnosticar MIDI...",
+    "menu.file.screenshot": "Capturar tela",
+    "menu.file.quit": "Sair",
+
+    "menu.play": "Reproduzir",
+    "menu.play.stop": "Parar",
+    "menu.play.unload": "Parar e descarregar",
+
+    "menu.view": "Exibir",
+    "menu.view.counter": "Mostrar contador de notas",
+
+    "menu.options": "Opções",
+    "menu.options.settings": "Configurações...",
+
+    "menu.help": "Ajuda",
+    "menu.help.kofi": "Pague um café para o ponluxime",
+    "menu.help.update": "Verificar atualizações",
+
+    "nav.notesize": "Tamanho da nota (em ticks)",
+    "nav.playspeed": "Velocidade de reprodução (%)",
+
+    "dialog.ok": "OK",
+    "dialog.cancel": "Cancelar",
+    "dialog.close": "Fechar",
+    "dialog.applyclose": "Aplicar e fechar",
+    "dialog.yes": "Sim",
+    "dialog.no": "Não",
+
+    "dialog.render.title": "Renderizar vídeo",
+    "dialog.render.input": "Entrada",
+    "dialog.render.input.ffmpeg": "Executável do FFmpeg",
+    "dialog.render.input.ffmpeg.installed": "O FFmpeg está instalado!",
+    "dialog.render.input.ffmpeg.get": "Obter FFmpeg",
+    "dialog.render.input.ffmpeg.detect": "Detectar FFmpeg",
+    "dialog.render.input.midi": "MIDI",
+    "dialog.render.input.midi.loaded": "Renderizará o MIDI carregado no momento",
+    "dialog.render.input.audio": "Incluir áudio",
+
+    "dialog.render.output": "Saída",
+    "dialog.render.output.format": "Formato",
+    "dialog.render.output.gpu": "Codificação por GPU",
+    "dialog.render.output.gpu.tooltip": "Usa codificadores FFmpeg com aceleração de hardware, quando disponíveis.",
+    "dialog.render.output.gpu.unavailable": "A codificação por GPU não está disponível. Verifique se o FFmpeg está instalado corretamente e se os drivers estão atualizados.",
+    "dialog.render.output.codec": "Codec",
+    "dialog.render.output.advanced": "Opções avançadas",
+    "dialog.render.output.advanced.tooltip": "Opções adicionais de codificação do FFmpeg para usuários avançados. Use somente se souber o que está fazendo.",
+
+    "dialog.render.encoding": "Codificação",
+    "dialog.render.encoding.preset": "Predefinição",
+    "dialog.render.encoding.bitratemode": "Modo de taxa de bits",
+    "dialog.render.encoding.brm.const": "Constante",
+    "dialog.render.encoding.brm.var": "Variável",
+    "dialog.render.encoding.bitrate": "Taxa de bits (Kbps)",
+    "dialog.render.encoding.crf": "CRF",
+
+    "dialog.render.rendering": "Renderização",
+    "dialog.render.rendering.resolution": "Resolução",
+    "dialog.render.rendering.framerate": "Taxa de quadros",
+    "dialog.render.rendering.outpath": "Caminho de saída",
+    "dialog.render.rendering.mask": "Máscara de transparência",
+    "dialog.render.rendering.renderrange": "Intervalo de renderização",
+    "dialog.render.rendering.renderrange.tooltip": "Renderiza o MIDI em um intervalo de tempo especificado. Útil para compartilhar prévias curtas de um MIDI inteiro.",
+
+    "dialog.render.renderbtn": "Renderizar!",
+    "dialog.render.renderbtn.tooltip": "Pressione 'esc' para cancelar a renderização a qualquer momento. O vídeo será salvo.",
+
+    "dialog.render.error.noffmpeg": "FFmpeg não encontrado!",
+    "dialog.render.error.nomidi": "Nenhum MIDI carregado",
+    "dialog.render.error.nooutpath": "Especifique o caminho de saída do vídeo.",
+    "dialog.render.error.nooutmaskpath": "Especifique o caminho de saída da máscara de transparência.",
+    "dialog.render.error.invalidrange": "Intervalo de renderização inválido",
+    "dialog.render.error": "Não é possível renderizar; verifique os erros acima.",
+
+    "dialog.diagnose.title": "Diagnosticar MIDI",
+    "dialog.diagnose.alsorun": "Executar também:",
+    "dialog.diagnose.bmdiag": "Diagnóstico de Black MIDI",
+    "dialog.diagnose.clickhere": "Solte um arquivo MIDI ou clique aqui para começar",
+
+    "dialog.settings.title": "Configurações",
+
+    "dialog.settings.app": "Aplicativo",
+    "dialog.settings.app.header": "CONFIGURAÇÕES DO APLICATIVO",
+    "dialog.settings.app.general": "Geral",
+    "dialog.settings.app.general.language": "Idioma",
+    "dialog.settings.app.general.vsync": "VSync",
+    "dialog.settings.app.general.fps": "Limite de FPS",
+    "dialog.settings.app.general.fps.tooltip": "0 = Sem limite de FPS",
+
+    "dialog.settings.app.theme": "Tema",
+    "dialog.settings.app.theme.reload": "Recarregar lista de temas",
+    "dialog.settings.app.theme.open": "Abrir pasta de temas",
+
+    "dialog.settings.app.nav": "Navegação",
+    "dialog.settings.app.nav.hide": "Sempre ocultar a barra de navegação",
+    "dialog.settings.app.nav.hide.tooltip": "A barra de navegação permanece oculta, a menos que o mouse passe perto do topo da janela.",
+    "dialog.settings.app.nav.forward": "Avançar (s)",
+    "dialog.settings.app.nav.backward": "Retroceder (s)",
+
+    "dialog.settings.visual": "Visual",
+    "dialog.settings.visual.disclaimer": "Estas configurações também serão aplicadas ao renderizar vídeos!",
+    "dialog.settings.visual.header": "CONFIGURAÇÕES VISUAIS",
+    "dialog.settings.visual.renderer": "Renderizador",
+    "dialog.settings.visual.renderer.settings": "Configurações do renderizador",
+    "dialog.settings.visual.renderer.settings.reset": "Redefinir configurações",
+
+    "dialog.settings.visual.colors": "Cores das notas",
+    "dialog.settings.visual.colors.use": "Usar cores de",
+    "dialog.settings.visual.colors.use.0": "Pacote de recursos",
+    "dialog.settings.visual.colors.use.1": "Lista de cores",
+    "dialog.settings.visual.colors.palette": "Lista de paletas",
+    "dialog.settings.visual.colors.refresh": "Atualizar lista de paletas",
+    "dialog.settings.visual.colors.open": "Abrir pasta de paletas",
+    "dialog.settings.visual.colors.loop": "Repetir cores em loop",
+    "dialog.settings.visual.colors.shuffle": "Embaralhar cores",
+    "dialog.settings.visual.colors.seed": "Semente",
+
+    "dialog.settings.visual.counter": "Contador e estatísticas",
+    "dialog.settings.visual.counter.appearance": "Aparência",
+    "dialog.settings.visual.counter.showcounter": "Mostrar contador de notas",
+    "dialog.settings.visual.counter.showstats": "Mostrar estatísticas",
+    "dialog.settings.visual.counter.scale": "Escala",
+    "dialog.settings.visual.counter.align": "Alinhamento",
+    "dialog.settings.visual.counter.align.0": "Superior esquerdo",
+    "dialog.settings.visual.counter.align.1": "Superior central",
+    "dialog.settings.visual.counter.align.2": "Superior direito",
+    "dialog.settings.visual.counter.blur": "Desfocar o fundo",
+    "dialog.settings.visual.counter.font": "Fonte",
+    "dialog.settings.visual.counter.font.default": "Padrão",
+    "dialog.settings.visual.counter.font.directory": "Pasta de fontes",
+
+    "dialog.settings.visual.counter.style": "Estilo",
+    "dialog.settings.visual.counter.style.0": "Ultralight MIDI Player",
+    "dialog.settings.visual.counter.style.1": "MIDITrail",
+    "dialog.settings.visual.counter.background": "Cor de fundo",
+    "dialog.settings.visual.counter.text": "Cor do texto",
+
+    "dialog.settings.visual.counter.fields": "Campos",
+    "dialog.settings.visual.counter.fields.help": "Os campos marcados com asterisco (*) são omitidos das renderizações de vídeo.",
+
+    "dialog.settings.audio": "Áudio",
+    "dialog.settings.audio.engine": "Mecanismo de áudio",
+    "dialog.settings.audio.engine.unsupported": "Este mecanismo não é compatível com a sua plataforma.",
+
+    "dialog.settings.midi": "MIDI",
+    "dialog.settings.midi.threads": "Threads de carregamento de MIDI",
+    "dialog.settings.midi.threads.0": "Thread única",
+    "dialog.settings.midi.threads.1": "Várias threads",
+    "dialog.settings.midi.time": "Carregamento baseado em tempo",
+
+    "dialog.update.available.title": "Atualização disponível",
+    "dialog.update.available.content": "Uma nova atualização ({}) está disponível! Abrir o GitHub?",
+
+    "dialog.update.synced.title": "Verificação de atualização",
+    "dialog.update.synced.content": "O Comet já está atualizado.",
+
+    "dialog.update.error.title": "Erro de atualização",
+    "dialog.update.error.content": "Ocorreu um erro ao verificar se há atualizações.",
+
+    "counter.tick": "Tick",
+    "counter.time": "Tempo",
+    "counter.bpm": "BPM",
+    "counter.notes": "Notas",
+    "counter.nps": "NPS",
+    "counter.poly": "Polifonia",
+
+    "stats.fps": "FPS",
+    "stats.buffer": "Buffer",
+
+    "widget.file.browse": "Procurar...",
+    "general.open": "Abrir"
+}

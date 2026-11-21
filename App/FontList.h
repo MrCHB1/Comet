@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <filesystem>
+#include <functional>
 
 struct ImFont;
 struct ImFontAtlas;
@@ -43,7 +44,7 @@ public:
 	std::vector<FontEntry>& GetFonts() { return fonts; }
 
 	// must be called before ImGui builds its font atlas (typically during early startup)
-	void RegisterFontsIntoAtlas(ImFontAtlas* atlas, float defaultFontSize = 18.0f);
+	void RegisterFontsIntoAtlas(ImFontAtlas* atlas, float defaultFontSize);
 
 private:
 	std::vector<FontEntry> fonts{};

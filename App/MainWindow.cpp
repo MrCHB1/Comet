@@ -16,6 +16,8 @@
 #include "UI/Themes/Themes.h"
 #include "Config/MIDIPlayerConfig.h"
 #include "UpdateChecker.h"
+#include "App/Localization/Localization.h"
+#include <format>
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -84,49 +86,58 @@ void MainWindow::InitializeDialogs()
 
 void MainWindow::InitializeUI()
 {
-	SubMenu& fileMenu = menuBuilder.CreateMenu("File");
-	fileMenu.AddItem(new MenuButton("Open...", [this]() {
+	BuildMenuBar();
+}
+
+void MainWindow::BuildMenuBar()
+{
+	menuBuilder = MenuBuilder();
+
+	Localization* localization = midiApp->GetLocalization();
+
+	SubMenu& fileMenu = menuBuilder.CreateMenu(TRANSLATE("menu.file"));
+	fileMenu.AddItem(new MenuButton(TRANSLATE("menu.file.open"), [this]() {
 		std::string outPath;
 		Utils::ChooseFile(outPath, "mid");
 		if (outPath.empty()) return;
 		this->midiApp->LoadMIDI(outPath.c_str());
 		this->dialogManager.GetDialog<LoadingDialog>()->Open();
 	}));
-	fileMenu.AddItem(new MenuButton("Render to Video...", [this]() {
+	fileMenu.AddItem(new MenuButton(TRANSLATE("menu.file.render"), [this]() {
 		this->dialogManager.GetDialog<RenderVideoDialog>()->Open();
 	}));
 	// fileMenu.AddItem(new MenuButton("Play without Render..."));
-	fileMenu.AddItem(new MenuButton("Diagnose MIDI...", [this]() {
+	fileMenu.AddItem(new MenuButton(TRANSLATE("menu.file.diagnose"), [this]() {
 		this->dialogManager.GetDialog<DiagnosisDialog>()->Open();
 	}));
-	fileMenu.AddItem(new MenuButton("Take Screenshot", [this]() {
+	fileMenu.AddItem(new MenuButton(TRANSLATE("menu.file.screenshot"), [this]() {
 		std::cout << "Will be implemented soon" << std::endl;
 	}));
-	fileMenu.AddItem(new MenuButton("Quit", [this]() { glfwSetWindowShouldClose(window, GLFW_TRUE); }));
+	fileMenu.AddItem(new MenuButton(TRANSLATE("menu.file.quit"), [this]() { glfwSetWindowShouldClose(window, GLFW_TRUE); }));
 
-	SubMenu& playMenu = menuBuilder.CreateMenu("Play");
-	playMenu.AddItem(new MenuButton("Stop", [this]() {
+	SubMenu& playMenu = menuBuilder.CreateMenu(TRANSLATE("menu.play"));
+	playMenu.AddItem(new MenuButton(TRANSLATE("menu.play.stop"), [this]() {
 		auto timer = midiApp->GetTimer();
 		timer->Stop();
 	}));
-	playMenu.AddItem(new MenuButton("Stop and Unload", [this]() {
+	playMenu.AddItem(new MenuButton(TRANSLATE("menu.play.unload"), [this]() {
 		auto timer = midiApp->GetTimer();
 		timer->Stop();
 		midiApp->UnloadMIDI();
 	}));
 
-	SubMenu& viewMenu = menuBuilder.CreateMenu("View");
-	viewMenu.AddItem(new MenuCheckbox("Show note counter", &(midiApp->GetConfig()->render.showCounter)));
+	SubMenu& viewMenu = menuBuilder.CreateMenu(TRANSLATE("menu.view"));
+	viewMenu.AddItem(new MenuCheckbox(TRANSLATE("menu.view.counter"), &(midiApp->GetConfig()->render.showCounter)));
 
-	SubMenu& optionMenu = menuBuilder.CreateMenu("Options");
-	optionMenu.AddItem(new MenuButton("Settings...", [this]() {
+	SubMenu& optionMenu = menuBuilder.CreateMenu(TRANSLATE("menu.options"));
+	optionMenu.AddItem(new MenuButton(TRANSLATE("menu.options.settings"), [this]() {
 		this->dialogManager.GetDialog<SettingsDialog>()->Open();
 	}));
-	SubMenu& helpMenu = menuBuilder.CreateMenu("Help");
-	helpMenu.AddItem(new MenuButton("Buy ponluxime a coffee", [this]() {
+	SubMenu& helpMenu = menuBuilder.CreateMenu(TRANSLATE("menu.help"));
+	helpMenu.AddItem(new MenuButton(TRANSLATE("menu.help.kofi"), [this]() {
 		Utils::OpenURL("https://ko-fi.com/ponluxime");
 	}));
-	helpMenu.AddItem(new MenuButton("Check for Updates", [this]() {
+	helpMenu.AddItem(new MenuButton(TRANSLATE("menu.help.update"), [&]() {
 		if (!this->updateChecker) return;
 		
 		auto result = this->updateChecker->CheckForUpdate();
@@ -137,8 +148,11 @@ void MainWindow::InitializeUI()
 		{
 			case UpdateChecker::UPDATE_AVAILABLE:
 			{
-				std::string msg = "A new update (" + result.retrievedVersion.ToString() + ") is available! Open github?";
-				msgDlg->Open("Update Available", msg, MessageDialog::ButtonType::YesNo, [result](MessageDialog::Result res)
+				std::string msg = std::vformat(
+					TRANSLATE("dialog.update.available.content"),
+					std::make_format_args(result.retrievedVersion.ToString())
+				);
+				msgDlg->Open(TRANSLATE("dialog.update.available.title"), msg, MessageDialog::ButtonType::YesNo, [result](MessageDialog::Result res)
 					{
 						if (res == MessageDialog::Result::Yes)
 						{
@@ -149,12 +163,18 @@ void MainWindow::InitializeUI()
 			}
 			case UpdateChecker::UP_TO_DATE:
 			{
-				msgDlg->Open("Update Check", "Comet is already up-to-date.", MessageDialog::ButtonType::OK);
+				msgDlg->Open(
+					TRANSLATE("dialog.update.synced.title"),
+					TRANSLATE("dialog.update.synced.content"),
+					MessageDialog::ButtonType::OK);
 				break;
 			}
 			case UpdateChecker::CHECK_ERROR:
 			{
-				msgDlg->Open("Update Error", "An error occurred while checking for an update.", MessageDialog::ButtonType::OK);
+				msgDlg->Open(
+					TRANSLATE("dialog.update.error.title"),
+					TRANSLATE("dialog.update.error.content"),
+					MessageDialog::ButtonType::OK);
 				break;
 			}
 		}
@@ -260,6 +280,11 @@ void MainWindow::Run()
 		glfwPollEvents();
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
+
+		if (midiApp->WasLocalizationDirty())
+		{
+			BuildMenuBar();
+		}
 
 		if (!midiApp->IsRendering())
 		{

@@ -265,7 +265,7 @@ add_executable(Comet
 
     # --- ColorPalette --------------------------------------------------------
     ColorPalette/ColorPaletteList.cpp
-  "App/UI/Layout/ForumLayout.cpp" "U32Vec.h")
+  "App/UI/Layout/ForumLayout.cpp" "U32Vec.h" "App/Localization/Localization.cpp")
 
 target_precompile_headers(Comet PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/pch.h"

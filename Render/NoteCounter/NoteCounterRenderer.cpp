@@ -5,6 +5,7 @@
 #include <string>
 #include "Utils.h"
 #include "App/MIDIApp.h"
+#include "App/Localization/Localization.h"
 
 static void BeginNextCounterRow(const char* label)
 {
@@ -94,6 +95,8 @@ void NoteCounterRenderer::Render(float heightOffset)
 
 void NoteCounterRenderer::RenderUMP(float counterScale)
 {
+	Localization* localization = app->GetLocalization();
+
 	float minCounterWidth = this->counterWidth * counterScale;
 
 	if (ImGui::Begin("noteCounterUMP", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar))
@@ -103,7 +106,7 @@ void NoteCounterRenderer::RenderUMP(float counterScale)
 		// unfortunate that i have to completely change how i calculate counter width, else it fucks with the overall counter width
 		// hence why it was wider than usual when the scake is 1.0 :/
 
-		struct CounterRow { const char* label; char value[64]; };
+		struct CounterRow { std::string label; char value[64]; };
 		CounterRow rows[6];
 		int rowCount = 0;
 
@@ -111,63 +114,44 @@ void NoteCounterRenderer::RenderUMP(float counterScale)
 		{
 			auto ticks = noteCounterInfo->tick.value;
 			OverlayUtils::FormatText(rows[rowCount].value, "%s/%u", Utils::FormatWithCommas(ticks > 0 ? ticks : 0).c_str(), noteCounterInfo->ppq.value);
-			rows[rowCount].label = "Tick";
+			rows[rowCount].label = TRANSLATE("counter.tick");
 			rowCount++;
 		}
 		if (noteCounterInfo->timeSeconds.shown)
 		{
 			OverlayUtils::FormatText(rows[rowCount].value, "%s", Utils::FormatDuration2(noteCounterInfo->timeSeconds.value * 1000).c_str());
-			rows[rowCount].label = "Time";
+			rows[rowCount].label = TRANSLATE("counter.time");
 			rowCount++;
 		}
 		if (noteCounterInfo->bpm.shown)
 		{
 			OverlayUtils::FormatText(rows[rowCount].value, "%.1f", noteCounterInfo->bpm.value);
-			rows[rowCount].label = "BPM";
+			rows[rowCount].label = TRANSLATE("counter.bpm");
 			rowCount++;
 		}
 		if (noteCounterInfo->notesPassed.shown)
 		{
 			OverlayUtils::FormatText(rows[rowCount].value, "%s", Utils::FormatWithCommas(noteCounterInfo->notesPassed.value).c_str());
-			rows[rowCount].label = "Notes";
+			rows[rowCount].label = TRANSLATE("counter.notes");
 			rowCount++;
 		}
 		if (noteCounterInfo->notesPerSecond.shown)
 		{
 			OverlayUtils::FormatText(rows[rowCount].value, "%s", Utils::FormatWithCommas(noteCounterInfo->notesPerSecond.value).c_str());
-			rows[rowCount].label = "NPS";
+			rows[rowCount].label = TRANSLATE("counter.nps");
 			rowCount++;
 		}
 		if (noteCounterInfo->polyphony.shown)
 		{
 			OverlayUtils::FormatText(rows[rowCount].value, "%s", Utils::FormatWithCommas(noteCounterInfo->polyphony.value).c_str());
-			rows[rowCount].label = "Polyphony";
+			rows[rowCount].label = TRANSLATE("counter.poly");
 			rowCount++;
 		}
-
-		/*if (!app->IsRendering())
-		{
-			if (noteCounterInfo->fps.shown)
-			{
-				OverlayUtils::FormatText(rows[rowCount].value, "%.1f", noteCounterInfo->fps.value);
-				rows[rowCount].label = "FPS";
-				rowCount++;
-			}
-
-			if (noteCounterInfo->audioBuffer.shown)
-			{
-				double buffer = noteCounterInfo->audioBuffer.value;
-				OverlayUtils::FormatText(rows[rowCount].value, buffer < -0.5 ? "N/A" : Utils::FormatDuration2(buffer * 1000).c_str(), buffer);
-				rows[rowCount].label = "Buffer";
-				rowCount++;
-			}
-		}*/
-		
 
 		float labelColWidth = 0.0f, valueColWidth = 0.0f;
 		for (int i = 0; i < rowCount; i++)
 		{
-			labelColWidth = std::max(labelColWidth, ImGui::CalcTextSize(rows[i].label).x);
+			labelColWidth = std::max(labelColWidth, ImGui::CalcTextSize(rows[i].label.c_str()).x);
 			valueColWidth = std::max(valueColWidth, ImGui::CalcTextSize(rows[i].value).x);
 		}
 
@@ -184,7 +168,7 @@ void NoteCounterRenderer::RenderUMP(float counterScale)
 
 			for (int i = 0; i < rowCount; i++)
 			{
-				BeginNextCounterRow(rows[i].label);
+				BeginNextCounterRow(rows[i].label.c_str());
 				OverlayUtils::RightAlignedTableText(rows[i].value);
 			}
 
