@@ -1343,7 +1343,7 @@ void main()
         float(flareColor & 0xFFu)
     ) / 255.0;
 
-    float vertical = 1.0 - smoothstep(0.0, 1.0, uv.y);
+    float vertical = exp(-6.0 * smoothstep(0.0, 1.0, uv.y));
     
     float horizontal = smoothstep(0.0, 0.3, uv.x) * smoothstep(0.0, 0.3, 1.0 - uv.x);
     float alpha = vertical * horizontal * flareAlpha;

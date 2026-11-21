@@ -190,12 +190,15 @@ void NavigationBar::Draw()
 			}
 
 			ImGui::SameLine();
-			ImGui::SetNextItemWidth(170);
+			ImGui::Dummy(ImVec2{ 7.5f, -FLT_MAX });
+			ImGui::SameLine();
+;			ImGui::SetNextItemWidth(170);
 
-			float playbackSpeed = static_cast<float>(config->midi.playSpeed) * 100.0f;
-			if (ThinSlider::Draw<float>("##playbackSpeed", &playbackSpeed, 1.0f, 300.0f, "%.1f"))
+			float playbackSpeed = static_cast<float>(config->midi.playSpeed);
+			if (ThinSlider::Draw<float>("##playbackSpeed", &playbackSpeed, 0.01f, 3.0f, "%.2f"))
 			{
-				config->midi.playSpeed = std::clamp(playbackSpeed, 1.0f, 300.0f) / 100.0f;
+				config->midi.playSpeed = std::clamp(playbackSpeed, 0.01f, 3.0f);
+				timer->ChangeSpeed(config->midi.playSpeed);
 			}
 
 			if (ImGui::IsItemHovered())

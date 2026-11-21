@@ -1,5 +1,6 @@
 #include "MIDITimer.h"
 #include <chrono>
+#include <algorithm>
 
 void MIDITimer::Start(double startTime)
 {
@@ -55,12 +56,26 @@ void MIDITimer::NavigateTo(double timeSeconds)
 	hasNavigated = true;
 }
 
+void MIDITimer::ChangeSpeed(double newSpeed)
+{
+	newSpeed = std::clamp(newSpeed, 0.01, 3.0); // must stay > 0
+
+	if (running && !paused)
+	{
+		baseTime = Elapsed();
+		startPoint = clock::now();
+		lastTime = baseTime;
+	}
+	speed = newSpeed;
+	speedChanged = true;
+}
+
 double MIDITimer::Elapsed() const
 {
 	if (!running || paused) return baseTime;
 
 	auto now = clock::now();
-	return baseTime + std::chrono::duration<double>(now - startPoint).count();
+	return baseTime + std::chrono::duration<double>(now - startPoint).count() * speed;
 }
 
 double MIDITimer::GetDeltaTime()

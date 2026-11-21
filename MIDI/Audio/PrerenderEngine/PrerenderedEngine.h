@@ -89,7 +89,7 @@ private:
     double GetPlayerTime()
     {
         std::lock_guard<std::mutex> lock(bufferMutex);
-        return startTime + bufferReadPos / 48000.0;
+        return startTime + ((double)bufferReadPos / (double)SAMPLE_RATE) * renderSpeed;
     }
 
     void WrappedCopy(float* src, int pos, int srcCount, float* dst, int pos2, int count);
@@ -118,6 +118,9 @@ private:
     std::atomic_bool muted{ false };
 
     double startTime = 0.0;
+
+    // speed
+    std::atomic<double> renderSpeed{ 1.0 };   // speed the current buffer contents were rendered at
 
     // shared Event State
     std::vector<PrecalculatedEvent> prerenderedEvents;

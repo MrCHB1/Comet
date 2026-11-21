@@ -100,8 +100,9 @@ void PrerenderedEngine::Destroy()
 void PrerenderedEngine::SyncPlayer(double time)
 {
     std::lock_guard<std::mutex> lock(bufferMutex);
-    double t = startTime + bufferReadPos / (double)SAMPLE_RATE;
-    double offset = time - t;
+    const double sp = renderSpeed;
+    double t = startTime + (bufferReadPos / (double)SAMPLE_RATE) * sp;
+    double offset = (time - t) / sp;                       // wall seconds
     int newPos = bufferReadPos + (int)(offset * SAMPLE_RATE);
     if (newPos < 0) newPos = 0;
     if (std::abs(bufferReadPos - newPos) / (double)SAMPLE_RATE > 0.03) bufferReadPos = newPos;
@@ -264,9 +265,16 @@ void PrerenderedEngine::RenderLoop(double initialStartTime)
 
     if (stopFlag) return;
 
-    bassMidi = std::make_unique<BASSMIDI>(maxVoices, noFx);
-    auto* tempoMap = seq->GetTempoMap();
+    MIDISequence* localSeq;
+    {
+        std::lock_guard<std::mutex> lock(timerMutex);
+        localSeq = seq;
+    }
+    auto* tempoMap = localSeq->GetTempoMap();
+    if (!tempoMap) return;
 
+    bassMidi = std::make_unique<BASSMIDI>(maxVoices, noFx);
+    
     {
         std::shared_ptr<MIDITimer> currentTimer;
         {
@@ -279,6 +287,15 @@ void PrerenderedEngine::RenderLoop(double initialStartTime)
             initialStartTime = currentTimer->Elapsed();
         }
     }
+
+    double speed;
+    {
+        std::shared_ptr<MIDITimer> currentTimer;
+        { std::lock_guard<std::mutex> lock(timerMutex); currentTimer = timer; }
+        if (currentTimer) initialStartTime = currentTimer->Elapsed();
+        speed = currentTimer ? currentTimer->GetSpeed() : 1.0;
+    }
+    renderSpeed = speed;
 
     {
         std::lock_guard<std::mutex> lock(bufferMutex);
@@ -294,7 +311,8 @@ void PrerenderedEngine::RenderLoop(double initialStartTime)
         double evTime = seq->timeBased ? (double)e.tick / TIME_BASED_MULTIPLIER : tempoMap->TicksToSecsFromMap(seq->resolution, e.tick);
         if (fps > 0.0)
         {
-            evTime = std::round(evTime * fps) / fps;
+            const double frame = speed / fps;
+            evTime = std::round(evTime / frame) * frame;
         }
 
         bool isNoteEvent = ((e.message & 0xF0) == 0x90 || (e.message & 0xF0) == 0x80);
@@ -308,7 +326,7 @@ void PrerenderedEngine::RenderLoop(double initialStartTime)
             bufferWritePos = bufferReadPos;
         }
 
-        double offset = evTime - startTime;
+        double offset = (evTime - startTime) / speed;
         int targetSamplePos = (int)((double)SAMPLE_RATE * offset);
 
         int samples;
@@ -388,6 +406,9 @@ void PrerenderedEngine::TimerLoop()
 {
     bool lastPaused = false;
     float lastTimerTime = -1.0f;
+    double pendingSpeed = 1.0;
+    auto speedChangedAt = std::chrono::steady_clock::now();
+
     while (!timerCheckStop)
     {
         std::shared_ptr<MIDITimer> currentTimer;
@@ -398,7 +419,7 @@ void PrerenderedEngine::TimerLoop()
 
         if (currentTimer)
         {
-            const float currTime = currentTimer->Elapsed();
+            const double currTime = currentTimer->Elapsed();
             const bool paused = currentTimer->IsPaused();
 
             if (currentTimer->HasNavigatedRecently())
@@ -412,6 +433,19 @@ void PrerenderedEngine::TimerLoop()
             {
                 const bool seekBack = currTime < currentTimer->GetPauseTime();
                 StartPrerender(seekBack, currTime);
+                lastTimerTime = currTime;
+            }
+
+            const double timerSpeed = currentTimer->GetSpeed();
+            if (timerSpeed != pendingSpeed)
+            {
+                pendingSpeed = timerSpeed;
+                speedChangedAt = std::chrono::steady_clock::now();
+            }
+            else if (timerSpeed != renderSpeed &&
+                std::chrono::steady_clock::now() - speedChangedAt > std::chrono::milliseconds(100))
+            {
+                StartPrerender(true, currTime);
                 lastTimerTime = currTime;
             }
 
@@ -457,10 +491,9 @@ void PrerenderedEngine::StartPrerender(bool force, double time)
     if (!force)
     {
         const double playerTime = GetPlayerTime();
-        if (time + 0.1 > playerTime + GetBufferSeconds() || time + 0.01 < playerTime)
-        {
+        if (time + 0.1 > playerTime + GetBufferSeconds() * renderSpeed ||
+            time + 0.01 < playerTime)
             force = true;
-        }
     }
 
     if (force)
