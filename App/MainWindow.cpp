@@ -52,7 +52,7 @@ MainWindow::MainWindow(const char* title)
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
 	
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
-	ImGui_ImplOpenGL3_Init();
+	ImGui_ImplOpenGL3_Init(glslVersion.c_str());
 
 	InitializeAppResources();
 
@@ -189,20 +189,46 @@ bool MainWindow::InitializeGLFW()
 		return false;
 	}
 
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
 	MIDIPlayerConfig* cfg = midiApp->GetConfig();
 	int width = cfg->render.GetWidth(), height = cfg->render.GetHeight();
 
-	window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+	// try the highest to lowest; first one the driver accept wins
+	struct GLVersionAttempt { int major, minor; };
+	static constexpr GLVersionAttempt attempts[] = {
+		{ 4, 3 }, { 4, 2 }, { 4, 1 }, { 4, 0 }, { 3, 3 }
+	};
+
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#ifdef __APPLE__
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+#endif
+
+	for (const auto& attempt : attempts)
+	{
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, attempt.major);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, attempt.minor);
+
+		window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+		if (window)
+		{
+			glMajor = attempt.major;
+			glMinor = attempt.minor;
+			break;
+		}
+#ifdef COMET_DEBUG
+		std::cerr << "OpenGL " << attempt.major << "." << attempt.minor
+			<< " context unavailable, trying lower version" << std::endl;
+#endif
+	}
+
 	if (!window)
 	{
-		std::cerr << "Failed to create GLFW window" << std::endl;
+		std::cerr << "Failed to create GLFW window (no supported OpenGL context, need 3.3+)" << std::endl;
 		glfwTerminate();
 		return false;
 	}
+
+	glslVersion = "#version " + std::to_string(glMajor * 100 + glMinor * 10); // 4.3 -> "#version 430"
 
 	glfwSetWindowUserPointer(window, midiApp.get());
 	glfwSetFramebufferSizeCallback(window, [](GLFWwindow* window, int w, int h)
@@ -216,7 +242,14 @@ bool MainWindow::InitializeGLFW()
 		});
 
 	glfwMakeContextCurrent(window);
-	gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+	{
+		std::cerr << "Failed to load OpenGL functions" << std::endl;
+		glfwDestroyWindow(window);
+		window = nullptr;
+		glfwTerminate();
+		return false;
+	}
 
 	return true;
 }

@@ -44,9 +44,13 @@ public:
 	void SetTitleInfo(std::string midiName = "");
 	GLFWwindow* GetInternalWindow() { return window; }
 
-	bool IsGLReady() const
+	bool IsGLReady() const { return isGLReady; }
+	int GetGLMajor() const { return glMajor; }
+	int GetGLMinor() const { return glMinor; }
+	// true if the created context is at least major.minor
+	bool HasGLVersion(int major, int minor) const
 	{
-		return isGLReady;
+		return glMajor > major || (glMajor == major && glMinor >= minor);
 	}
 private:
 	// called before glfw initialization
@@ -74,4 +78,7 @@ private:
 	std::string titleInfo = "No MIDI Loaded";
 	bool fullscreen = false;
 	bool isGLReady = false;
+	int glMajor = 0;
+	int glMinor = 0;
+	std::string glslVersion;
 };
