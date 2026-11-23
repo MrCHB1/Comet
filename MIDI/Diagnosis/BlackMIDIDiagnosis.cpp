@@ -2,6 +2,8 @@
 #include "../AbstractMIDILoader.h"
 #include <iostream>
 #include "../../IO/BufferedByteReader.h"
+#include "App/MIDIApp.h"
+#include "App/Localization/Localization.h"
 
 BlackMIDIDiagnosis::BlackMIDIDiagnosis(MIDIApp* app, std::filesystem::path filePath)
 	: ADiagnosis(app, filePath), filePath(filePath),
@@ -12,18 +14,20 @@ BlackMIDIDiagnosis::BlackMIDIDiagnosis(MIDIApp* app, std::filesystem::path fileP
 	resolution(0),
 	time(0)
 {
+	Localization* localization = app->GetLocalization();
+
 	nps = std::vector<long>(1000);
 	npsList = std::make_shared<std::vector<long>>(1000);
 
 	overlap = std::make_unique<OverlapGraph>();
 	overlapStream = std::make_unique<OverlapGraph>();
 
-	fNps = CreateField<Long>("Moment Max NPS");
+	fNps = CreateField<Long>(TRANSLATE("dialog.diagnose.nps"));
 	fNpsGraph = std::make_shared<LongList>();
 	fNpsGraph->SetValue(npsList);
 	fNps->additionalFields.push_back(fNpsGraph);
 
-	fOverlap = CreateField<Long>("Overlapping Notes");
+	fOverlap = CreateField<Long>(TRANSLATE("dialog.diagnose.overlap"));
 	fOverlap->additionalFields.push_back(overlap->field);
 	fOverlap->additionalFields.push_back(overlapStream->field);
 }

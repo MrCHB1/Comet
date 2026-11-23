@@ -813,7 +813,7 @@ void SettingsDialog::DrawVisualTab()
 					ImGui::TableSetColumnIndex(0);
 					ImGui::Checkbox(TRANSLATE("counter.nps").c_str(), &counter->notesPerSecond.shown);
 					ImGui::TableSetColumnIndex(1);
-					ImGui::Checkbox(TRANSLATE("counter.polyphony").c_str(), &counter->polyphony.shown);
+					ImGui::Checkbox(TRANSLATE("counter.poly").c_str(), &counter->polyphony.shown);
 
 					ImGui::EndTable();
 				}

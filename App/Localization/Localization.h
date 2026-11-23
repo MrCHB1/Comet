@@ -24,10 +24,9 @@ public:
 
 	const std::vector<LanguageKey>& GetLanguageList() const { return loadedLanguages; }
 	const LanguageKey* GetCurrentLanguage() const { return currLanguage; }
+	bool LanguageExists(const std::string& id) const;
 private:
 	std::unordered_map<std::string, std::string> strings{};
 	std::vector<LanguageKey> loadedLanguages{};
 	LanguageKey* currLanguage = nullptr;
-
-	bool LanguageExists(const std::string& id) const;
 };

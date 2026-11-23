@@ -19,7 +19,8 @@ void FontList::ReloadList()
 	for (const auto& entry : std::filesystem::directory_iterator(FONT_FOLDER))
 	{
 		if (!entry.is_regular_file()) continue;
-		if (entry.path().filename() == "cjk.ttf") continue;
+		// skip localization fonts
+		if (entry.path().stem().string().starts_with("i18n.")) continue;
 
 		std::string ext = entry.path().extension().string();
 		if (ext != ".ttf" && ext != ".otf") continue;
@@ -66,7 +67,7 @@ void FontList::RegisterFontsIntoAtlas(ImFontAtlas* atlas, float defaultFontSize)
 				std::cout << "Failed to load font from path: " << entry.path << std::endl;
 				continue;
 			}
-			Fonts::MergeCJK(18.0f);
+			Fonts::MergeI18nFonts(18.0f);
 		}
 	}
 }

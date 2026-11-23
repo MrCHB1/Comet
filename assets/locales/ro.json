@@ -1,0 +1,192 @@
+{
+    "ID": "Română",
+
+    "title.nomidi": "Niciun MIDI încărcat",
+
+    "menu.file": "Fișier",
+    "menu.file.open": "Deschide...",
+    "menu.file.render": "Randează în video...",
+    "menu.file.diagnose": "Diagnostichează MIDI...",
+    "menu.file.screenshot": "Captură de ecran",
+    "menu.file.quit": "Ieșire",
+
+    "menu.play": "Play",
+    "menu.play.stop": "Stop",
+    "menu.play.unload": "Stop și inchide MIDI-ul",
+
+    "menu.view": "Vizualizare",
+    "menu.view.counter": "Afișează contorul de note",
+
+    "menu.options": "Opțiuni",
+    "menu.options.settings": "Setări...",
+
+    "menu.help": "Ajutor",
+    "menu.help.kofi": "Cumpără-i o cafea lui ponluxime",
+    "menu.help.update": "Verifică actualizări",
+
+    "nav.notesize": "Mărime note (în bătăi)",
+    "nav.playspeed": "Viteză player (%)",
+
+    "dialog.ok": "Ok",
+    "dialog.cancel": "Anulează",
+    "dialog.close": "Închide",
+    "dialog.applyclose": "Aplică & Închide",
+    "dialog.yes": "Da",
+    "dialog.no": "Nu",
+
+    "dialog.render.title": "Randare video",
+    "dialog.render.input": "Intrare",
+    "dialog.render.input.ffmpeg": "Executabil FFmpeg",
+    "dialog.render.input.ffmpeg.installed": "FFmpeg este instalat!",
+    "dialog.render.input.ffmpeg.get": "Get FFmpeg",
+    "dialog.render.input.ffmpeg.detect": "Detectează FFmpeg",
+    "dialog.render.input.midi": "MIDI",
+    "dialog.render.input.midi.loaded": "Se va randa MIDI-ul curent",
+    "dialog.render.input.audio": "Include audio",
+
+    "dialog.render.output": "Ieșire",
+    "dialog.render.output.format": "Format",
+    "dialog.render.output.gpu": "Codare cu GPU",
+    "dialog.render.output.gpu.tooltip": "Utilizează encodoarele FFmpeg accelerate hardware, atunci când sunt disponibile.",
+    "dialog.render.output.gpu.unavailable": "Codarea cu GPU nu este disponibilă. Asigură-te că FFmpeg este instalat corect și că driverele sunt actualizate.",
+    "dialog.render.output.codec": "Codec",
+    "dialog.render.output.advanced": "Opțiuni avansate",
+    "dialog.render.output.advanced.tooltip": "Opțiuni suplimentare de codare FFmpeg, destinate utilizatorilor avansați. Folosește-le doar dacă știi ce faci.",
+
+    "dialog.render.encoding": "Codare",
+    "dialog.render.encoding.preset": "Presetare",
+    "dialog.render.encoding.bitratemode": "Modul bitrate-ului",
+    "dialog.render.encoding.brm.const": "Constant",
+    "dialog.render.encoding.brm.var": "Variabil",
+    "dialog.render.encoding.bitrate": "Bitrate (Kbps)",
+    "dialog.render.encoding.crf": "CRF",
+
+    "dialog.render.rendering": "Randare video",
+    "dialog.render.rendering.resolution": "Rezoluție",
+    "dialog.render.rendering.framerate": "FPS",
+    "dialog.render.rendering.outpath": "Ieșire fișier",
+    "dialog.render.rendering.mask": "Mască de transparență",
+    "dialog.render.rendering.renderrange": "Interval de randare",
+    "dialog.render.rendering.renderrange.tooltip": "Randează MIDI-ul într-un interval de timp specificat. Util pentru partajarea unor previzualizări scurte ale întregului MIDI.",
+
+    "dialog.render.renderbtn": "Randează!",
+    "dialog.render.renderbtn.tooltip": "Apasă 'esc' a anula randarea video in orice moment. Video-ul va fi salvat.",
+
+    "dialog.render.error.noffmpeg": "FFmpeg nu a fost găsit!",
+    "dialog.render.error.nomidi": "Nici un MIDI încărcat",
+    "dialog.render.error.nooutpath": "Specifică ieșirea pentru video.",
+    "dialog.render.error.nooutmaskpath": "Specifică ieșirea pentru masca de transparență",
+    "dialog.render.error.invalidrange": "Interval de randare invalid",
+    "dialog.render.error": "Nu s-a putut randa; verifică erorile de mai sus.",
+
+    "dialog.diagnose.title": "Diagnoză MIDI",
+    "dialog.diagnose.alsorun": "Rulează și :",
+    "dialog.diagnose.bmdiag": "Diagnoză Black MIDI",
+    "dialog.diagnose.clickhere": "Plasează un fișier MIDI sau apasă aici",
+
+    "dialog.diagnose.status.stopped": "Diagnoză oprită.",
+    "dialog.diagnose.another": "Diagnostichează altceva",
+    "dialog.diagnose.copy": "Copiază în clipboard",
+
+    "dialog.diagnose.filesize": "Mărime Fișier",
+    "dialog.diagnose.resolution": "Rezoluție",
+    "dialog.diagnose.tracks": "Piste",
+    "dialog.diagnose.notes": "Note",
+    "dialog.diagnose.memory": "Memorie utilizată",
+    "dialog.diagnose.tempo": "Tempo",
+    "dialog.diagnose.nps": "NPS (Momentan)",
+    "dialog.diagnose.overlap": "Note suprapuse",
+
+    "dialog.settings.title": "Setări",
+
+    "dialog.settings.app": "Aplicație",
+    "dialog.settings.app.header": "SETĂRI APLICAȚIE",
+    "dialog.settings.app.general": "General",
+    "dialog.settings.app.general.language": "Limbă",
+    "dialog.settings.app.general.vsync": "Sincronizare verticală",
+    "dialog.settings.app.general.fps": "Limitare FPS",
+    "dialog.settings.app.general.fps.tooltip": "0 = FPS nelimitat",
+
+    "dialog.settings.app.theme": "Temă",
+    "dialog.settings.app.theme.reload": "Reactualizează lista de teme",
+    "dialog.settings.app.theme.open": "Deschide folder-ul cu teme",
+
+    "dialog.settings.app.nav": "Navigație",
+    "dialog.settings.app.nav.hide": "Întotdeauna ascunde bara de navigații",
+    "dialog.settings.app.nav.hide.tooltip": "Bara de navigații se va afișa atunci când cursorul este aproape de marginea de sus a ferestrei.",
+    "dialog.settings.app.nav.forward": "Sări înainte (s)",
+    "dialog.settings.app.nav.backward": "Sări înapoi (s)",
+
+    "dialog.settings.visual": "Vizual",
+    "dialog.settings.visual.disclaimer": "Aceleași setări se vor aplica și pentru randarea în video!",
+    "dialog.settings.visual.header": "VIZUAL (SETĂRI)",
+    "dialog.settings.visual.renderer": "Randare",
+    "dialog.settings.visual.renderer.settings": "Randare (Setări)",
+    "dialog.settings.visual.renderer.settings.reset": "Resetează setările",
+
+    "dialog.settings.visual.colors": "Culori Note",
+    "dialog.settings.visual.colors.use": "Folosește culori din",
+    "dialog.settings.visual.colors.use.0": "Resource pack",
+    "dialog.settings.visual.colors.use.1": "Listă Culori",
+    "dialog.settings.visual.colors.palette": "Listă palete",
+    "dialog.settings.visual.colors.refresh": "Reîmprospătează lista paletelor",
+    "dialog.settings.visual.colors.open": "Deschide folderul paletelor",
+    "dialog.settings.visual.colors.loop": "Repetare culori",
+    "dialog.settings.visual.colors.shuffle": "Amestecă culori",
+    "dialog.settings.visual.colors.seed": "Seed",
+
+    "dialog.settings.visual.counter": "Contor & Statistici",
+    "dialog.settings.visual.counter.appearance": "Aparență",
+    "dialog.settings.visual.counter.showcounter": "Afișează contorul",
+    "dialog.settings.visual.counter.showstats": "Afișează statistici",
+    "dialog.settings.visual.counter.scale": "Scală",
+    "dialog.settings.visual.counter.align": "Aliniament",
+    "dialog.settings.visual.counter.align.0": "Colț stânga",
+    "dialog.settings.visual.counter.align.1": "Centru sus",
+    "dialog.settings.visual.counter.align.2": "Colț dreapta",
+    "dialog.settings.visual.counter.blur": "Fundal blurat",
+    "dialog.settings.visual.counter.font": "Font",
+    "dialog.settings.visual.counter.font.default": "Prestabilit",
+    "dialog.settings.visual.counter.font.directory": "Font directory",
+
+    "dialog.settings.visual.counter.style": "Stil",
+    "dialog.settings.visual.counter.style.0": "Ultralight MIDI Player",
+    "dialog.settings.visual.counter.style.1": "MIDITrail",
+    "dialog.settings.visual.counter.background": "Culoare de fundal",
+    "dialog.settings.visual.counter.text": "Culoare text",
+
+    "dialog.settings.visual.counter.fields": "Câmpuri",
+    "dialog.settings.visual.counter.fields.help": "Câmpurile marcate cu asterisc (*) nu sunt incluse în randarea video.",
+
+    "dialog.settings.audio": "Audio",
+    "dialog.settings.audio.engine": "Sintetizator",
+    "dialog.settings.audio.engine.unsupported": "Acest sintetizator nu este valabil pe sistemul de operare curent",
+
+    "dialog.settings.midi": "MIDI",
+    "dialog.settings.midi.threads": "Fire de execuție pentru încărcarea MIDI",
+    "dialog.settings.midi.threads.0": "Un singur fir de execuție",
+    "dialog.settings.midi.threads.1": "Execuție multi-thread",
+    "dialog.settings.midi.time": "Încărcare bazată pe timp",
+
+    "dialog.update.available.title": "Actualizare valabilă",
+    "dialog.update.available.content": "O nouă actualizare ({}) este valabilă! Deschizi github?",
+
+    "dialog.update.synced.title": "Verificare actualizări",
+    "dialog.update.synced.content": "Comet este deja actualizat.",
+
+    "dialog.update.error.title": "Eroare de actualizare",
+    "dialog.update.error.content": "A apărut o eroare în timpul actualizării.",
+
+    "counter.tick": "Bătăi",
+    "counter.time": "Timp",
+    "counter.bpm": "BPM",
+    "counter.notes": "Note",
+    "counter.nps": "NPS",
+    "counter.poly": "Polifonie",
+
+    "stats.fps": "FPS",
+    "stats.buffer": "Buffer",
+
+    "widget.file.browse": "Răsfoiește...",
+    "general.open": "Deschide"
+}

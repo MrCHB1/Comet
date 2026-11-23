@@ -1,6 +1,8 @@
 {
     "ID": "English (US)",
 
+    "title.nomidi": "No MIDI Loaded",
+
     "menu.file": "File",
     "menu.file.open": "Open...",
     "menu.file.render": "Render to video...",
@@ -37,7 +39,7 @@
     "dialog.render.input.ffmpeg": "FFmpeg executable",
     "dialog.render.input.ffmpeg.installed": "FFmpeg is installed!",
     "dialog.render.input.ffmpeg.get": "Get FFmpeg",
-    "dialog.render.input.ffmpeg.detect": "Detect FFmepg",
+    "dialog.render.input.ffmpeg.detect": "Detect FFmpeg",
     "dialog.render.input.midi": "MIDI",
     "dialog.render.input.midi.loaded": "Will render the currently loaded MIDI",
     "dialog.render.input.audio": "Include audio",
@@ -81,6 +83,19 @@
     "dialog.diagnose.alsorun": "Also run:",
     "dialog.diagnose.bmdiag": "Black MIDI Diagnosis",
     "dialog.diagnose.clickhere": "Drop MIDI file or click here to start",
+
+    "dialog.diagnose.status.stopped": "Diagnosis stopped.",
+    "dialog.diagnose.another": "Diagnose another",
+    "dialog.diagnose.copy": "Copy to clipboard",
+
+    "dialog.diagnose.filesize": "File Size",
+    "dialog.diagnose.resolution": "Resolution",
+    "dialog.diagnose.tracks": "Tracks",
+    "dialog.diagnose.notes": "Notes",
+    "dialog.diagnose.memory": "Memory to Open",
+    "dialog.diagnose.tempo": "Tempo",
+    "dialog.diagnose.nps": "Moment Max NPS",
+    "dialog.diagnose.overlap": "Overlapping Notes",
 
     "dialog.settings.title": "Settings",
 

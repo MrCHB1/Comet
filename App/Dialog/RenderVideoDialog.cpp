@@ -482,7 +482,7 @@ void RenderVideoDialog::DrawContent()
     {
         ImGui::TextColored(
             ImVec4(0.5f, 0.0f, 0.0f, 1.0f),
-            TRANSLATE("dialog.rennder.error").c_str()
+            TRANSLATE("dialog.render.error").c_str()
         );
     }
 

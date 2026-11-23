@@ -22,25 +22,32 @@ void Localization::PreloadLanguages()
 		std::ifstream file(path, std::ios::in);
 		if (!file.is_open()) continue;
 
-		json data;
-		file >> data;
-		
-		for (auto& [key, value] : data.items())
-		{
-			if (!value.is_string() || key != "ID") continue;
+        try
+        {
+            json data;
+            file >> data;
 
-			std::string langName = value.get<std::string>();
+            for (auto& [key, value] : data.items())
+            {
+                if (!value.is_string() || key != "ID") continue;
 
-			std::cout << "[Localization] Loaded language \""
-				<< langName.c_str() << "\"\n";
+                std::string langName = value.get<std::string>();
 
-			loadedLanguages.emplace_back(
-				LanguageKey{
-					.id = path.stem().string(),
-					.label = std::move(langName)
-				});
-			break;
-		}
+                std::cout << "[Localization] Loaded language \""
+                    << langName.c_str() << "\"\n";
+
+                loadedLanguages.emplace_back(
+                    LanguageKey{
+                        .id = path.stem().string(),
+                        .label = std::move(langName)
+                    });
+                break;
+            }
+        }
+		catch (const json::exception& e)
+        {
+            std::cout << "[Localization] Failed to load language \"" << path.filename() << "\": " << e.what() << std::endl;
+        }
 
 		file.close();
 	}

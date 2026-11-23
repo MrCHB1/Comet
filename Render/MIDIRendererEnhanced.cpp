@@ -3130,8 +3130,6 @@ void MIDIRendererEnhanced::RenderSettings()
         // ======================================================================================================
         if (ImGui::BeginTabItem("General"))
         {
-            TabIntro("Start here. If playback stutters, lower the graphics quality. If everything looks too dark or too bright, change the overall brightness.");
-
             {
                 ForumLayout layout("##rendering");
                 layout.AddHeader("Performance");
@@ -3192,8 +3190,6 @@ void MIDIRendererEnhanced::RenderSettings()
         // ======================================================================================================
         if (ImGui::BeginTabItem("Notes"))
         {
-            TabIntro("How the falling notes look.");
-
             {
                 ForumLayout layout("##notes");
 

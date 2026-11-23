@@ -80,6 +80,7 @@ public:
 	ResourcePackList* GetPackList() { return packList.get(); }
 	ColorPaletteList* GetColorList() { return colorList.get(); }
 	NavigationBar* GetNavigationBar() { return navigationBar.get(); }
+	std::string GetLastLoadedMIDIName() const { return pendingTitle; }
 
 	const RenderSettings& GetCurrentRenderSettings() const { return currentRenderSettings; }
 	

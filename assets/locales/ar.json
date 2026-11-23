@@ -1,0 +1,192 @@
+{
+    "ID": "العربية",
+
+    "title.nomidi": "لم يتم تحميل أي ملف MIDI",
+
+    "menu.file": "ملف",
+    "menu.file.open": "فتح...",
+    "menu.file.render": "تصيير إلى فيديو...",
+    "menu.file.diagnose": "تشخيص MIDI...",
+    "menu.file.screenshot": "التقاط لقطة شاشة",
+    "menu.file.quit": "خروج",
+
+    "menu.play": "تشغيل",
+    "menu.play.stop": "إيقاف",
+    "menu.play.unload": "إيقاف وإلغاء التحميل",
+
+    "menu.view": "عرض",
+    "menu.view.counter": "إظهار عدّاد النوتات",
+
+    "menu.options": "خيارات",
+    "menu.options.settings": "الإعدادات...",
+
+    "menu.help": "مساعدة",
+    "menu.help.kofi": "اشترِ فنجان قهوة لـ ponluxime",
+    "menu.help.update": "التحقق من وجود تحديثات",
+
+    "nav.notesize": "حجم النوتة (بالـ ticks)",
+    "nav.playspeed": "سرعة التشغيل (%)",
+
+    "dialog.ok": "موافق",
+    "dialog.cancel": "إلغاء",
+    "dialog.close": "إغلاق",
+    "dialog.applyclose": "تطبيق وإغلاق",
+    "dialog.yes": "نعم",
+    "dialog.no": "لا",
+
+    "dialog.render.title": "تصيير الفيديو",
+    "dialog.render.input": "الإدخال",
+    "dialog.render.input.ffmpeg": "ملف FFmpeg التنفيذي",
+    "dialog.render.input.ffmpeg.installed": "FFmpeg مثبّت!",
+    "dialog.render.input.ffmpeg.get": "الحصول على FFmpeg",
+    "dialog.render.input.ffmpeg.detect": "اكتشاف FFmpeg",
+    "dialog.render.input.midi": "MIDI",
+    "dialog.render.input.midi.loaded": "سيتم تصيير ملف MIDI المحمّل حاليًا",
+    "dialog.render.input.audio": "تضمين الصوت",
+
+    "dialog.render.output": "الإخراج",
+    "dialog.render.output.format": "الصيغة",
+    "dialog.render.output.gpu": "ترميز GPU",
+    "dialog.render.output.gpu.tooltip": "استخدام مرمّزات FFmpeg المسرّعة بالعتاد عند توفرها.",
+    "dialog.render.output.gpu.unavailable": "ترميز GPU غير متاح. تأكد من تثبيت FFmpeg بشكل صحيح ومن تحديث برامج التشغيل لديك.",
+    "dialog.render.output.codec": "برنامج الترميز",
+    "dialog.render.output.advanced": "خيارات متقدمة",
+    "dialog.render.output.advanced.tooltip": "خيارات ترميز إضافية لـ FFmpeg للمستخدمين المتقدمين. لا تستخدمها إلا إذا كنت تعرف ما تفعله.",
+
+    "dialog.render.encoding": "الترميز",
+    "dialog.render.encoding.preset": "إعداد مسبق",
+    "dialog.render.encoding.bitratemode": "وضع معدل البت",
+    "dialog.render.encoding.brm.const": "ثابت",
+    "dialog.render.encoding.brm.var": "متغيّر",
+    "dialog.render.encoding.bitrate": "معدل البت (Kbps)",
+    "dialog.render.encoding.crf": "CRF",
+
+    "dialog.render.rendering": "التصيير",
+    "dialog.render.rendering.resolution": "الدقة",
+    "dialog.render.rendering.framerate": "معدل الإطارات",
+    "dialog.render.rendering.outpath": "مسار الإخراج",
+    "dialog.render.rendering.mask": "قناع الشفافية",
+    "dialog.render.rendering.renderrange": "نطاق التصيير",
+    "dialog.render.rendering.renderrange.tooltip": "يصيّر ملف MIDI ضمن فترة زمنية محددة. مفيد لمشاركة معاينات قصيرة لملف MIDI كامل.",
+
+    "dialog.render.renderbtn": "ابدأ التصيير!",
+    "dialog.render.renderbtn.tooltip": "اضغط على «Esc» لإلغاء التصيير في أي وقت. سيتم حفظ الفيديو.",
+
+    "dialog.render.error.noffmpeg": "لم يتم العثور على FFmpeg!",
+    "dialog.render.error.nomidi": "لم يتم تحميل أي ملف MIDI",
+    "dialog.render.error.nooutpath": "يُرجى تحديد مسار إخراج الفيديو.",
+    "dialog.render.error.nooutmaskpath": "يُرجى تحديد مسار إخراج قناع الشفافية.",
+    "dialog.render.error.invalidrange": "نطاق التصيير غير صالح",
+    "dialog.render.error": "لا يمكن التصيير؛ تحقق من الأخطاء أعلاه.",
+
+    "dialog.diagnose.title": "تشخيص MIDI",
+    "dialog.diagnose.alsorun": "تشغيل أيضًا:",
+    "dialog.diagnose.bmdiag": "تشخيص Black MIDI",
+    "dialog.diagnose.clickhere": "أسقط ملف MIDI أو انقر هنا للبدء",
+
+    "dialog.diagnose.status.stopped": "تم إيقاف التشخيص.",
+    "dialog.diagnose.another": "تشخيص ملف آخر",
+    "dialog.diagnose.copy": "نسخ إلى الحافظة",
+
+    "dialog.diagnose.filesize": "حجم الملف",
+    "dialog.diagnose.resolution": "الدقة",
+    "dialog.diagnose.tracks": "المسارات",
+    "dialog.diagnose.notes": "النوتات",
+    "dialog.diagnose.memory": "الذاكرة اللازمة للفتح",
+    "dialog.diagnose.tempo": "الإيقاع (Tempo)",
+    "dialog.diagnose.nps": "أقصى NPS لحظي",
+    "dialog.diagnose.overlap": "النوتات المتداخلة",
+
+    "dialog.settings.title": "الإعدادات",
+
+    "dialog.settings.app": "التطبيق",
+    "dialog.settings.app.header": "إعدادات التطبيق",
+    "dialog.settings.app.general": "عام",
+    "dialog.settings.app.general.language": "اللغة",
+    "dialog.settings.app.general.vsync": "VSync",
+    "dialog.settings.app.general.fps": "حد FPS",
+    "dialog.settings.app.general.fps.tooltip": "0 = بلا حد لـ FPS",
+
+    "dialog.settings.app.theme": "السمة",
+    "dialog.settings.app.theme.reload": "إعادة تحميل قائمة السمات",
+    "dialog.settings.app.theme.open": "فتح مجلد السمات",
+
+    "dialog.settings.app.nav": "التنقل",
+    "dialog.settings.app.nav.hide": "إخفاء شريط التنقل دائمًا",
+    "dialog.settings.app.nav.hide.tooltip": "يبقى شريط التنقل مخفيًا ما لم يمرّ مؤشر الفأرة بالقرب من أعلى النافذة.",
+    "dialog.settings.app.nav.forward": "القفز للأمام (ث)",
+    "dialog.settings.app.nav.backward": "القفز للخلف (ث)",
+
+    "dialog.settings.visual": "المرئيات",
+    "dialog.settings.visual.disclaimer": "ستُطبَّق هذه الإعدادات أيضًا عند تصيير الفيديو!",
+    "dialog.settings.visual.header": "إعدادات المرئيات",
+    "dialog.settings.visual.renderer": "المصيّر",
+    "dialog.settings.visual.renderer.settings": "إعدادات المصيّر",
+    "dialog.settings.visual.renderer.settings.reset": "إعادة ضبط الإعدادات",
+
+    "dialog.settings.visual.colors": "ألوان النوتات",
+    "dialog.settings.visual.colors.use": "استخدام الألوان من",
+    "dialog.settings.visual.colors.use.0": "حزمة الموارد",
+    "dialog.settings.visual.colors.use.1": "قائمة الألوان",
+    "dialog.settings.visual.colors.palette": "قائمة لوحات الألوان",
+    "dialog.settings.visual.colors.refresh": "تحديث قائمة لوحات الألوان",
+    "dialog.settings.visual.colors.open": "فتح مجلد لوحات الألوان",
+    "dialog.settings.visual.colors.loop": "تكرار الألوان",
+    "dialog.settings.visual.colors.shuffle": "خلط الألوان",
+    "dialog.settings.visual.colors.seed": "البذرة",
+
+    "dialog.settings.visual.counter": "العدّاد والإحصاءات",
+    "dialog.settings.visual.counter.appearance": "المظهر",
+    "dialog.settings.visual.counter.showcounter": "إظهار عدّاد النوتات",
+    "dialog.settings.visual.counter.showstats": "إظهار الإحصاءات",
+    "dialog.settings.visual.counter.scale": "المقياس",
+    "dialog.settings.visual.counter.align": "المحاذاة",
+    "dialog.settings.visual.counter.align.0": "أعلى اليسار",
+    "dialog.settings.visual.counter.align.1": "أعلى الوسط",
+    "dialog.settings.visual.counter.align.2": "أعلى اليمين",
+    "dialog.settings.visual.counter.blur": "تمويه الخلفية",
+    "dialog.settings.visual.counter.font": "الخط",
+    "dialog.settings.visual.counter.font.default": "افتراضي",
+    "dialog.settings.visual.counter.font.directory": "مجلد الخطوط",
+
+    "dialog.settings.visual.counter.style": "النمط",
+    "dialog.settings.visual.counter.style.0": "Ultralight MIDI Player",
+    "dialog.settings.visual.counter.style.1": "MIDITrail",
+    "dialog.settings.visual.counter.background": "لون الخلفية",
+    "dialog.settings.visual.counter.text": "لون النص",
+
+    "dialog.settings.visual.counter.fields": "الحقول",
+    "dialog.settings.visual.counter.fields.help": "الحقول المعلَّمة بنجمة (*) لا تُضمَّن في تصيير الفيديو.",
+
+    "dialog.settings.audio": "الصوت",
+    "dialog.settings.audio.engine": "محرك الصوت",
+    "dialog.settings.audio.engine.unsupported": "هذا المحرك غير مدعوم على منصتك.",
+
+    "dialog.settings.midi": "MIDI",
+    "dialog.settings.midi.threads": "خيوط تحميل MIDI",
+    "dialog.settings.midi.threads.0": "خيط واحد",
+    "dialog.settings.midi.threads.1": "خيوط متعددة",
+    "dialog.settings.midi.time": "التحميل المعتمد على الوقت",
+
+    "dialog.update.available.title": "يتوفر تحديث",
+    "dialog.update.available.content": "يتوفر تحديث جديد ({})! هل تريد فتح GitHub؟",
+
+    "dialog.update.synced.title": "التحقق من التحديثات",
+    "dialog.update.synced.content": "Comet محدّث بالفعل.",
+
+    "dialog.update.error.title": "خطأ في التحديث",
+    "dialog.update.error.content": "حدث خطأ أثناء التحقق من وجود تحديث.",
+
+    "counter.tick": "Tick",
+    "counter.time": "الوقت",
+    "counter.bpm": "BPM",
+    "counter.notes": "النوتات",
+    "counter.nps": "NPS",
+    "counter.poly": "تعدد الأصوات",
+
+    "stats.fps": "FPS",
+    "stats.buffer": "المخزن المؤقت",
+
+    "widget.file.browse": "استعراض...",
+    "general.open": "فتح"
+}

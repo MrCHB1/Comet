@@ -1,6 +1,8 @@
 {
     "ID": "简体中文",
 
+    "title.nomidi": "未加载 MIDI",
+
     "menu.file": "文件",
     "menu.file.open": "打开...",
     "menu.file.render": "渲染为视频...",
@@ -81,6 +83,19 @@
     "dialog.diagnose.alsorun": "同时运行：",
     "dialog.diagnose.bmdiag": "黑 MIDI 诊断",
     "dialog.diagnose.clickhere": "拖放 MIDI 文件或点击此处开始",
+
+    "dialog.diagnose.status.stopped": "诊断已停止。",
+    "dialog.diagnose.another": "诊断另一个",
+    "dialog.diagnose.copy": "复制到剪贴板",
+
+    "dialog.diagnose.filesize": "文件大小",
+    "dialog.diagnose.resolution": "分辨率",
+    "dialog.diagnose.tracks": "音轨",
+    "dialog.diagnose.notes": "音符",
+    "dialog.diagnose.memory": "打开所需内存",
+    "dialog.diagnose.tempo": "Tempo",
+    "dialog.diagnose.nps": "瞬时最大 NPS",
+    "dialog.diagnose.overlap": "重叠音符",
 
     "dialog.settings.title": "设置",
 

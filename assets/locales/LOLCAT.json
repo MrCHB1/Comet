@@ -1,0 +1,192 @@
+{
+    "ID": "LOLCAT",
+
+    "title.nomidi": "I HAZ NO MIDI",
+
+    "menu.file": "FILE",
+    "menu.file.open": "GIMME MIDI PLZ...",
+    "menu.file.render": "RENDR 2 VIDEO...",
+    "menu.file.diagnose": "CHECK MIDI...",
+    "menu.file.screenshot": "TAKE PIC",
+    "menu.file.quit": "KTHXBAI",
+
+    "menu.play": "PLAY",
+    "menu.play.stop": "PLZ STOP",
+    "menu.play.unload": "PLZ STOP N YEET MIDI",
+
+    "menu.view": "VIEW",
+    "menu.view.counter": "SHOW DA COUNTR",
+
+    "menu.options": "OPTIONS",
+    "menu.options.settings": "SETTINGZ...",
+
+    "menu.help": "HALP PLZ",
+    "menu.help.kofi": "BUY ponluxime A CHEEZBURGER",
+    "menu.help.update": "IZ DERE AN UPDATE???",
+
+    "nav.notesize": "NOET SIZE (IN TICKS)",
+    "nav.playspeed": "ZPEED (%)",
+
+    "dialog.ok": "OKAYZ",
+    "dialog.cancel": "NO PLZ",
+    "dialog.close": "BAI",
+    "dialog.applyclose": "APPLY & GTFO",
+    "dialog.yes": "YEZ",
+    "dialog.no": "NOES",
+
+    "dialog.render.title": "RENDR VIDEO",
+    "dialog.render.input": "INPUT",
+    "dialog.render.input.ffmpeg": "THE FFMPEG THINGY",
+    "dialog.render.input.ffmpeg.installed": "YAY I HAZ FFMPEG!",
+    "dialog.render.input.ffmpeg.get": "GIMME FFMPEG",
+    "dialog.render.input.ffmpeg.detect": "WHER FFMPEG??",
+    "dialog.render.input.midi": "MIDI",
+    "dialog.render.input.midi.loaded": "WILL RENDER DIZ MIDI",
+    "dialog.render.input.audio": "USE SOM AUDIO",
+
+    "dialog.render.output": "OUTPUT",
+    "dialog.render.output.format": "FORMAT",
+    "dialog.render.output.gpu": "GPU ENCODR",
+    "dialog.render.output.gpu.tooltip": "IF UR GPU IZ FAST, I USE IT 4 FFMPEG ENCODIN. ZOOM ZOOM.",
+    "dialog.render.output.gpu.unavailable": "OH NOEZ I NO HAVE GPU ENCODING! IZ YER FFMPEG PROPRLY INSTALLED???",
+    "dialog.render.output.codec": "CODEC",
+    "dialog.render.output.advanced": "OPSHUNS FOR SMARTZ",
+    "dialog.render.output.advanced.tooltip": "TECHY FFMPEG STUFFZ",
+
+    "dialog.render.encoding": "ENCODING",
+    "dialog.render.encoding.preset": "PRESET",
+    "dialog.render.encoding.bitratemode": "BITRATE MODE",
+    "dialog.render.encoding.brm.const": "STAY STILL",
+    "dialog.render.encoding.brm.var": "I CANT STAY STIL",
+    "dialog.render.encoding.bitrate": "BITRATE (Kbps)",
+    "dialog.render.encoding.crf": "CRF",
+
+    "dialog.render.rendering": "RENDERING",
+    "dialog.render.rendering.resolution": "HOW BIG???",
+    "dialog.render.rendering.framerate": "FRAMEZ PER SECON",
+    "dialog.render.rendering.outpath": "I IS OUTPUTTING HERE",
+    "dialog.render.rendering.mask": "SEE-THRU MASK",
+    "dialog.render.rendering.renderrange": "RENDER DIS ONLY PLZ",
+    "dialog.render.rendering.renderrange.tooltip": "JUST RENDER DIZ SECTION ONLY KTHX",
+
+    "dialog.render.renderbtn": "GO RENDR!",
+    "dialog.render.renderbtn.tooltip": "PRESS 'ESC' TO GTFO. DA VID'S STILL SAVED",
+
+    "dialog.render.error.noffmpeg": "I HAZ NO FFMPEG!",
+    "dialog.render.error.nomidi": "I HAZ NO MIDI!",
+    "dialog.render.error.nooutpath": "WHERE OUTPUT PATH????",
+    "dialog.render.error.nooutmaskpath": "WHERE SEE-THRU MASK PATH??",
+    "dialog.render.error.invalidrange": "I NO UNDERSTAN DIZ RANGE",
+    "dialog.render.error": "OH NOEZ I NO CAN RENDR!!",
+
+    "dialog.diagnose.title": "CHECK MIDI",
+    "dialog.diagnose.alsorun": "DO DIZ TOO:",
+    "dialog.diagnose.bmdiag": "BLACK MIDI CHECK",
+    "dialog.diagnose.clickhere": "PLZ YEET MIDI HERE",
+
+    "dialog.diagnose.status.stopped": "CHECK NO MORE",
+    "dialog.diagnose.another": "GIV ANOTHER CHECK",
+    "dialog.diagnose.copy": "COPY 2 CLIPBORD",
+
+    "dialog.diagnose.filesize": "FILE SIZE",
+    "dialog.diagnose.resolution": "REZOLUSHUN",
+    "dialog.diagnose.tracks": "TRAK COUNT",
+    "dialog.diagnose.notes": "NOETS",
+    "dialog.diagnose.memory": "RAM TO OPEN",
+    "dialog.diagnose.tempo": "HOW FAZT IZ IT?",
+    "dialog.diagnose.nps": "WHEN MAX NPS??",
+    "dialog.diagnose.overlap": "WHERE OVERLAPS??",
+
+    "dialog.settings.title": "SETTINGS",
+
+    "dialog.settings.app": "APP",
+    "dialog.settings.app.header": "APP SETTINGS",
+    "dialog.settings.app.general": "GENERAL STUFFZ",
+    "dialog.settings.app.general.language": "WHICH LANGWIJ",
+    "dialog.settings.app.general.vsync": "VSync",
+    "dialog.settings.app.general.fps": "SPEED LIMIT (FPS)",
+    "dialog.settings.app.general.fps.tooltip": "0 = NO LIMIT. GO FAZT!!",
+
+    "dialog.settings.app.theme": "THEEM",
+    "dialog.settings.app.theme.reload": "RELOAD DA THEEMZ",
+    "dialog.settings.app.theme.open": "OPEN THEEM FOLDR",
+
+    "dialog.settings.app.nav": "NAVIGASHUN",
+    "dialog.settings.app.nav.hide": "ALWAYZ HIDE NAV BAR",
+    "dialog.settings.app.nav.hide.tooltip": "NAV BAR HIDEZ UNLESS MOUSE IZ NEAR DA TOP OF DA WINDOW.",
+    "dialog.settings.app.nav.forward": "JUMP AHEAD (SEC)",
+    "dialog.settings.app.nav.backward": "JUMP BACK (SEC)",
+
+    "dialog.settings.visual": "PRETTY STUFF",
+    "dialog.settings.visual.disclaimer": "DEZ SETTINGZ ALSO WORK WHEN I RENDR VIDEOZ!",
+    "dialog.settings.visual.header": "PRETTY SETTINGZ",
+    "dialog.settings.visual.renderer": "RENDRER",
+    "dialog.settings.visual.renderer.settings": "RENDRER SETTINGZ",
+    "dialog.settings.visual.renderer.settings.reset": "RESET SETTINGZ",
+
+    "dialog.settings.visual.colors": "NOET COLORZ",
+    "dialog.settings.visual.colors.use": "USE COLORZ FROM",
+    "dialog.settings.visual.colors.use.0": "RESOURS PAK",
+    "dialog.settings.visual.colors.use.1": "COLORZ LIST",
+    "dialog.settings.visual.colors.palette": "PALLET LIST",
+    "dialog.settings.visual.colors.refresh": "REFRESH PALLET LIST",
+    "dialog.settings.visual.colors.open": "OPEN PALLET FOLDR",
+    "dialog.settings.visual.colors.loop": "LOOP COLORZ",
+    "dialog.settings.visual.colors.shuffle": "SHUFFLE COLORZ",
+    "dialog.settings.visual.colors.seed": "SEED",
+
+    "dialog.settings.visual.counter": "COUNTR N STATZ",
+    "dialog.settings.visual.counter.appearance": "HOW IT LOOKZ",
+    "dialog.settings.visual.counter.showcounter": "SHOW NOET COUNTR",
+    "dialog.settings.visual.counter.showstats": "SHOW STATZ",
+    "dialog.settings.visual.counter.scale": "BIGNESS",
+    "dialog.settings.visual.counter.align": "ALINEMENT",
+    "dialog.settings.visual.counter.align.0": "TOP LEFT",
+    "dialog.settings.visual.counter.align.1": "TOP MIDDLE",
+    "dialog.settings.visual.counter.align.2": "TOP RITE",
+    "dialog.settings.visual.counter.blur": "BLURRY BEHIND",
+    "dialog.settings.visual.counter.font": "FONT",
+    "dialog.settings.visual.counter.font.default": "DEFAULT",
+    "dialog.settings.visual.counter.font.directory": "FONT FOLDR",
+
+    "dialog.settings.visual.counter.style": "STYL",
+    "dialog.settings.visual.counter.style.0": "Ultralight MIDI Player",
+    "dialog.settings.visual.counter.style.1": "MIDITrail",
+    "dialog.settings.visual.counter.background": "BACKGROUND COLORZ",
+    "dialog.settings.visual.counter.text": "TEXT COLORZ",
+
+    "dialog.settings.visual.counter.fields": "FEELDZ",
+    "dialog.settings.visual.counter.fields.help": "FEELDZ WIF A STAR (*) ARE NOT IN VIDEO RENDRZ.",
+
+    "dialog.settings.audio": "AUDIO",
+    "dialog.settings.audio.engine": "AUDIO ENGINE",
+    "dialog.settings.audio.engine.unsupported": "DIS ENGINE NO WORK ON UR PLATFORM.",
+
+    "dialog.settings.midi": "MIDI",
+    "dialog.settings.midi.threads": "MIDI LOADIN THREADZ",
+    "dialog.settings.midi.threads.0": "ONE THREAD",
+    "dialog.settings.midi.threads.1": "MANY THREADZ",
+    "dialog.settings.midi.time": "TIME-BASED LOADIN",
+
+    "dialog.update.available.title": "UPDATE IZ HERE!",
+    "dialog.update.available.content": "NEW UPDATE ({}) IZ HERE! OPEN GITHUB PLZ?",
+
+    "dialog.update.synced.title": "UPDATE CHECK",
+    "dialog.update.synced.content": "COMET IZ ALREDY UP 2 DATE.",
+
+    "dialog.update.error.title": "UPDATE OOPSIE",
+    "dialog.update.error.content": "OH NOES! SUMTHIN BROKE WHEN I WUZ LOOKIN 4 UPDATE.",
+
+    "counter.tick": "TICK",
+    "counter.time": "TIEM",
+    "counter.bpm": "BPM",
+    "counter.notes": "NOETS",
+    "counter.nps": "NPS",
+    "counter.poly": "POLYFONY",
+
+    "stats.fps": "FPS",
+    "stats.buffer": "BUFFR",
+
+    "widget.file.browse": "LOOK 4 IT...",
+    "general.open": "OPEN"
+}

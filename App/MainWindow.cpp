@@ -81,7 +81,7 @@ void MainWindow::InitializeDialogs()
 	dialogManager.RegisterDialog<LoadingDialog>(midiApp.get());
 	dialogManager.RegisterDialog<RenderVideoDialog>(midiApp.get());
 	dialogManager.RegisterDialog<SettingsDialog>(midiApp.get());
-	dialogManager.RegisterDialog<MessageDialog>();
+	dialogManager.RegisterDialog<MessageDialog>(midiApp->GetLocalization());
 }
 
 void MainWindow::InitializeUI()
@@ -137,7 +137,7 @@ void MainWindow::BuildMenuBar()
 	helpMenu.AddItem(new MenuButton(TRANSLATE("menu.help.kofi"), [this]() {
 		Utils::OpenURL("https://ko-fi.com/ponluxime");
 	}));
-	helpMenu.AddItem(new MenuButton(TRANSLATE("menu.help.update"), [&]() {
+	helpMenu.AddItem(new MenuButton(TRANSLATE("menu.help.update"), [this, localization]() {
 		if (!this->updateChecker) return;
 		
 		auto result = this->updateChecker->CheckForUpdate();
@@ -267,7 +267,8 @@ void MainWindow::PostInit()
 
 void MainWindow::SetTitleInfo(std::string midiName)
 {
-	titleInfo = midiName.empty() ? "No MIDI Loaded" : midiName;
+	Localization* localization = midiApp->GetLocalization();
+	titleInfo = midiName.empty() ? TRANSLATE("title.nomidi") : midiName;
 	glfwSetWindowTitle(window, (title + " | " + titleInfo).c_str());
 }
 
@@ -284,6 +285,7 @@ void MainWindow::Run()
 		if (midiApp->WasLocalizationDirty())
 		{
 			BuildMenuBar();
+			SetTitleInfo(midiApp->GetLastLoadedMIDIName());
 		}
 
 		if (!midiApp->IsRendering())

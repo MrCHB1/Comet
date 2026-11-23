@@ -6,31 +6,35 @@
 #include <filesystem>
 
 #include "App/MIDIApp.h"
+#include "App/Localization/Localization.h"
 
 void DiagnosisDialog::DrawContent()
 {
+	Localization* localization = app->GetLocalization();
+
 	if (isDiagnosing)
 	{
 		diagnosisInfoPanel->Draw();
 		ImGui::Separator();
 		if (diagnoses && diagnoses->IsRunning())
 		{
-			if (ImGui::Button("Stop"))
+			if (ImGui::Button(TRANSLATE("menu.play.stop").c_str()))
 			{
 				SetRunning(false);
 				diagnoses->Stop();
 				timer->Stop();
-				diagnosisInfoPanel->SetStatus("Diagnosis stopped.");
+				diagnosisInfoPanel->SetStatus(
+					TRANSLATE("dialog.diagnose.status.stopped"));
 			}
 		}
 		else
 		{
-			if (ImGui::Button("Diagnose another"))
+			if (ImGui::Button(TRANSLATE("dialog.diagnose.another").c_str()))
 			{
 				isDiagnosing = false;
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("Copy to clipboard"))
+			if (ImGui::Button(TRANSLATE("dialog.diagnose.copy").c_str()))
 			{
 				std::string toCopy = diagnoses->CreateSummaryText();
 				ImGui::SetClipboardText(toCopy.c_str());
@@ -39,9 +43,9 @@ void DiagnosisDialog::DrawContent()
 	}
 	else
 	{
-		ImGui::Text("Also run:");
-		ImGui::Checkbox("Black MIDI Diagnosis", &t_blackMidiDiagnosis);
-		if (ImGui::Button("Drop MIDI file or click here to start", ImVec2(350, 500)))
+		ImGui::Text(TRANSLATE("dialog.diagnose.alsorun").c_str());
+		ImGui::Checkbox(TRANSLATE("dialog.diagnose.bmdiag").c_str(), &t_blackMidiDiagnosis);
+		if (ImGui::Button(TRANSLATE("dialog.diagnose.clickhere").c_str(), ImVec2(350, 500)))
 		{
 			std::string path;
 			Utils::ChooseFile(path);
@@ -62,7 +66,7 @@ void DiagnosisDialog::DrawContent()
 	}
 
 	ImGui::Separator();
-	if (ImGui::Button("Close"))
+	if (ImGui::Button(TRANSLATE("dialog.close").c_str()))
 	{
 		if (isRunning)
 		{

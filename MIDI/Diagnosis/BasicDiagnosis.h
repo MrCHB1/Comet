@@ -2,6 +2,8 @@
 #include "ADiagnosis.h"
 #include "../SavedInputStream.h"
 #include "../MIDISequence.h"
+#include "App/MIDIApp.h"
+#include "App/Localization/Localization.h"
 
 class MIDIApp;
 
@@ -12,12 +14,6 @@ public:
 		ADiagnosis(app, filePath),
 		noteons(16, std::vector<int>(128)),
 		tracksHuge(std::vector<int>(1)),
-		fFileSize(CreateField<FileSize>("File Size")),
-		fResolution(CreateField<Long>("Resolution")),
-		fTracks(CreateField<Long>("Tracks")),
-		fNotes(CreateField<Long>("Notes")),
-		fMemory(CreateField<FileSize>("Memory to Open")),
-		fTempo(CreateField<Double>("Tempo")),
 		lastMeta(0),
 		reachedEoT(false),
 		foundUnexpectedStatusByte(false),
@@ -30,6 +26,15 @@ public:
 #else
 		std::shared_ptr<std::ifstream> fileStream = std::make_shared<std::ifstream>(filePath, std::ios::binary);
 #endif
+		Localization* localization = app->GetLocalization();
+
+		fFileSize = CreateField<FileSize>(TRANSLATE("dialog.diagnose.filesize"));
+		fResolution = CreateField<Long>(TRANSLATE("dialog.diagnose.resolution"));
+		fTracks = CreateField<Long>(TRANSLATE("dialog.diagnose.tracks"));
+		fNotes = CreateField<Long>(TRANSLATE("dialog.diagnose.notes"));
+		fMemory = CreateField<FileSize>(TRANSLATE("dialog.diagnose.memory"));
+		fTempo = CreateField<Double>(TRANSLATE("dialog.diagnose.tempo"));
+
 		fileStream->seekg(0, std::ios::end);
 		size_t fileLength = fileStream->tellg();
 		fileStream->seekg(0, std::ios::beg);
