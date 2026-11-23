@@ -54,6 +54,7 @@ public:
 	bool IsValidTexture() const { return validTexture; }
 
 	GLuint GetTextureID() { return texture; }
+	void SetLinearFiltering();
 private:
 	GLuint texture = 0;
 	GLuint slot = 0;

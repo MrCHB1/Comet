@@ -30,6 +30,14 @@ TextureArray::TextureArray(int width, int height, int layerCount, GLenum interna
 	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 }
 
+void TextureArray::SetLinearFiltering()
+{
+	glBindTexture(GL_TEXTURE_2D_ARRAY, texture);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+}
+
 TextureArray::~TextureArray()
 {
 	if (texture != 0 && glIsTexture(texture))

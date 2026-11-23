@@ -3,7 +3,7 @@
 #include "Comet.h"
 
 #ifdef _WIN32
-#include <Windows.h>
+#include <windows.h>
 
 namespace
 {
@@ -35,7 +35,7 @@ ProgressInputStream::ProgressInputStream(const std::string filePath)
 
 ProgressInputStream::ProgressInputStream(const std::filesystem::path& path)
 	: InputStream([&path]() {
-#ifdef _WIN32
+#ifdef _MSC_VER
 	return std::make_shared<std::ifstream>(path.wstring(), std::ios::in | std::ios::binary);
 #else
 	return std::make_shared<std::ifstream>(path, std::ios::in | std::ios::binary);

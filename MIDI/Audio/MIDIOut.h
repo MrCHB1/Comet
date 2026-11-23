@@ -5,7 +5,7 @@
 #ifdef _WIN32
 
 #include <vector>
-#include <Windows.h>
+#include <windows.h>
 
 typedef void (*KDMAPI_Init)();
 typedef void (*KDMAPI_Terminate)();

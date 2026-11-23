@@ -25,7 +25,7 @@ public:
 		memory(0),
 		length(0)
 	{
-#ifdef _WIN32
+#ifdef _MSC_VER
 		std::shared_ptr<std::ifstream> fileStream = std::make_shared<std::ifstream>(filePath.wstring(), std::ios::binary);
 #else
 		std::shared_ptr<std::ifstream> fileStream = std::make_shared<std::ifstream>(filePath, std::ios::binary);

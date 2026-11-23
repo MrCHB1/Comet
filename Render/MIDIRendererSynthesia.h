@@ -190,12 +190,8 @@ private:
 #pragma endregion
 
 #pragma region Note textures
-	std::unique_ptr<GPUImage> noteWhiteBody;
-	std::unique_ptr<GPUImage> noteWhiteTop;
-	std::unique_ptr<GPUImage> noteWhiteBottom;
-	std::unique_ptr<GPUImage> noteBlackBody;
-	std::unique_ptr<GPUImage> noteBlackTop;
-	std::unique_ptr<GPUImage> noteBlackBottom;
+	std::unique_ptr<GPUImage> noteWhite;
+	std::unique_ptr<GPUImage> noteBlack;
 	std::unique_ptr<GPUImage> noteOOB;
 #pragma endregion
 
@@ -247,7 +243,7 @@ private:
 	void RenderOctaveTextOverlays();
 
 	void GenerateParticles(double deltaTime);
-	void RenderParticles();
+	void RenderParticles(bool haze);
 	void UpdateParticles(double deltaTime);
 
 	void RenderNotes();

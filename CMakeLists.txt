@@ -329,6 +329,11 @@ if(WIN32)
         "${CMAKE_SOURCE_DIR}/external/bassmidi/bassmidi.lib"
     )
 
+    # MSVC pulls these in via #pragma comment(lib); MinGW needs them explicitly.
+    if(MINGW)
+        target_link_libraries(Comet PRIVATE winmm avrt)
+    endif()
+
     add_custom_command(TARGET Comet POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_SOURCE_DIR}/external/bass/bass.dll"

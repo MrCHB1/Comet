@@ -79,7 +79,7 @@ void BlackMIDIDiagnosis::Run()
 
 std::shared_ptr<SavedInputStream> BlackMIDIDiagnosis::CreateStream()
 {
-#ifdef _WIN32
+#ifdef _MSC_VER
 	auto fs = std::make_shared<std::ifstream>(filePath.wstring(), std::ios::binary);
 #else
 	auto fs = std::make_shared<std::ifstream>(filePath.c_str(), std::ios::binary);
