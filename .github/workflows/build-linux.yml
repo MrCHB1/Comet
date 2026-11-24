@@ -14,13 +14,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/vcpkg
+          key: vcpkg-linux-${{ hashFiles('vcpkg.json', '.gitmodules') }}
 
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build gcc g++ git pkg-config \
+          sudo apt-get install -y cmake ninja-build gcc g++ git pkg-config curl zip unzip tar \
+            libx11-dev libxext-dev libwayland-dev libxkbcommon-dev libasound2-dev \
             libgl-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev \
-            libgtk-3-dev libssl-dev openssl libtbb-dev
+            libgtk-3-dev libssl-dev openssl libtbb-dev autoconf autoconf-archive \
+            automake libtool
 
       - name: Configure
         run: >

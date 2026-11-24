@@ -43,6 +43,8 @@ public:
 	// (e.g. take the max width/height across every image you plan to load).
 	static bool ProbeDimensions(std::shared_ptr<std::istream> file, int& outWidth, int& outHeight);
 
+	void SetLinearFiltering();
+
 private:
 	GLuint texture = 0;
 	GLuint slot = 0;

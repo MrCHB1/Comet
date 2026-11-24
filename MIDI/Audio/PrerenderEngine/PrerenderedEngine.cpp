@@ -11,7 +11,7 @@
 #include "MIDI/TempoMap.h"
 #include "Utils.h"
 #include "resource.h"
-#include <Windows.h>
+#include <windows.h>
 #include <sstream>
 #include "App/Dialog/DialogMacros.h"
 
@@ -642,7 +642,7 @@ void PrerenderedEngine::EnsureDefaultSoundfont()
         if (!data) throw std::runtime_error("That's funny... the embedded soundfont data failed to load!");
 
         std::ofstream file;
-        file.open(defaultPath, std::ios::binary);
+        file.open(std::filesystem::path(defaultPath), std::ios::binary);
         file.write((char*)data, rSize);
         file.close();
     }

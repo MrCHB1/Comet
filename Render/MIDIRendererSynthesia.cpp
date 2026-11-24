@@ -21,26 +21,32 @@ namespace
 	using namespace Config;
 	using namespace Comet::UI::Layout;
 
-	constexpr const std::array<uint32_t, 12> nativeSynthesiaColors = {
-		// blue
-		0x80A3CB,
-		0x2A5EA7,
-		// green
-		0x9DE04D,
-		0x4C9301,
-		// orange
-		0xF8A829,
-		0xEF7100,
-		// yellow
-		0xFAE944,
-		0xDFCA24,
-		// purple
-		0xC48ACB,
-		0x7E6583,
-		// red
-		0xE76F6D,
-		0xE13C34,
+	// default note colors (white keys); black keys get a darker shade of the same hue
+	constexpr const std::array<uint32_t, 6> nativeSynthesiaColors = {
+		0xF18484, // red
+		0xFDF18C, // yellow
+		0xFDC066, // orange
+		0xA9E96A, // green
+		0x9BBADD, // blue
+		0xBE86C4, //purple
 	};
+
+	// dark-key note colors, same order as above. 
+	constexpr const std::array<uint32_t, 6> nativeSynthesiaColorsDark = {
+		0xEC4F4F, // red
+		0xDDC918, // yellow
+		0xF6871B, // orange
+		0x73AE3A, // green
+		0x5780B4, // blue
+		0x7E6282, // purple
+	};
+
+	constexpr uint32_t DarkenColor(uint32_t c, float f)
+	{
+		return ((uint32_t)(((c >> 16) & 0xFF) * f) << 16) |
+			((uint32_t)(((c >> 8) & 0xFF) * f) << 8) |
+			(uint32_t)((c & 0xFF) * f);
+	}
 
 #pragma region Texture enums
 
@@ -185,23 +191,50 @@ layout (location = 1) in vec2 aPos;
 layout (location = 2) in vec2 aSize;
 layout (location = 3) in uint aMeta;
 
-out vec2 noteSize;
+out vec2 noteSize;   // quad size in px
 out vec2 uv;
 flat out uint meta;
+flat out float cornerY; // px height of the crown / heel
 
 uniform float kbHeight;
-uniform float capHeight;
+uniform vec2 texSizeWhite; // texels
+uniform vec2 texSizeBlack;
+// note space -> px
+uniform vec2 noteToPx;
 
 void main()
 {
+	bool isBlack = (aMeta & (1u << 24u)) != 0u;
 	bool isOOB   = (aMeta & (1u << 25u)) != 0u;
 
 	uv = vPos;
-	noteSize = aSize;
-	if (noteSize.y < capHeight * 2.0 && !isOOB) noteSize.y = capHeight * 2.0;
 	meta = aMeta;
+	cornerY = 0.0;
 
-	vec2 pos = aPos + vPos * noteSize;
+	vec2 origin;
+	vec2 sizePx;
+	if (isOOB)
+	{
+		origin = aPos * noteToPx;
+		sizePx = aSize * noteToPx;
+	}
+	else
+	{
+		// Synthesia: note is 1px wider than its key on each side, and the whole texture is
+		// scaled by that width, so crown/heel are proportional to the note width.
+		vec2 tex = isBlack ? texSizeBlack : texSizeWhite;
+		float widthPx = aSize.x * noteToPx.x + 2.0;
+		float s = widthPx / tex.x;
+		// at least crown + heel (+1px) tall; grows upwards from the note start
+		float heightPx = max(aSize.y * noteToPx.y, tex.y * s + 1.0);
+
+		origin = vec2(aPos.x * noteToPx.x - 1.0, aPos.y * noteToPx.y);
+		sizePx = vec2(widthPx, heightPx);
+		cornerY = tex.y * 0.5 * s;
+	}
+	noteSize = sizePx;
+
+	vec2 pos = (origin + vPos * sizePx) / noteToPx;
 	pos.y = pos.y * (1.0 - kbHeight) + kbHeight;
 	gl_Position = vec4(pos * 2.0 - 1.0, 0.0, 1.0);
 })";
@@ -210,22 +243,24 @@ void main()
 in vec2 noteSize;
 in vec2 uv;
 flat in uint meta;
+flat in float cornerY;
 
-uniform float capAspectRatio;
-uniform float aspectRatio;
-uniform float capHeight;
-
-uniform sampler2D noteWhiteBody;
-uniform sampler2D noteWhiteTop;
-uniform sampler2D noteWhiteBottom;
-uniform sampler2D noteBlackBody;
-uniform sampler2D noteBlackTop;
-uniform sampler2D noteBlackBottom;
+uniform sampler2D noteWhite;
+uniform sampler2D noteBlack;
 uniform sampler2D noteOOB;
 
 uniform bool nativeColors;
 
 uniform float brightnessBoost;
+
+// Distance d from the low edge of a span of length len -> texture coord.
+// Crown and heel keep their size, the middle repeats the center texel line.
+// Spans shorter than crown + heel crop them instead of squashing.
+float sliceAxis(float d, float len, float corner)
+{
+	if (d < len * 0.5) return 0.5 * min(d / corner, 1.0);
+	return 1.0 - 0.5 * min((len - d) / corner, 1.0);
+}
 
 void main()
 {
@@ -248,38 +283,15 @@ void main()
 
 	if (!isOOB)
 	{
+		vec2 texUV;
+		texUV.x = uv.x;
+		// texture v=0 is the note's top edge
+		texUV.y = 1.0 - sliceAxis(uv.y * noteSize.y, noteSize.y, cornerY);
+
 		if (isBlack)
-			noteTexColor = texture(noteBlackBody, uv);
+			noteTexColor = texture(noteBlack, texUV);
 		else
-			noteTexColor = texture(noteWhiteBody, uv);
-
-		float bottomDistance = uv.y * noteSize.y;
-
-		if (bottomDistance < capHeight)
-		{
-			vec2 capUV;
-			capUV.x = uv.x;
-			capUV.y = 1.0 - bottomDistance / capHeight;
-
-			if (isBlack)
-				noteTexColor = texture(noteBlackBottom, capUV);
-			else
-				noteTexColor = texture(noteWhiteBottom, capUV);
-		}
-
-		float topDistance = (1.0 - uv.y) * noteSize.y;
-
-		if (topDistance < capHeight)
-		{
-			vec2 capUV;
-			capUV.x = uv.x;
-			capUV.y = topDistance / capHeight;
-
-			if (isBlack)
-				noteTexColor = texture(noteBlackTop, capUV);
-			else
-				noteTexColor = texture(noteWhiteTop, capUV);
-		}
+			noteTexColor = texture(noteWhite, texUV);
 
 		gl_FragColor = vec4(noteTexColor.rgb * noteColor2, noteTexColor.a);
 	}
@@ -290,15 +302,13 @@ void main()
 
 		gl_FragColor = vec4(noteTexColor.rgb * noteColor, noteTexColor.a);
 	}
-
-	
 })";
 #pragma endregion
 }
 
 #pragma region Particles
 
-float KeyHazeParticle::maxLife = 0.2;
+float KeyHazeParticle::maxLife = 0.1;
 
 KeyHazeParticle::KeyHazeParticle(uint8_t key, std::mt19937& random)
 {
@@ -363,9 +373,8 @@ void KeyDebrisParticle::Step(double delta)
 
 inline uint32_t SampleNativeColor(uint16_t track, uint8_t channel, bool isBlack)
 {
-	size_t index = (((size_t)track << 4u) | (size_t)channel) << 1;
-	index = index % nativeSynthesiaColors.size();
-	return nativeSynthesiaColors[index | isBlack];
+	size_t index = (((size_t)track << 4u) | (size_t)channel) % nativeSynthesiaColors.size();
+	return isBlack ? nativeSynthesiaColorsDark[index] : nativeSynthesiaColors[index];
 }
 
 MIDIRendererSynthesia::MIDIRendererSynthesia(MIDIApp* app) : AbstractMIDIRenderer(app)
@@ -524,18 +533,21 @@ void MIDIRendererSynthesia::CalculateKeyboardData()
 		renderSettings.style == GLOW)
 	{
 		initialKeyboardHeight = 0.158;
-		initialBarHeight = 0.0045;
+		initialBarHeight = 0.0045 * 1.5;
 	}
 
 	if (renderSettings.style == SYNTHESIA_8)
 	{
 		initialKeyboardHeight = 0.16;
-		initialBarHeight = 0.007;
+		initialBarHeight = 0.007 * 1.5;
 	}
 
 	keyboardHeight = initialKeyboardHeight / (keyLast - keyFirst) * 128.0f;
 	keyboardHeight = keyboardHeight / (1920.0 / 1080.0) * ((float)this->width / (float)this->height);
 	if (keyboardHeight > 0.2468) keyboardHeight = 0.2468;
+
+	if ((renderSettings.style == SYNTHESIA_9 || renderSettings.style == SYNTHESIA_10 || renderSettings.style == GLOW) && this->height > 0)
+		keyboardHeight = std::min(keyboardHeight, 289.0f / (float)this->height);
 }
 
 void MIDIRendererSynthesia::LoadKeyboardTextures(SynthesiaStyle style)
@@ -644,6 +656,7 @@ void MIDIRendererSynthesia::LoadKeyboardTextures(SynthesiaStyle style)
 	{
 		layerUV[layer] = textures->LoadLayer(layer, Utils::TryGetStream(layerPaths[layer]));
 	}
+	textures->SetLinearFiltering();
 }
 
 void MIDIRendererSynthesia::InitializeParticleSystems()
@@ -755,13 +768,8 @@ void MIDIRendererSynthesia::UpdateStyle()
 	GenerateKeyLayoutArrays();
 	CalculateKeyboardData();
 
-	std::filesystem::path notesPath;
-	std::filesystem::path noteWhiteBodyPath;
-	std::filesystem::path noteWhiteTopPath;
-	std::filesystem::path noteWhiteBottomPath;
-	std::filesystem::path noteBlackBodyPath;
-	std::filesystem::path noteBlackTopPath;
-	std::filesystem::path noteBlackBottomPath;
+	std::filesystem::path noteWhitePath;
+	std::filesystem::path noteBlackPath;
 
 	float brightnessBoost = 1.0f;
 
@@ -769,97 +777,42 @@ void MIDIRendererSynthesia::UpdateStyle()
 	{
 		case SYNTHESIA_10:
 		{
-			notesPath = "./assets/textures/synthesia/notes/s10";
-			noteWhiteBodyPath = notesPath / "note.png";
-			noteWhiteTopPath = notesPath / "noteTop.png";
-			noteWhiteBottomPath = notesPath / "noteBottom.png";
-			noteBlackBodyPath = notesPath / "note.png";
-			noteBlackTopPath = notesPath / "noteTop.png";
-			noteBlackBottomPath = notesPath / "noteBottom.png";
-
+			noteWhitePath = "./assets/textures/synthesia/notes/s10/noteFull.png";
+			noteBlackPath = noteWhitePath;
 			break;
 		}
 		case SYNTHESIA_9:
 		case SYNTHESIA_8:
 		{
-			notesPath = "./assets/textures/synthesia/notes/s9";
-			noteWhiteBodyPath = notesPath / "noteWhite.png";
-			noteWhiteTopPath = notesPath / "noteTopWhite.png";
-			noteWhiteBottomPath = notesPath / "noteBottomWhite.png";
-			noteBlackBodyPath = notesPath / "noteBlack.png";
-			noteBlackTopPath = notesPath / "noteTopBlack.png";
-			noteBlackBottomPath = notesPath / "noteBottomBlack.png";
+			noteWhitePath = "./assets/textures/synthesia/notes/s9/noteWhiteFull.png";
+			noteBlackPath = "./assets/textures/synthesia/notes/s9/noteBlackFull.png";
 
 			brightnessBoost = 2.0f;
 			break;
 		}
 		case GLOW:
 		{
-			notesPath = "./assets/textures/synthesia/notes/glow";
-			noteWhiteBodyPath = notesPath / "note.png";
-			noteWhiteTopPath = notesPath / "noteTop.png";
-			noteWhiteBottomPath = notesPath / "noteBottom.png";
-			noteBlackBodyPath = notesPath / "note.png";
-			noteBlackTopPath = notesPath / "noteTop.png";
-			noteBlackBottomPath = notesPath / "noteBottom.png";
-
+			noteWhitePath = "./assets/textures/synthesia/notes/glow/noteFull.png";
+			noteBlackPath = noteWhitePath;
 			break;
 		}
 	}
 
-	noteWhiteBody = std::make_unique<GPUImage>(Utils::TryGetStream(noteWhiteBodyPath));
-	noteWhiteTop = std::make_unique<GPUImage>(Utils::TryGetStream(noteWhiteTopPath));
-	noteWhiteBottom = std::make_unique<GPUImage>(Utils::TryGetStream(noteWhiteBottomPath));
-	noteBlackBody = std::make_unique<GPUImage>(Utils::TryGetStream(noteBlackBodyPath));
-	noteBlackTop = std::make_unique<GPUImage>(Utils::TryGetStream(noteBlackTopPath));
-	noteBlackBottom = std::make_unique<GPUImage>(Utils::TryGetStream(noteBlackBottomPath));
+	noteWhite = std::make_unique<GPUImage>(Utils::TryGetStream(noteWhitePath));
+	noteBlack = std::make_unique<GPUImage>(Utils::TryGetStream(noteBlackPath));
+	noteWhite->SetLinearFiltering();
+	noteBlack->SetLinearFiltering();
 	noteOOB = std::make_unique<GPUImage>(Utils::TryGetStream("./assets/textures/synthesia/notes/noteOOB.png"));
 
 	{
 		ShaderBind bind(*notesProgram);
 		notesProgram->SetFloat("brightnessBoost", brightnessBoost);
+		notesProgram->SetInt("noteWhite", 0);
+		notesProgram->SetInt("noteBlack", 1);
+		notesProgram->SetInt("noteOOB", 6);
 	}
 
 	LoadKeyboardTextures(renderSettings.style);
-
-	{
-		ShaderBind bind(*notesProgram);
-
-		{
-			TextureBind tex(*noteWhiteBody, 0);
-			notesProgram->SetInt("noteWhiteBody", 0);
-		}
-
-		{
-			TextureBind tex(*noteWhiteTop, 1);
-			notesProgram->SetInt("noteWhiteTop", 1);
-		}
-
-		{
-			TextureBind tex(*noteWhiteBottom, 2);
-			notesProgram->SetInt("noteWhiteBottom", 2);
-		}
-
-		{
-			TextureBind tex(*noteBlackBody, 3);
-			notesProgram->SetInt("noteBlackBody", 3);
-		}
-
-		{
-			TextureBind tex(*noteBlackTop, 4);
-			notesProgram->SetInt("noteBlackTop", 4);
-		}
-
-		{
-			TextureBind tex(*noteBlackBottom, 5);
-			notesProgram->SetInt("noteBlackBottom", 5);
-		}
-
-		{
-			TextureBind tex(*noteOOB, 6);
-			notesProgram->SetInt("noteOOB", 6);
-		}
-	}
 }
 
 void MIDIRendererSynthesia::Render(double deltaTime)
@@ -890,8 +843,7 @@ void MIDIRendererSynthesia::Render(double deltaTime)
 	if (renderSettings.renderKeySparkle)
 	{
 		GenerateParticles(deltaTime);
-		RenderParticles();
-		UpdateParticles(deltaTime);
+		RenderParticles(false);
 
 		RenderQuads(rectDrawCount);
 		rectDrawCount = 0;
@@ -899,6 +851,17 @@ void MIDIRendererSynthesia::Render(double deltaTime)
 
 	RenderKeyboard();
 	RenderQuads(rectDrawCount);
+	rectDrawCount = 0;
+
+	// haze glows over the keys, so it is drawn after the keyboard
+	if (renderSettings.renderKeySparkle)
+	{
+		RenderParticles(true);
+		UpdateParticles(deltaTime);
+
+		RenderQuads(rectDrawCount);
+		rectDrawCount = 0;
+	}
 	if (renderSettings.showKeyOctaves && renderSettings.style == SYNTHESIA_9) RenderOctaveTextOverlays();
 
 	glDisable(GL_BLEND);
@@ -1027,7 +990,16 @@ void MIDIRendererSynthesia::RenderKeyboard()
 	if (IS_BLACK(keyFirst)) keyFirst--;
 	if (IS_BLACK(keyLast)) keyLast++;
 
-	float keyTop = keyboardHeight * (1.0f - initialBarHeight);
+	const bool s9Bar = renderSettings.style == SYNTHESIA_9 || renderSettings.style == SYNTHESIA_10;
+	
+	// S9/S10: the bar is a fixed 10px, independent of the screen size
+	const float pxScale = keyboardHeight * (float)height / 289.0f;
+	const float barPx = 10.0f * pxScale / (float)height;
+	const float BLACK_KEY_OVERFLOW_PX = 3.0f * pxScale;
+	const float BLACK_KEY_OVERFLOW_PRESSED_PX = 1.2f * pxScale;
+	
+	const float barH = initialBarHeight * keyboardHeight / 0.2468f;
+	float keyTop = s9Bar ? keyboardHeight - barPx : keyboardHeight * (1.0f - initialBarHeight);
 
 #pragma region Synthesia 9/10 Keyboard
 	if (renderSettings.style == SYNTHESIA_9 || renderSettings.style == SYNTHESIA_10)
@@ -1148,12 +1120,13 @@ void MIDIRendererSynthesia::RenderKeyboard()
 		}
 		// split in two to allow colored bar
 		const float barFrac = 3.0f / 11.0f;
-		const float barSplitHeight = barFrac * initialBarHeight;
+		const float barSplitHeight = BLACK_KEY_OVERFLOW_PX / (float)height;
+		const float barTopHeight = barPx - barSplitHeight;
 
 		ImVec4 barColor = config->render.GetBarColor();
 		uint32_t barColorPacked = Utils::PackRGBA(barColor.x, barColor.y, barColor.z, 1.0, Utils::ARGB);
-		PushQuad(0, keyTop, 1, barSplitHeight, 0, 0, 1, barFrac, S9_LAYER_BAR, barColorPacked); // colored bar ooOOO.. default is 0xFFA02020
-		PushQuad(0, keyTop + barSplitHeight, 1, initialBarHeight - barSplitHeight, 0, barFrac, 1, 1.0f - barFrac, S9_LAYER_BAR);
+		PushQuad(0, keyTop, 1, barSplitHeight, 0, 0, 1, barFrac, S9_LAYER_BAR, barColorPacked);
+		PushQuad(0, keyTop + barSplitHeight, 1, barTopHeight, 0, barFrac, 1, 1.0f - barFrac, S9_LAYER_BAR);
 
 		for (int i = keyFirst; i <= keyLast; i++)
 		{
@@ -1161,9 +1134,10 @@ void MIDIRendererSynthesia::RenderKeyboard()
 
 			size_t part = keyNum[i] % 5;
 
-			float bKeyBottom = keyboardHeight / 2.9f;
-			float bKeyTopPressed = keyTop + keyboardHeight * 0.006;
-			float bKeyTopUnpressed = keyTop + keyboardHeight * 0.015;
+			float bKeyBottom = keyboardHeight / 2.87f;
+			// fixed px overflow past the white key top
+			float bKeyTopPressed = keyTop + BLACK_KEY_OVERFLOW_PRESSED_PX / (float)height;
+			float bKeyTopUnpressed = keyTop + BLACK_KEY_OVERFLOW_PX / (float)height;
 
 			float uvLeft = part * (1.0f / 5.0f);
 			float uvRight = (part + 1) * (1.0f / 5.0f);
@@ -1251,19 +1225,19 @@ void MIDIRendererSynthesia::RenderKeyboard()
 		}
 
 		const float barFrac = 1.0f / 3.0f;
-		const float barSplitHeight = barFrac * initialBarHeight;
+		const float barSplitHeight = barFrac * barH;
 
 		ImVec4 barColor = config->render.GetBarColor();
 		uint32_t barColorPacked = Utils::PackRGBA(barColor.x, barColor.y, barColor.z, 1.0, Utils::ARGB);
 		PushQuad(0, keyTop, 1, barSplitHeight, 0, 0, 1, barFrac, S8_LAYER_BAR, barColorPacked);
-		PushQuad(0, keyTop + barSplitHeight, 1, initialBarHeight - barSplitHeight, 0, barFrac, 1, 1.0f - barFrac, S8_LAYER_BAR);
+		PushQuad(0, keyTop + barSplitHeight, 1, barH - barSplitHeight, 0, barFrac, 1, 1.0f - barFrac, S8_LAYER_BAR);
 
 		for (int i = keyFirst; i <= keyLast; i++)
 		{
 			if (!IS_BLACK(i)) continue;
 
 			float bKeyBottom = keyboardHeight / 2.65f;
-			float bKeyTop = keyTop + keyboardHeight * 0.023;
+			float bKeyTop = keyTop + barSplitHeight;
 
 			float left = keyPos[i];
 			float right = keyPos[i] + keyWidth[i];
@@ -1346,14 +1320,14 @@ void MIDIRendererSynthesia::RenderKeyboard()
 			}
 		}
 
-		PushQuad(0, keyTop, 1, initialBarHeight, 0, 0, 1, 1, GLOW_LAYER_BAR);
+		PushQuad(0, keyTop, 1, barH, 0, 0, 1, 1, GLOW_LAYER_BAR);
 		for (int i = keyFirst; i <= keyLast; i++)
 		{
 			if (!IS_BLACK(i)) continue;
 
 			size_t part = keyNum[i] % 5;
 
-			float bKeyBottom = keyboardHeight / 2.9f;
+			float bKeyBottom = keyboardHeight / 2.8f;
 			float bKeyTopPressed = keyTop + keyboardHeight * 0.006;
 			float bKeyTopUnpressed = keyTop + keyboardHeight * 0.015;
 
@@ -1394,31 +1368,32 @@ void MIDIRendererSynthesia::RenderNotes()
 
 	ShaderBind shaderBind(*notesProgram);
 
-	TextureBind noteWhiteBodyBind(*noteWhiteBody, 0);
-	TextureBind noteWhiteTopBind(*noteWhiteTop, 1);
-	TextureBind noteWhiteBottomBind(*noteWhiteBottom, 2);
-	TextureBind noteBlackBodyBind(*noteBlackBody, 3);
-	TextureBind noteBlackTopBind(*noteBlackTop, 4);
-	TextureBind noteBlackBottomBind(*noteBlackBottom, 5);
+	TextureBind noteWhiteBind(*noteWhite, 0);
+	TextureBind noteBlackBind(*noteBlack, 1);
 
 	VertexArrayBind notesVAOBind(*notesVAO);
 	BufferBind notesVBOBind(*notesVBO);
 	BufferBind notesEBOBind(*notesEBO);
 	if (notesIBO) notesIBO->Bind();
 
-	float renderAspectRatio = (float)width / (float)height;
-	float capAspectRatio = (float)noteWhiteTop->width / (float)noteWhiteTop->height;
-	
-	float capHeightNorm = whiteKeyWidth / capAspectRatio * renderAspectRatio;
-	notesProgram->SetFloat("kbHeight", keyboardHeight);
-	notesProgram->SetFloat("aspectRatio", renderAspectRatio);
-	notesProgram->SetFloat("capHeight", capHeightNorm / (1.0f - keyboardHeight));
-	notesProgram->SetFloat("capAspectRatio", capAspectRatio);
-
 	const double noteAreaPx = (double)height * (1.0 - keyboardHeight);
+
+	notesProgram->SetFloat("kbHeight", keyboardHeight);
+	notesProgram->SetVec2("texSizeWhite", glm::vec2(noteWhite->width, noteWhite->height));
+	notesProgram->SetVec2("texSizeBlack", glm::vec2(noteBlack->width, noteBlack->height));
+	notesProgram->SetVec2("noteToPx", glm::vec2((float)width, (float)noteAreaPx));
+
+	// Tallest min height any note gets (Synthesia: crown + heel + 1px, scaled by note width).
+	auto minNotePx = [&](const GPUImage& tex, float keyW)
+	{
+		const float s = (keyW * width + 2.0f) / tex.width;
+		return tex.height * s + 1.0f;
+	};
+	const double minNote = std::max(minNotePx(*noteWhite, keyWidth[0]), minNotePx(*noteBlack, keyWidth[1]));
+
 	CollectNotes(f,
 		{ .noteAreaPx = noteAreaPx, .yBase = noteAreaPx,
-		  .minVisualPx = capHeightNorm * (double)height * 2.0 * 1.001 }, // slightly high: over-collecting is safe
+		  .minVisualPx = minNote * 1.001 }, // slightly high: over-collecting is safe
 		[&](uint8_t id, uint16_t track, uint8_t channel)
 		{
 			keyStates[id].pressed = true;
@@ -1621,7 +1596,7 @@ void MIDIRendererSynthesia::GenerateParticles(double deltaTime)
 	}
 }
 
-void MIDIRendererSynthesia::RenderParticles()
+void MIDIRendererSynthesia::RenderParticles(bool haze)
 {
 	int particleTexOffset = 0;
 	if (renderSettings.style == SYNTHESIA_9 || renderSettings.style == SYNTHESIA_10)
@@ -1632,6 +1607,7 @@ void MIDIRendererSynthesia::RenderParticles()
 		particleTexOffset = GLOW_LAYER_COUNT;
 
 	float aspect = (float)width / (float)height;
+	if (!haze)
 	for (auto& particle : keyDebrisParticles)
 	{
 		KeyDebrisParticle* p = dynamic_cast<KeyDebrisParticle*>(particle.get());
@@ -1649,6 +1625,7 @@ void MIDIRendererSynthesia::RenderParticles()
 		PushRotatedQuad(pos.x - sizeX * 0.5f, pos.y - sizeY * 0.5f, sizeX, sizeY, p->rotation, 0, 0, 1, 1, particleTexOffset+LAYER_PARTICLE_DEBRIS);
 	}
 
+	if (!haze)
 	for (auto& particleArr : keySparkParticles)
 	{
 		for (auto& particle : particleArr)
@@ -1666,7 +1643,7 @@ void MIDIRendererSynthesia::RenderParticles()
 			blendCol = Utils::BlendRGBA(blendCol, Utils::PackRGBA(1.0, 1.0, 1.0, 1.0), 0.8);
 
 			float ang = p->rotation / 5.0f;
-			float sizeX = width * p->size * 2.8f;
+			float sizeX = width * p->size * 1.6f;
 			float sizeY = sizeX * aspect;
 
 			if (p->flipped)
@@ -1680,6 +1657,7 @@ void MIDIRendererSynthesia::RenderParticles()
 		}
 	}
 
+	if (haze)
 	for (auto& particleArr : keyHazeParticles)
 	{
 		for (auto& particle : particleArr)
@@ -1694,7 +1672,7 @@ void MIDIRendererSynthesia::RenderParticles()
 			glm::vec2 pos = { left + (right - left) * p->pos.x, keyboardHeight + (right - left) * p->pos.y * aspect };
 			pos.y += keyboardHeight * 0.02f;
 
-			float sizeX = width * 1.8f;
+			float sizeX = width * 1.4f;
 			float sizeY = sizeX * aspect;
 
 			uint32_t alpha = (uint32_t)(std::clamp(p->brightness, 0.0f, 1.0f) * 0.2f * 127.0f) << 24;
@@ -1736,7 +1714,6 @@ void MIDIRendererSynthesia::RenderOctaveTextOverlays()
 	int keyFirst = config->render.GetKeyFirst();
 	int keyLast = config->render.GetKeyLast() + 1;
 
-	float aspect = (float)width / (float)height;
 
 	for (size_t k = keyFirst; k < keyLast; k++)
 	{
@@ -1776,8 +1753,9 @@ void MIDIRendererSynthesia::RenderOctaveTextOverlays()
 
 		float x = middle * width;
 
-		float fontSize = textHeight * height;
-		float offsetY = (right - left) * aspect * 0.25f * height;
+		// scale with key width only (0.5625 keeps the old 1080p look), capped at the 1080p size
+		float fontSize = textHeight * 0.5625f * std::min((float)width, 1920.0f);
+		float offsetY = (right - left) * width * 0.18f;
 		float y = height - offsetY - fontSize;
 
 		ImVec2 textSize = ImGui::CalcTextSize(txt.c_str());

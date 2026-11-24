@@ -14,7 +14,7 @@ namespace
 }
 
 #if defined(_WIN32)
-#include <Windows.h>
+#include <windows.h>
 #elif defined(__APPLE__)
 #include <climits>
 #include <mach-o/dyld.h>
