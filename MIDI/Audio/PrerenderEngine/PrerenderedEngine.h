@@ -70,7 +70,7 @@ private:
         return diff;
     }
 
-    void EventGeneratorLoop();
+    void EventGeneratorLoop(MIDISequence* src, uint64_t id);
     void RenderLoop(double startTime);
     // checks for timer pauses/navigation on a 10ms interval and adjusts the prerenderer as necessary (i think it's a weird way to do this lol)
     void TimerLoop();
@@ -169,7 +169,8 @@ private:
     double releaseRate = 1.0;
     std::atomic<double> preVolume{ 1.0 };
 
-    MIDISequence* lastSeq = nullptr;
+    uint64_t eventsSeqID = 0;
+    bool eventsValid = false;
 };
 #else
 class PrerenderedEngine : public AudioEngine

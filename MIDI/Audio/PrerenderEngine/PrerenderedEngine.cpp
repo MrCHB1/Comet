@@ -94,7 +94,7 @@ void PrerenderedEngine::Destroy()
     BASS_Free();
 
     if (timerCheckThread.joinable()) timerCheckThread.join();
-    lastSeq = nullptr;
+    eventsValid = false;
 }
 
 void PrerenderedEngine::SyncPlayer(double time)
@@ -128,20 +128,22 @@ void PrerenderedEngine::Start(MIDISequence* seq, std::shared_ptr<MIDITimer> time
     bufferWritePos = 0;
     bufferReadPos = 0;
 
-    if (!lastSeq || (lastSeq->GetSequenceID() != seq->GetSequenceID()))
+    const uint64_t newID = seq->GetSequenceID();
+    bool needGenerate;
     {
-        lastSeq = seq;
-        eventsReady = false;
+        std::lock_guard<std::mutex> lock(eventMutex);
+        needGenerate = !eventsValid || eventsSeqID != newID;
+        if (needGenerate)
+        {
+            eventsValid = false;
+            prerenderedEvents.clear();
+        }
+    }
 
-        stopFlag = false;
-        generatorThread = std::thread(&PrerenderedEngine::EventGeneratorLoop, this);
-    }
-    else
-    {
-        eventsReady = true;
-        stopFlag = false;
-    }
-    
+    stopFlag = false;
+    eventsReady = !needGenerate;
+    if (needGenerate) generatorThread = std::thread(&PrerenderedEngine::EventGeneratorLoop, this, seq, newID);
+
     StartPrerender(true, startTime);
     firstLoad = false;
 }
@@ -196,12 +198,12 @@ void PrerenderedEngine::BassWriteWrapped(int start, int count)
     }
 }
 
-void PrerenderedEngine::EventGeneratorLoop()
+void PrerenderedEngine::EventGeneratorLoop(MIDISequence* src, uint64_t id)
 {
     std::vector<PrecalculatedEvent> localEvents;
-    localEvents.reserve(seq->notes * 2 + seq->mergedEvents.size());
+    localEvents.reserve(src->notes * 2 + src->mergedEvents.size());
 
-    for (const auto& ev : seq->mergedEvents)
+    for (const auto& ev : src->mergedEvents)
     {
         localEvents.push_back({ (uint32_t)ev.tick, ev.message });
         if (stopFlag) break;
@@ -211,7 +213,7 @@ void PrerenderedEngine::EventGeneratorLoop()
 
     for (int i = 0; i < MIDI_KEYS; ++i)
     {
-        NoteSequence& notes = seq->mergedNotes[i];
+        NoteSequence& notes = src->mergedNotes[i];
         for (size_t j = 0; j < notes.Size(); j++)
         {
             uint32_t nTick = notes.tick[j];
@@ -221,7 +223,7 @@ void PrerenderedEngine::EventGeneratorLoop()
             uint8_t nVel = notes.GetVelocity(j);
 
             localEvents.push_back({
-              nTick,
+                nTick,
                 0x90u | nChannel | ((uint32_t)nNote << 8) | ((uint32_t)nVel << 16)
                 });
 
@@ -244,6 +246,8 @@ void PrerenderedEngine::EventGeneratorLoop()
     {
         std::lock_guard<std::mutex> lock(eventMutex);
         prerenderedEvents = std::move(localEvents);
+        eventsSeqID = id;
+        eventsValid = true;
     }
 
     eventsReady = true;
@@ -308,7 +312,7 @@ void PrerenderedEngine::RenderLoop(double initialStartTime)
     {
         if (stopFlag) break;
 
-        double evTime = seq->timeBased ? (double)e.tick / TIME_BASED_MULTIPLIER : tempoMap->TicksToSecsFromMap(seq->resolution, e.tick);
+        double evTime = localSeq->timeBased ? (double)e.tick / TIME_BASED_MULTIPLIER : tempoMap->TicksToSecsFromMap(localSeq->resolution, e.tick);
         if (fps > 0.0)
         {
             const double frame = speed / fps;

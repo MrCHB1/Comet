@@ -8,6 +8,11 @@ class MIDIApp;
 class UpdateChecker;
 struct GLFWwindow;
 
+struct WindowLaunchOptions
+{
+	std::string midi = "";
+};
+
 struct WindowRect
 {
 	int x, y;
@@ -37,6 +42,10 @@ class MainWindow
 public:
 	MainWindow(const char* title);
 	~MainWindow();
+	void SetLaunchOptions(WindowLaunchOptions options)
+	{
+		this->options = std::move(options);
+	}
 	void Run();
 	bool CanShowNavigationBar();
 	bool IsFullscreen() { return fullscreen; }
@@ -70,6 +79,7 @@ private:
 	std::unique_ptr<MIDIApp> midiApp;
 	std::unique_ptr<UpdateChecker> updateChecker;
 
+	WindowLaunchOptions options{};
 	MenuBuilder menuBuilder;
 	DialogManager dialogManager;
 	GLFWwindow* window = nullptr;

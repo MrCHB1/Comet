@@ -317,6 +317,8 @@ if(WIN32)
         "${CMAKE_SOURCE_DIR}/external/bassmidi/bassmidi.lib"
     )
 
+    target_link_libraries(Comet PRIVATE Shell32)
+
     add_custom_command(TARGET Comet POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_SOURCE_DIR}/external/bass/bass.dll"

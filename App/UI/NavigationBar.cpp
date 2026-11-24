@@ -195,7 +195,8 @@ void NavigationBar::Draw()
 ;			ImGui::SetNextItemWidth(170);
 
 			float playbackSpeed = static_cast<float>(config->midi.playSpeed);
-			if (ThinSlider::Draw<float>("##playbackSpeed", &playbackSpeed, 0.01f, 3.0f, "%.2f"))
+			if (ThinSlider::Draw<float>("##playbackSpeed", &playbackSpeed, 0.01f, 3.0f, "%.2f",
+				ImGuiSliderFlags_None, 0.25f, true, 1.0f))
 			{
 				config->midi.playSpeed = std::clamp(playbackSpeed, 0.01f, 3.0f);
 				timer->ChangeSpeed(config->midi.playSpeed);

@@ -5,8 +5,47 @@
 #include <filesystem>
 #include "Utils.h"
 
+#ifdef _WIN32
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <shellapi.h>   // CommandLineToArgvW (link Shell32.lib, MSVC auto-links it via pragma below)
+#pragma comment(lib, "Shell32.lib")
+#endif
+
+// returns the file passed on the command line (absolute, UTF-8), or "" if none
+static std::string GetLaunchFile()
+{
+	std::filesystem::path p;
+
+#ifdef _WIN32
+	int argc = 0;
+	LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+	if (argv)
+	{
+		if (argc >= 2) p = argv[1];
+		LocalFree(argv);
+	}
+#endif
+
+	if (p.empty()) return "";
+
+	std::error_code ec;
+	p = std::filesystem::absolute(p, ec);
+	if (ec || !std::filesystem::is_regular_file(p, ec))
+	{
+		std::cerr << "Launch file not usable: " << p.string() << std::endl;
+		return "";
+	}
+
+	auto u8 = p.u8string();
+	return std::string(u8.begin(), u8.end());
+}
+
 int main()
 {
+	const std::string launchFile = GetLaunchFile();
+
 	// find where Comet is and set the current dir to that so it can find the assets even if it was launched from somewhere else
 	std::filesystem::path exeDir = Utils::GetExecutableDirectory();
 	if (!exeDir.empty())
@@ -42,6 +81,12 @@ int main()
 	}
 
 	MainWindow mainWindow((std::string("Comet v")+cometVersion+versionSuffix).c_str());
+	if (!mainWindow.IsGLReady())
+	{
+		curl_global_cleanup();
+		return 1;
+	}
+	mainWindow.SetLaunchOptions(WindowLaunchOptions{ .midi = launchFile });
 	mainWindow.Run();
 
 	curl_global_cleanup();

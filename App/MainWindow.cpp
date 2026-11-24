@@ -307,6 +307,13 @@ void MainWindow::SetTitleInfo(std::string midiName)
 
 void MainWindow::Run()
 {
+	// launch options
+	if (!options.midi.empty())
+	{
+		midiApp->LoadMIDI(options.midi.c_str());
+		dialogManager.GetDialog<LoadingDialog>()->Open();
+	}
+
 	while (!glfwWindowShouldClose(window))
 	{
 		double frameStartTime = glfwGetTime();
