@@ -29,6 +29,7 @@ void MIDIPlayerConfig::LoadConfigOrDefault()
 		{
 			ConfigApp app;
 			app.currThemeID = appSec->GetInt("themeID", 0);
+			app.language = appSec->GetString("language", "en-US");
 			this->app = app;
 		}
 
@@ -144,6 +145,7 @@ void MIDIPlayerConfig::SaveConfig()
 	config["version"] = 2;
 
 	config["app"]["themeID"] = app.currThemeID;
+	config["app"]["language"] = app.language;
 
 	config["overlay"]["scale"] = overlayInfo.scale;
 	config["overlay"]["blurBehind"] = overlayInfo.blurBehind;

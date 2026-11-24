@@ -30,6 +30,7 @@ class Quad;
 class FFmpegPipe;
 class AbstractMIDILoader;
 class MIDISequence;
+class Localization;
 
 // Matches Dear ImGui's `enum ImGuiKey : int { ... };` declaration exactly
 // (name, underlying type, non-class enum) so we can use it here without
@@ -62,6 +63,11 @@ public:
 	void RenderMIDIVideo(const RenderSettings& renderSettings);
 	void RegisterInput(InputState& inputState);
 
+	Localization* GetLocalization() { return localization.get(); }
+	void SetLanguage(const std::string& id);
+	[[nodiscard]] const bool WasLocalizationDirty()
+		{ return std::exchange(localizationDirty, false); }
+
 	MIDISequence* GetRendererSequence();
 	MIDIAudio* GetMIDIAudio() { return midiAudio.get(); }
 	ThemesList* GetThemeList() { return themesList.get(); }
@@ -74,6 +80,7 @@ public:
 	ResourcePackList* GetPackList() { return packList.get(); }
 	ColorPaletteList* GetColorList() { return colorList.get(); }
 	NavigationBar* GetNavigationBar() { return navigationBar.get(); }
+	std::string GetLastLoadedMIDIName() const { return pendingTitle; }
 
 	const RenderSettings& GetCurrentRenderSettings() const { return currentRenderSettings; }
 	
@@ -107,6 +114,9 @@ public:
 private:
 	MainWindow* mainWindow;
 	MIDIPlayerConfig config;
+
+	std::unique_ptr<Localization> localization;
+	bool localizationDirty = false;
 
 	std::unique_ptr<ThemesList> themesList;
 	std::unique_ptr<FontList> fontList;

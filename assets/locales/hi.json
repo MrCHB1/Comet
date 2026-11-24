@@ -1,0 +1,192 @@
+{
+    "ID": "हिन्दी",
+
+    "title.nomidi": "कोई MIDI लोड नहीं है",
+
+    "menu.file": "फ़ाइल",
+    "menu.file.open": "खोलें...",
+    "menu.file.render": "वीडियो में रेंडर करें...",
+    "menu.file.diagnose": "MIDI जाँचें...",
+    "menu.file.screenshot": "स्क्रीनशॉट लें",
+    "menu.file.quit": "बाहर निकलें",
+
+    "menu.play": "चलाएँ",
+    "menu.play.stop": "रोकें",
+    "menu.play.unload": "रोकें और अनलोड करें",
+
+    "menu.view": "देखें",
+    "menu.view.counter": "नोट काउंटर दिखाएँ",
+
+    "menu.options": "विकल्प",
+    "menu.options.settings": "सेटिंग्स...",
+
+    "menu.help": "सहायता",
+    "menu.help.kofi": "ponluxime को एक कॉफ़ी पिलाएँ",
+    "menu.help.update": "अपडेट जाँचें",
+
+    "nav.notesize": "नोट का आकार (टिक में)",
+    "nav.playspeed": "प्लेबैक गति (%)",
+
+    "dialog.ok": "ठीक है",
+    "dialog.cancel": "रद्द करें",
+    "dialog.close": "बंद करें",
+    "dialog.applyclose": "लागू करें और बंद करें",
+    "dialog.yes": "हाँ",
+    "dialog.no": "नहीं",
+
+    "dialog.render.title": "वीडियो रेंडर करें",
+    "dialog.render.input": "इनपुट",
+    "dialog.render.input.ffmpeg": "FFmpeg एक्ज़ीक्यूटेबल",
+    "dialog.render.input.ffmpeg.installed": "FFmpeg इंस्टॉल है!",
+    "dialog.render.input.ffmpeg.get": "FFmpeg प्राप्त करें",
+    "dialog.render.input.ffmpeg.detect": "FFmpeg खोजें",
+    "dialog.render.input.midi": "MIDI",
+    "dialog.render.input.midi.loaded": "वर्तमान में लोड किया गया MIDI रेंडर किया जाएगा",
+    "dialog.render.input.audio": "ऑडियो शामिल करें",
+
+    "dialog.render.output": "आउटपुट",
+    "dialog.render.output.format": "फ़ॉर्मैट",
+    "dialog.render.output.gpu": "GPU एन्कोडिंग",
+    "dialog.render.output.gpu.tooltip": "उपलब्ध होने पर हार्डवेयर-एक्सेलरेटेड FFmpeg एन्कोडर का उपयोग करें।",
+    "dialog.render.output.gpu.unavailable": "GPU एन्कोडिंग उपलब्ध नहीं है। सुनिश्चित करें कि FFmpeg सही ढंग से इंस्टॉल है और आपके ड्राइवर अपडेट हैं।",
+    "dialog.render.output.codec": "कोडेक",
+    "dialog.render.output.advanced": "उन्नत विकल्प",
+    "dialog.render.output.advanced.tooltip": "उन्नत उपयोगकर्ताओं के लिए अतिरिक्त FFmpeg एन्कोडिंग विकल्प। इनका उपयोग तभी करें जब आप जानते हों कि आप क्या कर रहे हैं।",
+
+    "dialog.render.encoding": "एन्कोडिंग",
+    "dialog.render.encoding.preset": "प्रीसेट",
+    "dialog.render.encoding.bitratemode": "बिटरेट मोड",
+    "dialog.render.encoding.brm.const": "स्थिर",
+    "dialog.render.encoding.brm.var": "परिवर्तनशील",
+    "dialog.render.encoding.bitrate": "बिटरेट (Kbps)",
+    "dialog.render.encoding.crf": "CRF",
+
+    "dialog.render.rendering": "रेंडरिंग",
+    "dialog.render.rendering.resolution": "रिज़ॉल्यूशन",
+    "dialog.render.rendering.framerate": "फ़्रेमरेट",
+    "dialog.render.rendering.outpath": "आउटपुट पथ",
+    "dialog.render.rendering.mask": "पारदर्शिता मास्क",
+    "dialog.render.rendering.renderrange": "रेंडर सीमा",
+    "dialog.render.rendering.renderrange.tooltip": "MIDI को निर्दिष्ट समय अंतराल पर रेंडर करता है। पूरे MIDI के छोटे पूर्वावलोकन साझा करने के लिए उपयोगी।",
+
+    "dialog.render.renderbtn": "रेंडर करें!",
+    "dialog.render.renderbtn.tooltip": "रेंडर को किसी भी समय रद्द करने के लिए 'Esc' दबाएँ। वीडियो सहेज लिया जाएगा।",
+
+    "dialog.render.error.noffmpeg": "FFmpeg नहीं मिला!",
+    "dialog.render.error.nomidi": "कोई MIDI लोड नहीं है",
+    "dialog.render.error.nooutpath": "कृपया वीडियो का आउटपुट पथ बताएँ।",
+    "dialog.render.error.nooutmaskpath": "कृपया पारदर्शिता मास्क का आउटपुट पथ बताएँ।",
+    "dialog.render.error.invalidrange": "अमान्य रेंडर सीमा",
+    "dialog.render.error": "रेंडर नहीं किया जा सकता; ऊपर दी गई त्रुटियाँ जाँचें।",
+
+    "dialog.diagnose.title": "MIDI जाँचें",
+    "dialog.diagnose.alsorun": "साथ में चलाएँ:",
+    "dialog.diagnose.bmdiag": "ब्लैक MIDI निदान",
+    "dialog.diagnose.clickhere": "MIDI फ़ाइल यहाँ छोड़ें या शुरू करने के लिए यहाँ क्लिक करें",
+
+    "dialog.diagnose.status.stopped": "निदान रोक दिया गया।",
+    "dialog.diagnose.another": "दूसरी फ़ाइल जाँचें",
+    "dialog.diagnose.copy": "क्लिपबोर्ड पर कॉपी करें",
+
+    "dialog.diagnose.filesize": "फ़ाइल आकार",
+    "dialog.diagnose.resolution": "रिज़ॉल्यूशन",
+    "dialog.diagnose.tracks": "ट्रैक",
+    "dialog.diagnose.notes": "नोट",
+    "dialog.diagnose.memory": "खोलने के लिए आवश्यक मेमोरी",
+    "dialog.diagnose.tempo": "टेम्पो",
+    "dialog.diagnose.nps": "क्षणिक अधिकतम NPS",
+    "dialog.diagnose.overlap": "ओवरलैप होते नोट",
+
+    "dialog.settings.title": "सेटिंग्स",
+
+    "dialog.settings.app": "ऐप",
+    "dialog.settings.app.header": "ऐप सेटिंग्स",
+    "dialog.settings.app.general": "सामान्य",
+    "dialog.settings.app.general.language": "भाषा",
+    "dialog.settings.app.general.vsync": "VSync",
+    "dialog.settings.app.general.fps": "FPS सीमा",
+    "dialog.settings.app.general.fps.tooltip": "0 = कोई FPS सीमा नहीं",
+
+    "dialog.settings.app.theme": "थीम",
+    "dialog.settings.app.theme.reload": "थीम सूची पुनः लोड करें",
+    "dialog.settings.app.theme.open": "थीम फ़ोल्डर खोलें",
+
+    "dialog.settings.app.nav": "नेविगेशन",
+    "dialog.settings.app.nav.hide": "नेविगेशन बार हमेशा छिपाएँ",
+    "dialog.settings.app.nav.hide.tooltip": "माउस के विंडो के ऊपरी हिस्से के पास आने तक नेविगेशन बार छिपा रहता है।",
+    "dialog.settings.app.nav.forward": "आगे जाएँ (से.)",
+    "dialog.settings.app.nav.backward": "पीछे जाएँ (से.)",
+
+    "dialog.settings.visual": "विज़ुअल",
+    "dialog.settings.visual.disclaimer": "ये सेटिंग्स वीडियो रेंडर करते समय भी लागू होंगी!",
+    "dialog.settings.visual.header": "विज़ुअल सेटिंग्स",
+    "dialog.settings.visual.renderer": "रेंडरर",
+    "dialog.settings.visual.renderer.settings": "रेंडरर सेटिंग्स",
+    "dialog.settings.visual.renderer.settings.reset": "सेटिंग्स रीसेट करें",
+
+    "dialog.settings.visual.colors": "नोट के रंग",
+    "dialog.settings.visual.colors.use": "रंग यहाँ से लें",
+    "dialog.settings.visual.colors.use.0": "रिसोर्स पैक",
+    "dialog.settings.visual.colors.use.1": "रंग सूची",
+    "dialog.settings.visual.colors.palette": "पैलेट सूची",
+    "dialog.settings.visual.colors.refresh": "पैलेट सूची रीफ़्रेश करें",
+    "dialog.settings.visual.colors.open": "पैलेट फ़ोल्डर खोलें",
+    "dialog.settings.visual.colors.loop": "रंगों को दोहराएँ",
+    "dialog.settings.visual.colors.shuffle": "रंग मिलाएँ",
+    "dialog.settings.visual.colors.seed": "सीड",
+
+    "dialog.settings.visual.counter": "काउंटर और आँकड़े",
+    "dialog.settings.visual.counter.appearance": "रूप-रंग",
+    "dialog.settings.visual.counter.showcounter": "नोट काउंटर दिखाएँ",
+    "dialog.settings.visual.counter.showstats": "आँकड़े दिखाएँ",
+    "dialog.settings.visual.counter.scale": "स्केल",
+    "dialog.settings.visual.counter.align": "संरेखण",
+    "dialog.settings.visual.counter.align.0": "ऊपर बाएँ",
+    "dialog.settings.visual.counter.align.1": "ऊपर मध्य",
+    "dialog.settings.visual.counter.align.2": "ऊपर दाएँ",
+    "dialog.settings.visual.counter.blur": "पीछे धुंधला करें",
+    "dialog.settings.visual.counter.font": "फ़ॉन्ट",
+    "dialog.settings.visual.counter.font.default": "डिफ़ॉल्ट",
+    "dialog.settings.visual.counter.font.directory": "फ़ॉन्ट फ़ोल्डर",
+
+    "dialog.settings.visual.counter.style": "शैली",
+    "dialog.settings.visual.counter.style.0": "Ultralight MIDI Player",
+    "dialog.settings.visual.counter.style.1": "MIDITrail",
+    "dialog.settings.visual.counter.background": "पृष्ठभूमि का रंग",
+    "dialog.settings.visual.counter.text": "टेक्स्ट का रंग",
+
+    "dialog.settings.visual.counter.fields": "फ़ील्ड",
+    "dialog.settings.visual.counter.fields.help": "तारांकन (*) से चिह्नित फ़ील्ड वीडियो रेंडर में शामिल नहीं किए जाते।",
+
+    "dialog.settings.audio": "ऑडियो",
+    "dialog.settings.audio.engine": "ऑडियो इंजन",
+    "dialog.settings.audio.engine.unsupported": "यह इंजन आपके प्लेटफ़ॉर्म पर समर्थित नहीं है।",
+
+    "dialog.settings.midi": "MIDI",
+    "dialog.settings.midi.threads": "MIDI लोडिंग थ्रेड",
+    "dialog.settings.midi.threads.0": "सिंगल-थ्रेडेड",
+    "dialog.settings.midi.threads.1": "मल्टी-थ्रेडेड",
+    "dialog.settings.midi.time": "समय-आधारित लोडिंग",
+
+    "dialog.update.available.title": "अपडेट उपलब्ध है",
+    "dialog.update.available.content": "एक नया अपडेट ({}) उपलब्ध है! GitHub खोलें?",
+
+    "dialog.update.synced.title": "अपडेट जाँच",
+    "dialog.update.synced.content": "Comet पहले से अप-टू-डेट है।",
+
+    "dialog.update.error.title": "अपडेट त्रुटि",
+    "dialog.update.error.content": "अपडेट जाँचते समय एक त्रुटि हुई।",
+
+    "counter.tick": "टिक",
+    "counter.time": "समय",
+    "counter.bpm": "BPM",
+    "counter.notes": "नोट",
+    "counter.nps": "NPS",
+    "counter.poly": "पॉलीफ़ोनी",
+
+    "stats.fps": "FPS",
+    "stats.buffer": "बफ़र",
+
+    "widget.file.browse": "ब्राउज़ करें...",
+    "general.open": "खोलें"
+}

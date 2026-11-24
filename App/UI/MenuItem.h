@@ -6,7 +6,7 @@
 class MenuItem
 {
 public:
-	const char* label = "Item";
+	std::string label = "Item";
 	bool enabled = true;
 
 	virtual void Draw() = 0;
@@ -21,15 +21,15 @@ public:
 class MenuButton : public MenuItem
 {
 public:
-	MenuButton(const char* label)
+	MenuButton(std::string label)
 		: MenuButton(label, []() {})
 	{ };
 
-	MenuButton(const char* label, std::function<void()> clickAction)
+	MenuButton(std::string label, std::function<void()> clickAction)
 		: MenuButton(label, clickAction, true)
 	{ };
 
-	MenuButton(const char* label, std::function<void()> clickAction, bool enabled)
+	MenuButton(std::string label, std::function<void()> clickAction, bool enabled)
 	{
 		this->label = label;
 		this->clickAction = clickAction;
@@ -38,7 +38,7 @@ public:
 
 	void Draw() override
 	{
-		if (ImGui::MenuItem(label, nullptr, false, enabled))
+		if (ImGui::MenuItem(label.c_str(), nullptr, false, enabled))
 		{
 			clickAction();
 		}
@@ -50,7 +50,7 @@ private:
 class MenuCheckbox : public MenuItem
 {
 public:
-	MenuCheckbox(const char* label, bool* valuePtr)
+	MenuCheckbox(std::string label, bool* valuePtr)
 	{
 		this->label = label;
 		this->valuePtr = valuePtr;
@@ -58,7 +58,7 @@ public:
 
 	void Draw() override
 	{
-		ImGui::MenuItem(label, nullptr, valuePtr, enabled);
+		ImGui::MenuItem(label.c_str(), nullptr, valuePtr, enabled);
 	}
 private:
 	bool* valuePtr;
@@ -67,13 +67,13 @@ private:
 class SubMenu : public MenuItem
 {
 public:
-	SubMenu(const char* label)
+	SubMenu(std::string label)
 	{
 		this->label = label;
 	}
 	void Draw() override
 	{
-		if (ImGui::BeginMenu(label, enabled))
+		if (ImGui::BeginMenu(label.c_str(), enabled))
 		{
 			for (MenuItem* item : items)
 			{

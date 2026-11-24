@@ -277,7 +277,7 @@ add_executable(Comet
 
     # --- ColorPalette --------------------------------------------------------
     ColorPalette/ColorPaletteList.cpp
-  "App/UI/Layout/ForumLayout.cpp" "U32Vec.h")
+  "App/UI/Layout/ForumLayout.cpp" "U32Vec.h" "App/Localization/Localization.cpp")
 
 target_precompile_headers(Comet PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/pch.h"
@@ -333,6 +333,7 @@ if(WIN32)
     if(MINGW)
         target_link_libraries(Comet PRIVATE winmm avrt)
     endif()
+    target_link_libraries(Comet PRIVATE Shell32)
 
     add_custom_command(TARGET Comet POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different

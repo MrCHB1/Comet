@@ -110,6 +110,13 @@ struct EnhancedRendererSettings
     MSAASetting msaa = MSAASetting::None;
     float supersample = 1.0f;
 
+    // not saved: the quality preset picked last (index into graphicsPresets). The current preset is always derived
+    // from the live settings, this only breaks ties while effects are switched off. 2 = "High", the defaults.
+    int graphicsPresetHint = 2;
+
+    // UI only: show the technical fine-tuning sliders (ray steps, distances, thickness ...) in the settings
+    bool showAdvancedSettings = false;
+
     float exposure = 0.25f;
     float noteOutlineGlowFactor = 6.5f;
 
@@ -158,14 +165,20 @@ struct EnhancedRendererSettings
     // keyboard lighting
     bool giEnabled = true;
     float giStrength = 1.0f;      // how strongly pressed keys light up their neighbours
-    float giRadius = 0.02f;       // emitter size in world units (x spans 0..1); bigger = wider, softer spread
+    float giRadius = 0.002f;       // emitter size in world units (x spans 0..1); bigger = wider, softer spread
     float giSaberStrength = 1.0f; // how strongly the saber lights up the keys
     float reflectionStrength = 1.0f;
 
+    // shadows on the key scatter (black keys occlude the light of pressed keys; the saber casts none)
+    bool giShadowsEnabled = true;
+    float giShadowStrength = 1.0f;
+    float giShadowSoftness = 0.002f; // penetration depth (world units) over which a shadow edge fades
+    int giShadowSteps = 8;           // samples along each key -> surface ray
+
     // screen space reflections (keys reflect keys only, never notes)
     bool ssrEnabled = true;
-    float ssrStrength = 1.0f;      // gain on the reflected radiance (1 = as the neighbour looks)
-    float ssrMaxDistance = 0.12f;  // world units (keyboard width = 1)
+    float ssrStrength = 2.0f;      // gain on the reflected radiance (1 = as the neighbour looks)
+    float ssrMaxDistance = 0.4f;  // world units (keyboard width = 1)
     int ssrSteps = 32;
     float ssrThickness = 0.012f;   // how far behind a surface a ray may be and still count as a hit
 
@@ -324,6 +337,7 @@ private:
     uint32_t msaaDepthRBO = 0;
 
     void SetupUniforms();
+    void ApplyGraphicsPreset(int preset);
     int GetMSAASamples() const
     {
         switch (rendererSettings.msaa)
@@ -391,7 +405,7 @@ private:
     std::array<KeyboardMeta3D, MIDI_KEYS> keyMetas;
 
     // 1D (x across the keyboard) texture of key colours, only used for the glossy reflections
-    static constexpr int KEY_GLOW_TEX_WIDTH = 512;
+    static constexpr int KEY_GLOW_TEX_WIDTH = 1024;
     uint32_t keyGlowTex = 0;
     std::vector<float> glowProfile;
 
@@ -401,6 +415,11 @@ private:
     uint32_t giEmitTex = 0;
     int giEmitCount = 0;
     std::vector<float> giEmitData;
+
+    // 1D (x across the keyboard) mask, 255 where a black key covers x. occluder lookup for the scatter shadows (texture unit 8)
+    static constexpr int KEY_MASK_WIDTH = 2048;
+    uint32_t kbMaskTex = 0;
+    std::vector<uint8_t> kbMaskData;
 
     // keyboard-only prepass used as the SSR source (texture units 6 = colour, 7 = depth)
     uint32_t kbSsrFBO = 0;
@@ -433,8 +452,8 @@ private:
     std::shared_ptr<ShaderProgram> mistProgram;
 
     static constexpr int   FOG_NOISE_SIZE = 64;       // tileable 3D noise, size^3 texels
-    static constexpr int   FOG_LIGHT_TEX_WIDTH = 512; // 1D strip of pressed-key light along x (mip-mapped)
-    static constexpr int   FOG_LIGHT_ROWS = 24;      // blur levels, log-spaced gaussian widths
+    static constexpr int   FOG_LIGHT_TEX_WIDTH = 1024; // 1D strip of pressed-key light along x (mip-mapped)
+    static constexpr int   FOG_LIGHT_ROWS = 1;      // blur levels, log-spaced gaussian widths
     static constexpr float FOG_SIGMA_MIN = 0.002f;
     static constexpr float FOG_SIGMA_MAX = 0.2f;
 

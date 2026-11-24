@@ -1,6 +1,8 @@
 #include <array>
 #include <algorithm>
 #include <random>
+#include <string>
+#include <cfloat>
 
 #include "MIDIRendererEnhanced.h"
 #include "App/MIDIApp.h"
@@ -31,7 +33,7 @@ namespace
 
     constexpr const std::array<std::tuple<const char*, float>, 4> supersampleValues
     {
-        std::tuple<const char*, float>{ "None", 1.0f },
+        std::tuple<const char*, float>{ "Off", 1.0f },
         std::tuple<const char*, float>{ "Low (1.5x)", 1.5f },
         std::tuple<const char*, float>{ "Medium (1.75x)", 1.75f },
         std::tuple<const char*, float>{ "High (2.0x)", 2.0f }
@@ -132,6 +134,177 @@ namespace
     glm::vec3 UnpackKeyColor(uint32_t rgb)
     {
         return glm::vec3(((rgb >> 16) & 0xFF) / 255.0f, ((rgb >> 8) & 0xFF) / 255.0f, (rgb & 0xFF) / 255.0f);
+    }
+
+    // ---------------------------------------------------------------------------------------------------------
+    // Quality presets
+    //
+    // Presets only touch cost knobs (on/off, ray steps, supersampling). Look knobs (strength, gain, radius,
+    // distance, thickness ...) are never changed, so picking a preset never undoes anyone's tuning.
+    // The current level is always derived from the live settings and nothing extra is saved, so the combos show
+    // "Custom" the moment a knob is moved by hand and snap back once the values line up with a level again.
+    // ---------------------------------------------------------------------------------------------------------
+    constexpr int CUSTOM_LEVEL = -1;
+
+    struct FeatureLevel
+    {
+        const char* label;
+        const char* desc;  // plain-language description shown on hover
+        bool enabled;
+        int steps;         // ray steps / samples, unused while disabled
+    };
+
+    // 0 = Off, 1 = Low, 2 = Medium, 3 = High (the defaults), 4 = Ultra
+    constexpr std::array<FeatureLevel, 5> reflectionLevels{ {
+        { "Off",    "Pressed keys no longer show up in their neighbours' reflections.", false, 0 },
+        { "Low",    "Fastest. Reflections are rougher and can miss thin edges.", true, 12 },
+        { "Medium", "A good balance for most computers.", true, 20 },
+        { "High",   "Sharp, clean reflections. Recommended.", true, 32 },
+        { "Ultra",  "The finest reflections. Heaviest on the GPU.", true, 56 } } };
+    constexpr std::array<FeatureLevel, 5> shadowLevels{ {
+        { "Off",    "Black keys cast no shadows on the light of pressed keys.", false, 0 },
+        { "Low",    "Fastest. Shadow edges look grainy.", true, 3 },
+        { "Medium", "Slightly grainy edges, still light on the GPU.", true, 5 },
+        { "High",   "Smooth, soft shadows. Recommended.", true, 8 },
+        { "Ultra",  "The smoothest shadows. Heaviest on the GPU.", true, 16 } } };
+    constexpr std::array<FeatureLevel, 5> fogLevels{ {
+        { "Off",    "No fog.", false, 0 },
+        { "Low",    "Fastest. The fog looks grainier.", true, 8 },
+        { "Medium", "A good balance for most computers.", true, 12 },
+        { "High",   "Smooth, soft fog. Recommended.", true, 16 },
+        { "Ultra",  "The smoothest fog. Heaviest on the GPU.", true, 28 } } };
+
+    struct GraphicsPreset
+    {
+        const char* label;
+        const char* desc;
+        int reflections; // indices into the feature level tables above
+        int shadows;
+        int fog;
+        float supersample;
+    };
+
+    constexpr std::array<GraphicsPreset, 4> graphicsPresets{ {
+        { "Low",    "Smoothest playback on slower computers.",           1, 1, 1, 1.0f },
+        { "Medium", "A good balance for most computers.",                2, 2, 2, 1.0f },
+        { "High",   "Recommended. Crisp reflections, soft shadows and fog.", 3, 3, 3, 1.0f },
+        { "Ultra",  "Best looking. Needs a strong GPU.",                 4, 4, 4, 1.5f } } };
+
+    int FeatureLevelOf(bool enabled, int steps, const std::array<FeatureLevel, 5>& levels)
+    {
+        if (!enabled) return 0;
+        for (int i = 1; i < (int)levels.size(); i++)
+            if (levels[i].steps == steps) return i;
+        return CUSTOM_LEVEL;
+    }
+
+    void ApplyFeatureLevel(bool& enabled, int& steps, const FeatureLevel& level)
+    {
+        enabled = level.enabled;
+        if (level.enabled) steps = level.steps; // "Off" keeps the steps so switching back on restores them
+    }
+
+    // an effect that is switched off stays off, so it counts as matching every preset
+    bool FeatureMatches(bool enabled, int steps, const FeatureLevel& level)
+    {
+        return !enabled || steps == level.steps;
+    }
+
+    bool MatchesGraphicsPreset(const EnhancedRendererSettings& s, int preset)
+    {
+        const GraphicsPreset& p = graphicsPresets[preset];
+        return FeatureMatches(s.ssrEnabled, s.ssrSteps, reflectionLevels[p.reflections])
+            && FeatureMatches(s.giShadowsEnabled, s.giShadowSteps, shadowLevels[p.shadows])
+            && FeatureMatches(s.mistEnabled, s.mistSteps, fogLevels[p.fog])
+            && s.supersample == p.supersample;
+    }
+
+    int DetectGraphicsPreset(const EnhancedRendererSettings& s)
+    {
+        // several presets can fit while effects are off: prefer the one picked last, then the best match
+        const int hint = std::clamp(s.graphicsPresetHint, 0, (int)graphicsPresets.size() - 1);
+        if (MatchesGraphicsPreset(s, hint)) return hint;
+        for (int i = (int)graphicsPresets.size() - 1; i >= 0; i--)
+            if (MatchesGraphicsPreset(s, i)) return i;
+        return CUSTOM_LEVEL;
+    }
+
+    void ApplyGraphicsPresetTo(EnhancedRendererSettings& s, int preset)
+    {
+        const GraphicsPreset& p = graphicsPresets[preset];
+        // effects the user switched off are left alone
+        if (s.ssrEnabled) s.ssrSteps = reflectionLevels[p.reflections].steps;
+        if (s.giShadowsEnabled) s.giShadowSteps = shadowLevels[p.shadows].steps;
+        if (s.mistEnabled) s.mistSteps = fogLevels[p.fog].steps;
+        s.supersample = p.supersample;
+        s.graphicsPresetHint = preset;
+    }
+
+    std::string DescribeGraphicsPreset(const GraphicsPreset& p)
+    {
+        const char* aa = "Off";
+        for (const auto& [label, val] : supersampleValues)
+            if (val == p.supersample) aa = label;
+
+        return std::string(p.desc)
+            + "\n\nReflections: " + reflectionLevels[p.reflections].label
+            + "\nShadows: " + shadowLevels[p.shadows].label
+            + "\nFog: " + fogLevels[p.fog].label
+            + "\nEdge smoothing: " + aa
+            + "\n\nEffects you switched off stay off.";
+    }
+
+    // combo over 'count' entries. 'current' is the active entry or CUSTOM_LEVEL, which shows as "Custom" and
+    // is not pickable. Hovering an entry shows describe(i). Returns the entry that was picked, or -1.
+    template <typename GetLabel, typename Describe>
+    int LevelCombo(const char* id, int current, int count, GetLabel label, Describe describe)
+    {
+        int picked = -1;
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        const bool open = ImGui::BeginCombo(id, current == CUSTOM_LEVEL ? "Custom" : label(current));
+
+        if (!open && current == CUSTOM_LEVEL && ImGui::IsItemHovered())
+            ImGui::SetTooltip("Custom: one of the detailed settings was changed by hand,\nso it no longer matches a preset.\nPick a level to set it again.");
+
+        if (open)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                if (ImGui::Selectable(label(i), i == current)) picked = i;
+                if (ImGui::IsItemHovered())
+                {
+                    const std::string tip = describe(i);
+                    ImGui::SetTooltip("%s", tip.c_str());
+                }
+                if (i == current) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        return picked;
+    }
+
+    // Off / Low / Medium / High / Ultra combo for one effect. 'unit' names the technical value shown in the hover text
+    void FeatureLevelCombo(const char* id, bool& enabled, int& steps,
+        const std::array<FeatureLevel, 5>& levels, const char* unit)
+    {
+        const int picked = LevelCombo(id, FeatureLevelOf(enabled, steps, levels), (int)levels.size(),
+            [&](int i) { return levels[i].label; },
+            [&](int i)
+            {
+                std::string tip = levels[i].desc;
+                if (levels[i].enabled) tip += "\n\n(" + std::to_string(levels[i].steps) + " " + unit + ")";
+                return tip;
+            });
+        if (picked >= 0) ApplyFeatureLevel(enabled, steps, levels[picked]);
+    }
+
+    // short plain-language line shown at the top of a settings tab
+    void TabIntro(const char* text)
+    {
+        ImGui::PushTextWrapPos(0.0f);
+        ImGui::TextDisabled("%s", text);
+        ImGui::PopTextWrapPos();
+        ImGui::Spacing();
     }
 
 #pragma region Shaders
@@ -247,6 +420,16 @@ uniform float giSaberZ;
 uniform float giSaberRadius;
 uniform float causticStrength;
 uniform float causticSpeed;
+
+// key scatter shadows: the black keys are the occluders (the saber never casts shadows)
+uniform sampler2D kbMaskTex;     // 1D along x, r = 1 where a black key covers x
+uniform int shadowSteps;         // 0 disables
+uniform float shadowStrength;
+uniform float shadowSoftness;
+uniform float shWhiteTop;
+uniform float shBlackTop;
+uniform float shBlackZ0;
+uniform float shBlackZ1;
 
 // screen space reflections
 uniform sampler2D ssrColorTex;   // keyboard only, no reflections
@@ -409,6 +592,34 @@ vec4 traceScreenSpace(vec3 P, vec3 N, vec3 R)
 // the point-to-disk form factor A / (pi d^2 + A) gives the physically-based
 // inverse square falloff without blowing up at d -> 0. The emitter radius grows the
 // effective area, spreading the same power over a wider footprint.
+// top surface of the keyboard at (x, z): black keys stand above the white keys
+float keyTopAt(vec3 q)
+{
+    if (q.x < 0.0 || q.x > 1.0 || q.z < shBlackZ0 || q.z > shBlackZ1) return shWhiteTop;
+    float black = texture(kbMaskTex, vec2(q.x, 0.5)).r;
+    return mix(shWhiteTop, shBlackTop, black);
+}
+
+// visibility of the emitter at E from the surface point P, marched against the key heightfield.
+// Soft: the penetration depth is smoothed, and the sample positions are jittered (the bloom hides the grain)
+float keyShadow(vec3 P, vec3 N, vec3 E)
+{
+    vec3 o = P + N * 0.0003;
+    vec3 d = E - o;
+    float jitter = ign(gl_FragCoord.xy);
+    float vis = 1.0;
+    float inv = 1.0 / float(shadowSteps);
+    for (int i = 0; i < shadowSteps; i++)
+    {
+        // stay off both ends so a key neither shadows itself nor its own emitter
+        float t = 0.04 + 0.92 * (float(i) + jitter) * inv;
+        vec3 q = o + d * t;
+        float pen = keyTopAt(q) - q.y - 0.0004;
+        vis = min(vis, 1.0 - smoothstep(0.0, shadowSoftness, pen));
+    }
+    return mix(1.0, vis, shadowStrength);
+}
+
 vec3 keyScatter(vec3 P, vec3 N)
 {
     vec3 sum = vec3(0.0);
@@ -428,7 +639,13 @@ vec3 keyScatter(vec3 P, vec3 N)
         float cosR = clamp((dot(N, L) + wrap) / (1.0 + wrap), 0.0, 1.0);
 
         float ff = geo.w / (PI * d2 + geo.w + extra);
-        sum += emit * ff * cosR;
+        vec3 contrib = emit * ff * cosR;
+
+        // only pay for the shadow march when this emitter actually contributes something visible
+        if (shadowSteps > 0 && max(contrib.r, max(contrib.g, contrib.b)) > 0.002)
+            contrib *= keyShadow(P, N, geo.xyz);
+
+        sum += contrib;
     }
     return sum;
 }
@@ -597,20 +814,18 @@ void main()
         vec3 scatter = keyScatter(FragPos, normal) * giStrength
                      + saberScatter(FragPos, normal) * giSaberStrength;
 
-        vec3 body = baseColor * (ambient + diffuse * 0.75) + albedo * scatter;
+        vec3 ambientBody = baseColor * (ambient + diffuse * 0.75) * keyboardBrightness;
+        vec3 scatterLit  = albedo * scatter;              // emitter light, independent of keyboard brightness
+        vec3 body = ambientBody + scatterLit;
 
-        // SSR source buffer: just the lit enamel body, one bounce only (no reflections of reflections)
+        // SSR source buffer
         if (ssrPass == 1)
         {
-            // already multiplied by keyboardBrightness so that what a key reflects is exactly what the neighbour shows
-            // on screen (pressed keys are written at full glow, brightness only dims the unpressed enamel)
-            fragColor = vec4(body * (1.0 - fres) * keyboardBrightness, 1.0);
+            // brightness is already baked in, so the neighbour sees exactly what is on screen
+            fragColor = vec4(body * (1.0 - fres), 1.0);
             return;
         }
 
-        // analytic environment (softboxes, saber, ...) is the fallback, SSR replaces it wherever it finds a key
-        // keyboardBrightness dims the enamel and the environment, but not what the keys reflect from each other:
-        // a pressed key keeps glowing at full strength however dark the rest of the keyboard is
         vec3 refl = traceReflection(FragPos, R, rough) * keyboardBrightness;
         if (ssrSteps > 0)
         {
@@ -618,7 +833,7 @@ void main()
             refl = mix(refl, ssr.rgb * ssrStrength, clamp(ssr.a, 0.0, 1.0));
         }
 
-        vec3 lit = body * (1.0 - fres) * keyboardBrightness + refl * fres * reflectionStrength;
+        vec3 lit = body * (1.0 - fres) + refl * fres * reflectionStrength;
 
         fragColor = vec4(lit, 1.0f);
     }
@@ -643,40 +858,62 @@ void main()
 out vec4 fragColor;
 in vec2 texcoord;
 
-uniform sampler3D fogNoise;   // tileable noise: r = density, gba = warp
-uniform sampler2D fogLight;   // mip-mapped 1D strip of pressed key light along x
+uniform sampler3D fogNoise;
+uniform sampler1D fogLight;   // mipmapped keyboard emission along x
 
 uniform vec3 mistColor;
-uniform float mistOpacity;    // density
+uniform float mistOpacity;
 uniform float mistSpeed;
 uniform float mistScale;
 uniform float animTime;
 
-uniform float fogYScale;      // height of the fog area in world units (keyboard width = 1)
-uniform float fogDepth;       // thickness of the slab
+uniform float fogYScale;
+uniform float fogDepth;
 uniform int fogSteps;
-uniform float fogLightStrength;
-uniform float fogLightReach;  // distance at which a key's light has fallen to half
-uniform float fogAmbient;
-uniform vec3 fogSaberLambda;  // saber radiance per unit length
-uniform float fogSaberRadius;
-uniform float fogSaberY;      // saber height above the playing surface
-uniform float fogKeyY;        // pressed key light height above the playing surface
-uniform float fogKeyZ;        // how far below the saber line (on the keyboard) the key lights sit
-uniform float fogSigmaMin;
-uniform float fogSigmaLogRatio;
-uniform float fogLightRows;
 
-float hg(float c, float g)   // 4*pi * Henyey-Greenstein, so isotropic = 1
+uniform float fogLightStrength;
+uniform float fogLightReach;
+uniform float fogAmbient;
+uniform float fogKeyConeAngle;        // full cone angle, radians
+uniform float fogKeyMinConeDiameter;  // minimum footprint, world units
+
+uniform vec3 fogSaberLambda;
+uniform float fogSaberRadius;
+uniform float fogSaberY;
+uniform float fogKeyY;
+uniform float fogKeyZ;
+
+float hg(float c, float g)
 {
     float d = 1.0 + g * g - 2.0 * g * c;
     return (1.0 - g * g) / pow(d, 1.5);
 }
 
-// interleaved gradient noise, hides the banding of the low step count
+// interleaved gradient noise
 float ign(vec2 p)
 {
     return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
+}
+
+// Determine the mip level corresponding to the cone's footprint
+float keyConeLOD(float distance)
+{
+    float diameter = max(
+        fogKeyMinConeDiameter,
+        2.0 * distance * tan(fogKeyConeAngle * 0.5)
+    );
+
+    // Convert the world-space footprint into texels.
+    float texWidth = float(textureSize(fogLight, 0));
+    float footprint = diameter * texWidth;
+
+    // A conventional mip chain has floor(log2(width)) levels.
+    float maxLOD = floor(log2(texWidth));
+
+    // One texel or less uses the original texture.
+    float lod = log2(max(footprint, 1.0));
+
+    return clamp(lod, 0.0, maxLOD);
 }
 
 void main()
@@ -690,60 +927,113 @@ void main()
     fade *= fade;
 
     float freq = mistScale * 0.12;
-    vec3 vel = vec3(0.12, 1.0, 0.08) * (mistSpeed * 0.15);   // drifts up the screen and a little sideways
+    vec3 vel = vec3(0.12, 1.0, 0.08) * (mistSpeed * 0.15);
+
     float stepLen = fogDepth / float(fogSteps);
     float jitter = ign(gl_FragCoord.xy);
-    float reach2 = max(fogLightReach * fogLightReach, 1e-5);
 
     vec3 acc = vec3(0.0);
     float T = 1.0;
 
     for (int i = 0; i < fogSteps; i++)
     {
-        // front to back: start at the camera side of the slab
+        // Front to back: start at camera side of the slab.
         float h = fogDepth * (1.0 - (float(i) + jitter) / float(fogSteps));
 
-        // density: a warped, two scale noise, thresholded so it breaks up into puffs and wisps
+        // Density: warped two-scale noise.
         vec3 q = (vec3(x, s, h) - vel * animTime) * freq;
+
         vec4 lo = texture(fogNoise, q);
         vec3 qd = q * 2.3 + (lo.gba - 0.5) * 0.6;
+
         float n = lo.r * 0.65 + texture(fogNoise, qd).r * 0.35;
         float dens = smoothstep(0.4, 0.82, n) * fade * mistOpacity;
-        if (dens < 0.003) continue;
 
-        float dKey = length(vec2(s + fogKeyZ, h - fogKeyY));
-        float dSab = length(vec2(s, h - fogSaberY));
+        if (dens < 0.003)
+            continue;
 
-        // pressed keys: one fetch, the mip level grows with distance so the glow widens and softens
-        // blur width grows with distance (world units, x spans 0..1); pick it from the blur stack
-        float sigma = 0.004 + 0.5 * dKey;
-        float v = clamp(log(sigma / fogSigmaMin) / fogSigmaLogRatio, 0.0, 1.0);
-        v = (v * (fogLightRows - 1.0) + 0.5) / fogLightRows;
-        vec3 keyL = textureLod(fogLight, vec2(x, v), 0.0).rgb / (1.0 + dKey * dKey / reach2);
+        // Distance to the keyboard's light-emitting line.
+        // The lights are located along X at -fogKeyZ and fogKeyY.
+        vec2 tk = vec2(-s, fogKeyY - h);
+        float dKey = length(tk); 
 
-        // light travelling toward the camera scatters a bit more
-        vec2 tk = vec2(-(s + fogKeyZ), fogKeyY - h);
-        vec2 ts = vec2(-s, fogSaberY - h);
-        float phK = hg(-tk.y / max(length(tk), 1e-4), 0.0625);
-        float phS = hg(-ts.y / max(length(ts), 1e-4), 0.0625);
+        float dSab = length(vec2(
+            s,
+            h - fogSaberY
+        ));
 
-        // saber: finite line light, closed form integral of 1 / r^2 along its length
-        float dd = sqrt(dSab * dSab + fogSaberRadius * fogSaberRadius);
+        // -------------------------------------------------
+        // KEYBOARD LIGHT: cone-filtered mipmap sampling
+        // -------------------------------------------------
+
+        float coneDist = length(vec2(s, (h - fogKeyY) * 0.2f));
+
+        // Calculate the cone's footprint at the keyboard.
+        float keyLOD = keyConeLOD(coneDist);
+        float w   = exp2(keyLOD) / float(textureSize(fogLight, 0)); // footprint in x
+        float l   = max(keyLOD - 1.0, 0.0);
+
+        // Sample the emission texture using the appropriate mip level.
+        vec3 keyL =
+              textureLod(fogLight, x - w,       l).rgb * (1.0/16.0)
+            + textureLod(fogLight, x - 0.5 * w, l).rgb * (4.0/16.0)
+            + textureLod(fogLight, x,           l).rgb * (6.0/16.0)
+            + textureLod(fogLight, x + 0.5 * w, l).rgb * (4.0/16.0)
+            + textureLod(fogLight, x + w,       l).rgb * (1.0/16.0);
+
+        // Distance attenuation.
+        keyL /= (1.0 + dKey / fogLightReach);
+
+        // Scattering phase.
+        float phK = hg(
+            -tk.y / max(dKey, 1e-4),
+            0.0625
+        );
+
+        // -------------------------------------------------
+        // SABER LIGHT: finite line light
+        // -------------------------------------------------
+
+        vec2 ts = vec2(
+            -s,
+            fogSaberY - h
+        );
+
+        float phS = hg(
+            -ts.y / max(length(ts), 1e-4),
+            0.0625
+        );
+
+        float dd = sqrt(
+            dSab * dSab +
+            fogSaberRadius * fogSaberRadius
+        );
+
         float ang = atan((1.0 - x) / dd) + atan(x / dd);
+
         vec3 sab = fogSaberLambda * (ang / dd);
 
-        // light is dimmed by the fog it travels through on its way here
+        // -------------------------------------------------
+        // LIGHT ACCUMULATION
+        // -------------------------------------------------
+
         float dNear = min(dKey, dSab);
-        vec3 L = (keyL * phK + sab * phS) * fogLightStrength * exp(-dens * dNear * 4.0)
+
+        vec3 L = (keyL * phK + sab * phS)
+            * fogLightStrength
+            * exp(-dens * dNear * 4.0)
             + mistColor * fogAmbient;
 
         float a = 1.0 - exp(-dens * EXTINCTION * stepLen);
+
         acc += T * a * L;
         T *= 1.0 - a;
-        if (T < 0.02) break;
+
+        if (T < 0.02)
+            break;
     }
 
-    // premultiplied: rgb is the light scattered towards the camera, alpha is how much of the notes behind it is hidden
+    // Premultiplied output.
     fragColor = vec4(acc, 1.0 - T);
 })";
 
@@ -1053,7 +1343,7 @@ void main()
         float(flareColor & 0xFFu)
     ) / 255.0;
 
-    float vertical = 1.0 - smoothstep(0.0, 1.0, uv.y);
+    float vertical = exp(-6.0 * smoothstep(0.0, 1.0, uv.y));
     
     float horizontal = smoothstep(0.0, 0.3, uv.x) * smoothstep(0.0, 0.3, 1.0 - uv.x);
     float alpha = vertical * horizontal * flareAlpha;
@@ -1239,6 +1529,7 @@ MIDIRendererEnhanced::~MIDIRendererEnhanced()
     if (msaaDepthRBO) glDeleteRenderbuffers(1, &msaaDepthRBO);
 
     if (keyGlowTex) glDeleteTextures(1, &keyGlowTex);
+    if (kbMaskTex) glDeleteTextures(1, &kbMaskTex);
     if (giEmitTex) glDeleteTextures(1, &giEmitTex);
     if (fogLightTex) glDeleteTextures(1, &fogLightTex);
     if (fogNoiseTex) glDeleteTextures(1, &fogNoiseTex);
@@ -1328,6 +1619,19 @@ void MIDIRendererEnhanced::Initialize()
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, giEmitTex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, MIDI_KEYS, 2, 0, GL_RGBA, GL_FLOAT, giEmitData.data());
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glActiveTexture(GL_TEXTURE0);
+
+    // black key coverage along x, the occluder lookup for the key scatter shadows (bound to texture unit 8)
+    kbMaskData.assign(KEY_MASK_WIDTH, 0);
+    glGenTextures(1, &kbMaskTex);
+    glActiveTexture(GL_TEXTURE8);
+    glBindTexture(GL_TEXTURE_2D, kbMaskTex);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, KEY_MASK_WIDTH, 1, 0, GL_RED, GL_UNSIGNED_BYTE, kbMaskData.data());
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -1427,15 +1731,15 @@ void MIDIRendererEnhanced::Initialize()
     CreateFogNoiseTexture();
 
     // pressed key light strip for the fog (texture unit 4), mip-mapped
-    fogLightData.assign((size_t)FOG_LIGHT_TEX_WIDTH * FOG_LIGHT_ROWS * 3, 0.0f);
+    fogLightData.assign((size_t)FOG_LIGHT_TEX_WIDTH * 3, 0.0f);
     glGenTextures(1, &fogLightTex);
     glActiveTexture(GL_TEXTURE4);
-    glBindTexture(GL_TEXTURE_2D, fogLightTex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, FOG_LIGHT_TEX_WIDTH, FOG_LIGHT_ROWS, 0, GL_RGB, GL_FLOAT, fogLightData.data());
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);   // no mipmaps any more
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_1D, fogLightTex);
+    glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB16F, FOG_LIGHT_TEX_WIDTH, 0, GL_RGB, GL_FLOAT, fogLightData.data());
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glGenerateMipmap(GL_TEXTURE_1D);
     glActiveTexture(GL_TEXTURE0);
 #pragma endregion
 
@@ -1662,6 +1966,27 @@ void MIDIRendererEnhanced::CalcKeyPosAndWidth()
             if (!foundBlackStart) { blackKeyStart = idx; foundBlackStart = true; }
             numDrawBlackKeys++;
         }
+    }
+
+    // rebuild the black key coverage mask (same x layout as the keys are drawn with)
+    if (kbMaskTex)
+    {
+        std::fill(kbMaskData.begin(), kbMaskData.end(), (uint8_t)0);
+        for (int k = 0; k < MIDI_KEYS; k++)
+        {
+            if (!KEY_IS_BLACK(k)) continue;
+            const float l = keyPos[k], r = keyPos[k] + keyWidth[k];
+            if (r < 0.0f || l > 1.0f) continue;
+            const int x0 = std::max(0, (int)std::floor(l * KEY_MASK_WIDTH));
+            const int x1 = std::min(KEY_MASK_WIDTH - 1, (int)std::floor(r * KEY_MASK_WIDTH));
+            for (int x = x0; x <= x1; x++) kbMaskData[x] = 255;
+        }
+
+        glActiveTexture(GL_TEXTURE8);
+        glBindTexture(GL_TEXTURE_2D, kbMaskTex);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, KEY_MASK_WIDTH, 1, GL_RED, GL_UNSIGNED_BYTE, kbMaskData.data());
+        glActiveTexture(GL_TEXTURE0);
     }
 
     RebindKeyboardDrawRange();
@@ -1940,7 +2265,23 @@ void MIDIRendererEnhanced::RenderKeyboard()
         keyboardProgram->SetFloat("keyZ0", keyboardZOffset - 0.01f);
         keyboardProgram->SetFloat("keyZ1", keyboardZOffset - 0.01f + whiteDepth);
         keyboardProgram->SetVec3("refSaberRadiance", rendererSettings.saberColor * rendererSettings.saberBrightness);
+
+        // shadows from the key scatter (black keys occlude, mirrors the vertex shader / UpdateGIEmitters geometry)
+        const float blackDepth = keyboardHeight * 2.2f * 0.15f * 1.01f;
+        const bool shadows = gi && rendererSettings.giShadowsEnabled && rendererSettings.giShadowSteps > 0;
+        keyboardProgram->SetInt("shadowSteps", shadows ? std::clamp(rendererSettings.giShadowSteps, 2, 24) : 0);
+        keyboardProgram->SetFloat("shadowStrength", rendererSettings.giShadowStrength);
+        keyboardProgram->SetFloat("shadowSoftness", rendererSettings.giShadowSoftness);
+        keyboardProgram->SetFloat("shWhiteTop", 0.0175f * kbThickness);
+        keyboardProgram->SetFloat("shBlackTop", saberTopY);
+        keyboardProgram->SetFloat("shBlackZ0", keyboardZOffset - 0.01f);
+        keyboardProgram->SetFloat("shBlackZ1", keyboardZOffset - 0.01f + blackDepth);
     }
+
+    glActiveTexture(GL_TEXTURE8);
+    glBindTexture(GL_TEXTURE_2D, kbMaskTex);
+    keyboardProgram->SetInt("kbMaskTex", 8);
+    glActiveTexture(GL_TEXTURE0);
 
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, giEmitTex);
@@ -2236,43 +2577,53 @@ void MIDIRendererEnhanced::CreateFogNoiseTexture()
 
 void MIDIRendererEnhanced::UpdateFogLight()
 {
-    constexpr int N = FOG_LIGHT_TEX_WIDTH, R = FOG_LIGHT_ROWS;
+    constexpr int N = FOG_LIGHT_TEX_WIDTH;
+
+    // One RGB value per texel. Allocate this buffer once during initialization.
     std::fill(fogLightData.begin(), fogLightData.end(), 0.0f);
 
-    const float s = rendererSettings.keyGlowFactor * 0.4f;
-    const float logRatio = std::log(FOG_SIGMA_MAX / FOG_SIGMA_MIN);
+    const float strength = rendererSettings.keyGlowFactor * 0.4f;
 
     for (int id = 0; id < MIDI_KEYS; id++)
     {
         if (!keyMetas[id].pressed) continue;
-        const float left = keyPos[id], right = keyPos[id] + keyWidth[id];
-        if (right < 0.0f || left > 1.0f) continue;
+        const float left = keyPos[id];
+        const float right = keyPos[id] + keyWidth[id];
+        // Clip the key to the texture's normalized [0, 1] range.
+        const float clippedLeft = std::max(left, 0.0f);
+        const float clippedRight = std::min(right, 1.0f);
 
+        if (clippedRight <= clippedLeft)  continue;
         const glm::vec3 col = ShiftedKeyColor(UnpackKeyColor(keyMetas[id].color), rendererSettings, 0.0f)
-            * (keyMetas[id].black ? 0.8f : 1.0f) * s;
+            * (keyMetas[id].black ? 0.8f : 1.0f)
+            * strength;
 
-        for (int r = 0; r < R; r++)
+        // Only visit texels intersecting this key.
+        const int xs = std::clamp(static_cast<int>(std::floor(clippedLeft * N)), 0, N - 1);
+        const int xe = std::clamp(static_cast<int>(std::ceil(clippedRight * N)) - 1, 0, N - 1);
+
+        for (int x = xs; x <= xe; x++)
         {
-            const float sigma = FOG_SIGMA_MIN * std::exp(logRatio * r / (R - 1));
-            const float inv = 1.0f / (sigma * 1.41421356f);
-            const int xs = std::max(0, (int)std::floor((left - 3.0f * sigma) * N));
-            const int xe = std::min(N - 1, (int)std::ceil((right + 3.0f * sigma) * N));
-            float* row = &fogLightData[(size_t)r * N * 3];
-            for (int x = xs; x <= xe; x++)
-            {
-                const float px = (x + 0.5f) / N;
-                // box [left, right] convolved with a gaussian
-                const float w = 0.5f * (std::erf((px - left) * inv) - std::erf((px - right) * inv));
-                row[x * 3 + 0] += col.r * w;
-                row[x * 3 + 1] += col.g * w;
-                row[x * 3 + 2] += col.b * w;
-            }
+            const float texelLeft = float(x) / N;
+            const float texelRight = float(x + 1) / N;
+
+            // Fraction of this texel covered by the key.
+            const float overlap = std::max(0.0f, std::min(clippedRight, texelRight) - std::max(clippedLeft, texelLeft));
+            const float coverage = overlap * N;
+
+            const size_t offset = size_t(x) * 3;
+
+            fogLightData[offset + 0] += col.r * coverage;
+            fogLightData[offset + 1] += col.g * coverage;
+            fogLightData[offset + 2] += col.b * coverage;
         }
     }
 
+    // Upload the base emission distribution.
     glActiveTexture(GL_TEXTURE4);
-    glBindTexture(GL_TEXTURE_2D, fogLightTex);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, N, R, GL_RGB, GL_FLOAT, fogLightData.data());
+    glBindTexture(GL_TEXTURE_1D, fogLightTex);
+    glTexSubImage1D(GL_TEXTURE_1D, 0, 0, N, GL_RGB, GL_FLOAT, fogLightData.data());
+    glGenerateMipmap(GL_TEXTURE_1D);
     glActiveTexture(GL_TEXTURE0);
 }
 
@@ -2318,12 +2669,12 @@ void MIDIRendererEnhanced::RenderMist()
         mistProgram->SetFloat("fogSaberY", saberY);
         mistProgram->SetFloat("fogKeyY", keyY);
         mistProgram->SetFloat("fogKeyZ", keyZ);
-        mistProgram->SetFloat("fogSigmaMin", FOG_SIGMA_MIN);
-        mistProgram->SetFloat("fogSigmaLogRatio", std::log(FOG_SIGMA_MAX / FOG_SIGMA_MIN));
-        mistProgram->SetFloat("fogLightRows", (float)FOG_LIGHT_ROWS);
+
+        mistProgram->SetFloat("fogKeyConeAngle", 70.0f * 3.14159f / 180.0f);
+        mistProgram->SetFloat("fogKeyMinConeDiameter", 1.0f / (float)FOG_LIGHT_TEX_WIDTH);
 
         glActiveTexture(GL_TEXTURE4);
-        glBindTexture(GL_TEXTURE_2D, fogLightTex);
+        glBindTexture(GL_TEXTURE_1D, fogLightTex);
         mistProgram->SetInt("fogLight", 4);
 
         glActiveTexture(GL_TEXTURE5);
@@ -2717,18 +3068,86 @@ void MIDIRendererEnhanced::Render(double deltaTime)
 
 void MIDIRendererEnhanced::RenderSettings()
 {
+    const EnhancedRendererSettings d = EnhancedRendererSettings::Default();
+
+    ImGui::Checkbox("Show advanced options", &rendererSettings.showAdvancedSettings);
+    ImGui::Spacing();
+    const bool adv = rendererSettings.showAdvancedSettings;
+
+    // ---- small building blocks shared by the tabs -------------------------------------------------------------
+
+    // "Restore defaults" button, resets only the tab it sits on
+    const auto resetButton = [&](ForumLayout& layout, const char* id, auto&& apply)
+        {
+            layout.AddFieldWithTooltip(id, "Defaults", "Puts every setting on this tab back to its default value.",
+                [&]()
+                {
+                    if (ImGui::Button("Restore defaults")) apply();
+                });
+        };
+
+    // explains why options are missing when an effect is off, instead of leaving the tab looking broken
+    const auto offNote = [&](ForumLayout& layout, const char* id, const char* text)
+        {
+            layout.AddField(id, "Status", [&]() { ImGui::TextDisabled("%s", text); });
+        };
+
+    const auto reflectionCombo = [&](ForumLayout& layout, const char* id, const char* comboId)
+        {
+            layout.AddFieldWithTooltip(id, "Reflection quality",
+                "How sharp the glow reflections are. Higher looks better but uses more GPU power. Off hides the glow of pressed keys in their neighbours' reflections.",
+                [&]()
+                {
+                    FeatureLevelCombo(comboId, rendererSettings.ssrEnabled, rendererSettings.ssrSteps,
+                        reflectionLevels, "ray steps");
+                });
+        };
+
+    const auto shadowCombo = [&](ForumLayout& layout, const char* id, const char* comboId)
+        {
+            layout.AddFieldWithTooltip(id, "Shadow quality",
+                "How smooth the shadows are. Higher looks better but uses more GPU power. Off removes the shadows black keys cast on the light of pressed keys.",
+                [&]()
+                {
+                    FeatureLevelCombo(comboId, rendererSettings.giShadowsEnabled, rendererSettings.giShadowSteps,
+                        shadowLevels, "samples");
+                });
+        };
+
+    const auto fogCombo = [&](ForumLayout& layout, const char* id, const char* comboId)
+        {
+            layout.AddFieldWithTooltip(id, "Fog quality",
+                "How smooth the fog is. Higher looks better but uses more GPU power. Off removes the fog completely.",
+                [&]()
+                {
+                    FeatureLevelCombo(comboId, rendererSettings.mistEnabled, rendererSettings.mistSteps,
+                        fogLevels, "ray steps");
+                });
+        };
+
     if (ImGui::BeginTabBar("##renderSettings"))
     {
-        if (ImGui::BeginTabItem("Visual"))
+        // ======================================================================================================
+        if (ImGui::BeginTabItem("General"))
         {
             {
                 ForumLayout layout("##rendering");
-                layout.AddHeader("Rendering");
+                layout.AddHeader("Performance");
 
-                SliderFloatField(layout, "##exposure", "Exposure", nullptr,
-                    rendererSettings.exposure, 0.05f, 5.0f);
+                layout.AddFieldWithTooltip("##graphicsPreset", "Graphics quality",
+                    "One-click quality level. Lower is smoother on heavy MIDIs, higher gives better overall visual quality but potentially worse performance.",
+                    [&]()
+                    {
+                        const int picked = LevelCombo("##graphicsPresetCombo",
+                            DetectGraphicsPreset(rendererSettings), (int)graphicsPresets.size(),
+                            [](int i) { return graphicsPresets[i].label; },
+                            [](int i) { return DescribeGraphicsPreset(graphicsPresets[i]); });
+                        if (picked >= 0) ApplyGraphicsPreset(picked);
+                    });
 
-                layout.AddField("##ssaa", "Anti-aliasing",
+                layout.AddFieldWithTooltip("##ssaa", "Edge smoothing",
+                    "Draws the picture at a higher resolution and shrinks it down, so edges look smoother. "
+                    "Not recommended for realtime playback, so use when rendering videos.",
                     [&]()
                     {
                         float prevSupersample = rendererSettings.supersample;
@@ -2740,10 +3159,35 @@ void MIDIRendererEnhanced::RenderSettings()
                         if (prevSupersample != rendererSettings.supersample)
                             ApplyRenderSize();
                     });
+
+                reflectionCombo(layout, "##ssrQualityHub", "##ssrQualityHubCombo");
+                shadowCombo(layout, "##giShadowQualityHub", "##giShadowQualityHubCombo");
+                fogCombo(layout, "##mistQualityHub", "##mistQualityHubCombo");
+
+                layout.AddHeader("Picture");
+
+                SliderFloatField(layout, "##exposure", "Overall brightness", nullptr,
+                    rendererSettings.exposure, 0.05f, 5.0f);
+
+                resetButton(layout, "##resetGeneral", [&]()
+                    {
+                        const float prevSupersample = rendererSettings.supersample;
+                        rendererSettings.exposure = d.exposure;
+                        rendererSettings.supersample = d.supersample;
+                        rendererSettings.ssrEnabled = d.ssrEnabled;
+                        rendererSettings.ssrSteps = d.ssrSteps;
+                        rendererSettings.giShadowsEnabled = d.giShadowsEnabled;
+                        rendererSettings.giShadowSteps = d.giShadowSteps;
+                        rendererSettings.mistEnabled = d.mistEnabled;
+                        rendererSettings.mistSteps = d.mistSteps;
+                        rendererSettings.graphicsPresetHint = d.graphicsPresetHint;
+                        if (prevSupersample != rendererSettings.supersample) ApplyRenderSize();
+                    });
             }
             ImGui::EndTabItem();
         }
 
+        // ======================================================================================================
         if (ImGui::BeginTabItem("Notes"))
         {
             {
@@ -2751,31 +3195,33 @@ void MIDIRendererEnhanced::RenderSettings()
 
                 layout.AddHeader("Note Appearance");
 
-                if (SliderFloatField(layout, "##noteOutlineGlow", "Outline emission", nullptr,
+                if (SliderFloatField(layout, "##noteOutlineGlow", "Edge glow",
+                    "How brightly the outline of each note glows. Higher makes notes pop with a bright rim.",
                     rendererSettings.noteOutlineGlowFactor, 1.0f, 8.0f))
                 {
                     ShaderBind notesBind(*notesProgram);
                     notesProgram->SetFloat("noteOutlineGlow", rendererSettings.noteOutlineGlowFactor);
                 }
 
-                layout.AddHeader("Caustics");
+                layout.AddHeader("Light Ripples (caustics)");
 
-                SliderFloatField(layout, "##causticStrength", "Caustic strength",
-                    "Brightness of the caustic light pattern on notes and pressed keys. 0 disables it.",
+                SliderFloatField(layout, "##causticStrength", "Ripple brightness",
+                    "The moving, water-like pattern of light inside notes and pressed keys. 0 turns it off.",
                     rendererSettings.causticStrength, 0.0f, 3.0f);
 
-                SliderFloatField(layout, "##causticScale", "Caustic scale",
-                    "Higher values make a finer, tighter caustic pattern.",
+                SliderFloatField(layout, "##causticScale", "Ripple detail",
+                    "Higher gives smaller, finer ripples. Lower gives big, slow swirls.",
                     rendererSettings.causticScale, 1.0f, 20.0f);
 
-                SliderFloatField(layout, "##causticSpeed", "Caustic speed",
-                    "How fast the caustic pattern shimmers and drifts.",
+                SliderFloatField(layout, "##causticSpeed", "Ripple speed",
+                    "How fast the ripples shimmer and drift.",
                     rendererSettings.causticSpeed, 0.0f, 3.0f);
 
-                layout.AddHeader("HSV Shift");
+                layout.AddHeader("Colour Gradient (HSV shift)");
 
-                layout.AddFieldWithTooltip("##hsvShift", "Enable HSV Shift",
-                    "Applies a hue, saturation, and value gradient shift to notes.",
+                layout.AddFieldWithTooltip("##hsvShift", "Enable colour gradient",
+                    "Gives notes a subtle colour gradient by shifting their hue, saturation and brightness. "
+                    "Pressed keys use the same shift so they match their notes.",
                     [&]()
                     {
                         if (ImGui::Checkbox("", &rendererSettings.hsvShiftEnabled))
@@ -2794,7 +3240,8 @@ void MIDIRendererEnhanced::RenderSettings()
 
                 if (rendererSettings.hsvShiftEnabled)
                 {
-                    if (SliderFloatField(layout, "##hsvStrength", "Strength", nullptr,
+                    if (SliderFloatField(layout, "##hsvStrength", "Gradient amount",
+                        "How strongly the shifted colour is blended in. 0 keeps the original colour.",
                         rendererSettings.hsvShiftStrength, 0.0f, 1.0f))
                     {
                         {
@@ -2809,11 +3256,14 @@ void MIDIRendererEnhanced::RenderSettings()
                     }
 
                     bool shiftsChanged = false;
-                    shiftsChanged |= SliderFloatField(layout, "##hsvHueShift", "Hue shift", nullptr,
+                    shiftsChanged |= SliderFloatField(layout, "##hsvHueShift", "Hue shift",
+                        "Rotates the colour around the colour wheel, for example red towards orange or pink. Negative values rotate the other way.",
                         rendererSettings.hsvShifts.x, -1.0f, 1.0f);
-                    shiftsChanged |= SliderFloatField(layout, "##hsvSatShift", "Saturation shift", nullptr,
+                    shiftsChanged |= SliderFloatField(layout, "##hsvSatShift", "Saturation shift",
+                        "Positive makes the shifted colour more vivid, negative makes it more washed out.",
                         rendererSettings.hsvShifts.y, -1.0f, 1.0f);
-                    shiftsChanged |= SliderFloatField(layout, "##hsvValShift", "Value shift", nullptr,
+                    shiftsChanged |= SliderFloatField(layout, "##hsvValShift", "Brightness shift",
+                        "Positive makes the shifted colour lighter, negative makes it darker.",
                         rendererSettings.hsvShifts.z, -1.0f, 1.0f);
 
                     if (shiftsChanged)
@@ -2829,68 +3279,111 @@ void MIDIRendererEnhanced::RenderSettings()
                         }
                     }
                 }
+
+                resetButton(layout, "##resetNotes", [&]()
+                    {
+                        rendererSettings.noteOutlineGlowFactor = d.noteOutlineGlowFactor;
+                        rendererSettings.causticStrength = d.causticStrength;
+                        rendererSettings.causticScale = d.causticScale;
+                        rendererSettings.causticSpeed = d.causticSpeed;
+                        rendererSettings.hsvShiftEnabled = d.hsvShiftEnabled;
+                        rendererSettings.hsvShiftStrength = d.hsvShiftStrength;
+                        rendererSettings.hsvShifts = d.hsvShifts;
+                        SetupUniforms();
+                    });
             }
 
             ImGui::EndTabItem();
         }
 
+        // ======================================================================================================
         if (ImGui::BeginTabItem("Keyboard"))
         {
+            TabIntro("How the piano keys look. Reflections, light spill and shadows are on the Lighting tab.");
+
             {
                 ForumLayout layout("##keyboardAppearance");
-                layout.AddHeader("Keyboard");
+                layout.AddHeader("Keys");
 
-                if (SliderFloatField(layout, "##keyGlowFactor", "Key glow", nullptr,
+                if (SliderFloatField(layout, "##keyGlowFactor", "Pressed key glow",
+                    "How brightly a key glows while it is held down.",
                     rendererSettings.keyGlowFactor, 1.0f, 8.0f))
                 {
                     ShaderBind keyboardBind(*keyboardProgram);
                     keyboardProgram->SetFloat("keyGlowFactor", rendererSettings.keyGlowFactor);
                 }
 
-                if (SliderFloatField(layout, "##keyboardBrightness", "Brightness", nullptr,
-                    rendererSettings.keyboardBrightness, 0.1f, 1.0f))
+                if (SliderFloatField(layout, "##keyboardBrightness", "Keyboard brightness",
+                    "How bright the keyboard looks. Lower gives a darker, moodier keyboard that makes the glow stand out.",
+                    rendererSettings.keyboardBrightness, 0.01f, 1.0f))
                 {
                     ShaderBind keyboardBind(*keyboardProgram);
                     keyboardProgram->SetFloat("keyboardBrightness", rendererSettings.keyboardBrightness);
                 }
 
-                SliderFloatField(layout, "##keyboardFOV", "Field of View", nullptr,
+                SliderFloatField(layout, "##keyboardFOV", "Camera angle (field of view)",
+                    "How wide the camera lens is. Lower looks flatter, higher gives a stronger sense of perspective. "
+                    "The keyboard always fills the width of the screen.",
                     rendererSettings.keyboardFOV, 20.0f, 89.9f);
 
-                SliderFloatField(layout, "##reflectionStrength", "Reflections",
-                    "Strength of the glossy lacquer reflections on the keys.",
+                resetButton(layout, "##resetKeyboard", [&]()
+                    {
+                        rendererSettings.keyGlowFactor = d.keyGlowFactor;
+                        rendererSettings.keyboardBrightness = d.keyboardBrightness;
+                        rendererSettings.keyboardFOV = d.keyboardFOV;
+                        SetupUniforms();
+                    });
+            }
+
+            ImGui::EndTabItem();
+        }
+
+        // ======================================================================================================
+        if (ImGui::BeginTabItem("Lighting"))
+        {
+            {
+                ForumLayout layout("##lighting");
+
+                layout.AddHeader("Reflections");
+
+                SliderFloatField(layout, "##reflectionStrength", "Shininess",
+                    "How glossy the keys look, like a lacquered piano. 0 makes them matte.",
                     rendererSettings.reflectionStrength, 0.0f, 3.0f);
 
-                layout.AddHeader("Screen-Space Reflections");
-
-                layout.AddField("##ssrEnabled", "Enable SSR",
-                    [&]()
-                    {
-                        ImGui::Checkbox("", &rendererSettings.ssrEnabled);
-                    });
+                reflectionCombo(layout, "##ssrQuality", "##ssrQualityCombo");
 
                 if (rendererSettings.ssrEnabled)
                 {
-                    SliderFloatField(layout, "##ssrStrength", "SSR gain",
-                        "Brightness of what keys reflect from their neighbours, 1 = exactly as the neighbour looks. Raise it to make reflected glow stand out. Only keys are reflected, never notes.",
+                    SliderFloatField(layout, "##ssrStrength", "Glow in reflections",
+                        "How brightly pressed keys show up in their neighbours' reflections. 1 is exactly as bright as the key itself. "
+                        "Only keys are reflected, never notes.",
                         rendererSettings.ssrStrength, 0.0f, 4.0f);
 
-                    SliderFloatField(layout, "##ssrMaxDistance", "SSR distance",
-                        "How far a reflection ray travels. Longer reaches further keys but costs precision.",
-                        rendererSettings.ssrMaxDistance, 0.02f, 0.4f);
+                    if (adv)
+                    {
+                        SliderFloatField(layout, "##ssrMaxDistance", "Reflection reach",
+                            "How far across the keyboard a reflection can see. Longer shows the glow of keys further away but is less precise.",
+                            rendererSettings.ssrMaxDistance, 0.02f, 0.4f);
 
-                    SliderIntField(layout, "##ssrSteps", "SSR quality",
-                        "Ray march steps per pixel. Lower values are faster but can miss thin edges.",
-                        rendererSettings.ssrSteps, 8, 64);
+                        SliderFloatField(layout, "##ssrThickness", "Reflection thickness",
+                            "How forgiving reflections are about thin edges. Raise it if reflections have gaps or holes, lower it if they smear.",
+                            rendererSettings.ssrThickness, 0.002f, 0.05f);
 
-                    SliderFloatField(layout, "##ssrThickness", "SSR thickness",
-                        "How far behind a key surface a ray can pass and still count as hitting it.",
-                        rendererSettings.ssrThickness, 0.002f, 0.05f);
+                        SliderIntField(layout, "##ssrSteps", "Reflection ray steps",
+                            "The detailed value behind Reflection quality. Lower is faster but can miss thin edges.",
+                            rendererSettings.ssrSteps, 8, 64);
+                    }
+                }
+                else
+                {
+                    offNote(layout, "##ssrOffNote", "Glow reflections are off. Pick a quality above to turn them on.");
                 }
 
-                layout.AddHeader("Light Scatter");
+                layout.AddHeader("Light Spill (light scatter)");
 
-                layout.AddField("##giEnabled", "Enable light scatter",
+                layout.AddFieldWithTooltip("##giEnabled", "Enable light spill",
+                    "Pressed keys and the saber light up the keys around them, instantly. "
+                    "Turn it off for a flatter look and a small speed boost.",
                     [&]()
                     {
                         ImGui::Checkbox("", &rendererSettings.giEnabled);
@@ -2898,30 +3391,85 @@ void MIDIRendererEnhanced::RenderSettings()
 
                 if (rendererSettings.giEnabled)
                 {
-                    SliderFloatField(layout, "##giStrength", "Key scatter",
-                        "How strongly pressed keys light up the keys around them. Appears instantly with the note.",
+                    SliderFloatField(layout, "##giStrength", "Key light spill",
+                        "How strongly pressed keys light up the keys around them.",
                         rendererSettings.giStrength, 0.0f, 3.0f);
 
-                    SliderFloatField(layout, "##giSaberStrength", "Saber scatter",
+                    SliderFloatField(layout, "##giSaberStrength", "Saber light spill",
                         "How strongly the saber lights up the keyboard.",
                         rendererSettings.giSaberStrength, 0.0f, 5.0f);
 
-                    SliderFloatField(layout, "##giRadius", "Light size",
-                        "Size of each key's light. Larger spreads the same light wider and softer.",
-                        rendererSettings.giRadius, 0.002f, 0.1f);
+                    if (adv)
+                    {
+                        SliderFloatField(layout, "##giRadius", "Light spread",
+                            "How widely each key's light spreads. Larger gives a wider, softer glow. Smaller gives a tighter, more focused one.",
+                            rendererSettings.giRadius, 0.002f, 0.1f);
+                    }
+
+                    layout.AddHeader("Shadows");
+
+                    shadowCombo(layout, "##giShadowQuality", "##giShadowQualityCombo");
+
+                    if (rendererSettings.giShadowsEnabled)
+                    {
+                        SliderFloatField(layout, "##giShadowStrength", "Shadow darkness",
+                            "How dark the shadows cast by the black keys get. The saber never casts shadows.",
+                            rendererSettings.giShadowStrength, 0.0f, 1.0f);
+
+                        if (adv)
+                        {
+                            SliderFloatField(layout, "##giShadowSoftness", "Shadow softness",
+                                "Higher gives softer shadow edges.",
+                                rendererSettings.giShadowSoftness, 0.0005f, 0.01f);
+
+                            SliderIntField(layout, "##giShadowSteps", "Shadow samples",
+                                "The detailed value behind Shadow quality. Lower is faster but grainier.",
+                                rendererSettings.giShadowSteps, 2, 24);
+                        }
+                    }
+                    else
+                    {
+                        offNote(layout, "##giShadowOffNote", "Shadows are off. Pick a quality above to turn them on.");
+                    }
                 }
+                else
+                {
+                    offNote(layout, "##giOffNote", "Light spill is off, which also turns off shadows. Tick the box above to turn it on.");
+                }
+
+                resetButton(layout, "##resetLighting", [&]()
+                    {
+                        rendererSettings.reflectionStrength = d.reflectionStrength;
+                        rendererSettings.ssrEnabled = d.ssrEnabled;
+                        rendererSettings.ssrStrength = d.ssrStrength;
+                        rendererSettings.ssrMaxDistance = d.ssrMaxDistance;
+                        rendererSettings.ssrSteps = d.ssrSteps;
+                        rendererSettings.ssrThickness = d.ssrThickness;
+                        rendererSettings.giEnabled = d.giEnabled;
+                        rendererSettings.giStrength = d.giStrength;
+                        rendererSettings.giRadius = d.giRadius;
+                        rendererSettings.giSaberStrength = d.giSaberStrength;
+                        rendererSettings.giShadowsEnabled = d.giShadowsEnabled;
+                        rendererSettings.giShadowStrength = d.giShadowStrength;
+                        rendererSettings.giShadowSoftness = d.giShadowSoftness;
+                        rendererSettings.giShadowSteps = d.giShadowSteps;
+                    });
             }
 
             ImGui::EndTabItem();
         }
 
+        // ======================================================================================================
         if (ImGui::BeginTabItem("Saber"))
         {
+            TabIntro("The saber is the glowing line where the notes meet the keyboard.");
+
             {
                 ForumLayout layout("##saberAppearance");
                 layout.AddHeader("Saber Appearance");
 
-                layout.AddField("##saberColor", "Color",
+                layout.AddFieldWithTooltip("##saberColor", "Color",
+                    "The colour of the saber. It also tints the fog and the light the saber casts.",
                     [&]()
                     {
                         if (ImGui::ColorEdit3("", &rendererSettings.saberColor.x))
@@ -2931,75 +3479,110 @@ void MIDIRendererEnhanced::RenderSettings()
                         }
                     });
 
-                SliderFloatField(layout, "##saberBrightness", "Brightness", nullptr,
+                SliderFloatField(layout, "##saberBrightness", "Brightness",
+                    "How brightly the saber glows. It also sets how much light the saber casts on the keys and the fog.",
                     rendererSettings.saberBrightness, 0.0f, 20.0f);
+
+                resetButton(layout, "##resetSaber", [&]()
+                    {
+                        rendererSettings.saberColor = d.saberColor;
+                        rendererSettings.saberBrightness = d.saberBrightness;
+                        SetupUniforms();
+                    });
             }
 
             ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem("Mist"))
+        // ======================================================================================================
+        if (ImGui::BeginTabItem("Fog"))
         {
+            TabIntro("Soft glowing fog drifting above the keys. It is one of the more demanding effects, so lower its quality if playback gets slow.");
+
             {
                 ForumLayout layout("##mist");
-                layout.AddHeader("Volumetric Fog");
+                layout.AddHeader("Fog");
 
-                layout.AddField("##enableMist", "Enable fog",
-                    [&]()
-                    {
-                        ImGui::Checkbox("", &rendererSettings.mistEnabled);
-                    });
+                fogCombo(layout, "##mistQuality", "##mistQualityCombo");
 
                 if (rendererSettings.mistEnabled)
                 {
                     layout.AddHeader("Appearance");
 
                     SliderFloatField(layout, "##mistOpacity", "Density",
-                        "How thick the fog is.",
+                        "How thick the fog is. 0 makes it invisible.",
                         rendererSettings.mistOpacity, 0.0f, 2.0f);
 
-                    SliderFloatField(layout, "##mistScale", "Detail",
-                        "Higher values make the puffs smaller and more particle-like.",
+                    SliderFloatField(layout, "##mistScale", "Puff detail",
+                        "Higher gives smaller, wispier puffs. Lower gives big, soft clouds.",
                         rendererSettings.mistScale, 2.0f, 30.0f);
 
                     SliderFloatField(layout, "##mistSpeed", "Wind speed",
                         "How fast the fog drifts upward.",
                         rendererSettings.mistSpeed, 0.0f, 1.0f);
 
-                    SliderFloatField(layout, "##mistDepth", "Thickness",
-                        "How deep the fog volume is. Thicker fog is lit more unevenly from top to bottom.",
-                        rendererSettings.mistDepth, 0.05f, 0.5f);
+                    if (adv)
+                    {
+                        SliderFloatField(layout, "##mistDepth", "Fog depth",
+                            "How thick the fog is from front to back. Thicker fog is lit more unevenly from top to bottom.",
+                            rendererSettings.mistDepth, 0.05f, 0.5f);
+                    }
 
                     layout.AddHeader("Lighting");
 
-                    SliderFloatField(layout, "##mistLight", "Light scatter",
+                    SliderFloatField(layout, "##mistLight", "Light in the fog",
                         "How strongly the saber and the pressed keys light up the fog.",
                         rendererSettings.mistLightStrength, 0.0f, 4.0f);
 
                     SliderFloatField(layout, "##mistLightReach", "Key light reach",
-                        "How far up the screen the light of a pressed key reaches into the fog.",
+                        "How far up the screen the glow of a pressed key travels into the fog.",
                         rendererSettings.mistLightReach, 0.02f, 0.5f);
 
-                    SliderFloatField(layout, "##mistAmbient", "Ambient glow",
-                        "A faint saber-coloured glow so the fog stays visible without any light.",
-                        rendererSettings.mistAmbient, 0.0f, 0.5f);
+                    if (adv)
+                    {
+                        SliderFloatField(layout, "##mistAmbient", "Base glow",
+                            "A faint glow in the saber's colour, so the fog never disappears completely even when nothing is playing.",
+                            rendererSettings.mistAmbient, 0.0f, 0.5f);
+                    }
 
                     layout.AddHeader("Performance");
 
-                    SliderFloatField(layout, "##mistHeight", "Height",
-                        "How far the fog reaches up the screen. Lower values are faster.",
+                    SliderFloatField(layout, "##mistHeight", "Fog height", nullptr,
                         rendererSettings.mistHeight, 0.1f, 1.0f);
 
-                    SliderIntField(layout, "##mistSteps", "Quality",
-                        "Ray march steps per pixel. Lower values are faster but grainier.",
-                        rendererSettings.mistSteps, 6, 32);
+                    if (adv)
+                    {
+                        SliderIntField(layout, "##mistSteps", "Fog ray steps",
+                            "The detailed value behind Fog quality. Lower is faster but grainier.",
+                            rendererSettings.mistSteps, 6, 32);
+                    }
                 }
+                else
+                {
+                    offNote(layout, "##mistOffNote", "Fog is off. Pick a quality above to turn it on.");
+                }
+
+                resetButton(layout, "##resetFog", [&]()
+                    {
+                        rendererSettings.mistEnabled = d.mistEnabled;
+                        rendererSettings.mistOpacity = d.mistOpacity;
+                        rendererSettings.mistSpeed = d.mistSpeed;
+                        rendererSettings.mistScale = d.mistScale;
+                        rendererSettings.mistDepth = d.mistDepth;
+                        rendererSettings.mistHeight = d.mistHeight;
+                        rendererSettings.mistSteps = d.mistSteps;
+                        rendererSettings.mistLightStrength = d.mistLightStrength;
+                        rendererSettings.mistLightReach = d.mistLightReach;
+                        rendererSettings.mistAmbient = d.mistAmbient;
+                        SetupUniforms();
+                    });
             }
 
             ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem("Particle system"))
+        // ======================================================================================================
+        if (ImGui::BeginTabItem("Particles"))
         {
             {
                 ForumLayout layout("##particles");
@@ -3007,7 +3590,8 @@ void MIDIRendererEnhanced::RenderSettings()
 
                 layout.AddHeader("Particles");
 
-                layout.AddField("##enableParticles", "Enable particles",
+                layout.AddFieldWithTooltip("##enableParticles", "Enable particles",
+                    "Turns the sparks on or off.",
                     [&]()
                     {
                         ImGui::Checkbox("", &rendererSettings.particlesEnabled);
@@ -3017,71 +3601,90 @@ void MIDIRendererEnhanced::RenderSettings()
                 {
                     layout.AddHeader("Appearance");
 
-                    SliderFloatField(layout, "##particleBrightness", "Particle brightness", nullptr,
+                    SliderFloatField(layout, "##particleBrightness", "Brightness",
+                        "How brightly the particles glow.",
                         p.brightness, 1.0f, 20.0f);
 
-                    layout.AddHeader("Behaviour");
+                    layout.AddHeader("Amount");
 
-                    SliderIntField(layout, "##particleEmission", "Emission",
-                        "Controls how many particles are emitted (spawned) at once. Default is 12. Higher values are not recommended on Black MIDIs.",
+                    SliderIntField(layout, "##particleEmission", "Particles per burst",
+                        "How many particles are spawned at once. Higher values are not recommended on Black MIDIs.",
                         p.emission, 1, 50);
 
-                    SliderFloatField(layout, "##particleSpawnRate", "Spawn rate",
-                        "Controls how frequently particle bursts are emitted. Default is 0.05. Higher values are not recommended on Black MIDIs.",
+                    SliderFloatField(layout, "##particleSpawnRate", "Burst rate",
+                        "How often bursts of particles are spawned. Higher values are not recommended on Black MIDIs.",
                         p.spawnRate, 0.01f, 1.0f);
 
-                    SliderFloatField(layout, "##particleInitialSpeed", "Initial speed",
-                        "Controls how fast particles fly out from the key on emission.",
+                    layout.AddHeader("Motion");
+
+                    SliderFloatField(layout, "##particleInitialSpeed", "Launch speed",
+                        "How fast particles fly out of the key.",
                         p.initialSpeed, 0.1f, 3.0f);
 
-                    SliderFloatField(layout, "##particleLifetime", "Lifetime",
-                        "Controls how long particles survive before fading out.",
+                    SliderFloatField(layout, "##particleLifetime", "How long they last (seconds)",
+                        "How long particles survive before fading out.",
                         p.lifetime, 0.2f, 5.0f);
 
-                    SliderFloatField(layout, "##particleLifetimeVar", "Lifetime Variance",
-                        "Controls the variance of particle lifetimes. Default is 0.5. 0 = Same lifetime for all particles, 1 = random lifetime between 0 and current lifetime",
+                    SliderFloatField(layout, "##particleLifetimeVar", "Lifetime randomness",
+                        "0 makes every particle last the same time. Higher values give each particle a different lifetime.",
                         p.lifetimeVariance, 0.0f, 1.0f);
 
-                    layout.AddHeader("Dynamics & Forces");
+                    layout.AddHeader("Forces");
 
                     SliderFloatField(layout, "##particleGravity", "Gravity",
-                        "Pulls particles downward over their lifetime. Negative values make them float upward.",
+                        "Pulls particles downward as they fly. Negative values make them float upward.",
                         p.gravityFactor, -2.0f, 2.0f);
 
-                    SliderFloatField(layout, "##particleDrag", "Drag",
-                        "Bleeds off particle velocity over time. Higher values make particles slow down and stop faster.",
-                        p.drag, 0.0f, 3.0f);
-
-                    SliderFloatField(layout, "##particleTurbulence", "Turbulence",
-                        "Adds a wobbling sideways drift to each particle's path. 0 is a straight arc.",
+                    SliderFloatField(layout, "##particleTurbulence", "Wobble",
+                        "Makes each particle drift from side to side along its path. 0 is a smooth arc.",
                         p.turbulence, 0.0f, 2.0f);
 
-                    SliderFloatField(layout, "##particleTurbulenceVariance", "Turbulence variation",
-                        "Controls how much the wobble differs from one particle to the next. 0 makes every particle wobble identically; higher values spread them out.",
-                        p.turbulenceVariance, 0.0f, 1.0f);
-
-                    SliderFloatField(layout, "##particleSwirlStrength", "Swirl strength",
-                        "Pulls particles through ambient swirling eddies as they fly, rather than a straight or purely turbulent path. 0 disables it.",
+                    SliderFloatField(layout, "##particleSwirlStrength", "Swirl",
+                        "Pulls particles through slow swirling currents, like smoke. 0 turns it off.",
                         p.swirlStrength, 0.0f, 3.0f);
 
-                    if (p.swirlStrength > 0.0f)
+                    if (adv)
                     {
-                        SliderFloatField(layout, "##particleSwirlScale", "Swirl scale",
-                            "Spatial frequency of the swirl field. Lower values make broad, sweeping eddies; higher values make tight, small ones.",
-                            p.swirlScale, 1.0f, 40.0f);
+                        SliderFloatField(layout, "##particleDrag", "Air resistance",
+                            "Slows particles down over time. Higher values make them stop sooner.",
+                            p.drag, 0.0f, 3.0f);
 
-                        SliderFloatField(layout, "##particleSwirlSpeed", "Swirl speed",
-                            "How fast the vortex field itself drifts and evolves over time. 0 freezes it into a static field.",
-                            p.swirlSpeed, 0.0f, 2.0f);
+                        SliderFloatField(layout, "##particleTurbulenceVariance", "Wobble randomness",
+                            "0 makes every particle wobble the same way. Higher values make each one different.",
+                            p.turbulenceVariance, 0.0f, 1.0f);
+
+                        if (p.swirlStrength > 0.0f)
+                        {
+                            SliderFloatField(layout, "##particleSwirlScale", "Swirl detail",
+                                "Lower gives broad, sweeping currents. Higher gives tight, small ones.",
+                                p.swirlScale, 1.0f, 40.0f);
+
+                            SliderFloatField(layout, "##particleSwirlSpeed", "Swirl speed",
+                                "How fast the swirling currents move and change. 0 freezes them.",
+                                p.swirlSpeed, 0.0f, 2.0f);
+                        }
                     }
                 }
+                else
+                {
+                    offNote(layout, "##particlesOffNote", "Particles are off. Tick the box above to turn them on.");
+                }
+
+                resetButton(layout, "##resetParticles", [&]()
+                    {
+                        rendererSettings.particlesEnabled = d.particlesEnabled;
+                        rendererSettings.particleSettings = d.particleSettings;
+                    });
             }
 
             ImGui::EndTabItem();
         }
 
+        // ======================================================================================================
         if (ImGui::BeginTabItem("Flares"))
         {
+            TabIntro("Soft beams of light that rise from a key while it is held and fade out as they go up the screen.");
+
             {
                 ForumLayout layout("##flares");
 
@@ -3091,14 +3694,29 @@ void MIDIRendererEnhanced::RenderSettings()
                         ImGui::Checkbox("", &rendererSettings.flaresEnabled);
                     });
 
-                SliderFloatField(layout, "##flareHeight", "Height", nullptr,
-                    rendererSettings.flareHeight, 0.1f, 0.9f);
+                if (rendererSettings.flaresEnabled)
+                {
+                    SliderFloatField(layout, "##flareHeight", "Flare height", nullptr,
+                        rendererSettings.flareHeight, 0.1f, 0.9f);
 
-                SliderFloatField(layout, "##flareBrightness", "Brightness", nullptr,
-                    rendererSettings.flareBrightness, 0.1f, 3.0f);
+                    SliderFloatField(layout, "##flareBrightness", "Brightness", nullptr,
+                        rendererSettings.flareBrightness, 0.1f, 3.0f);
 
-                SliderFloatField(layout, "##flareFadeDuration", "Fade duration", nullptr,
-                    rendererSettings.flareFadeDuration, 0.0f, 1.0f);
+                    SliderFloatField(layout, "##flareFadeDuration", "Fade time (seconds)", nullptr,
+                        rendererSettings.flareFadeDuration, 0.0f, 1.0f);
+                }
+                else
+                {
+                    offNote(layout, "##flaresOffNote", "Flares are off. Tick the box above to turn them on.");
+                }
+
+                resetButton(layout, "##resetFlares", [&]()
+                    {
+                        rendererSettings.flaresEnabled = d.flaresEnabled;
+                        rendererSettings.flareHeight = d.flareHeight;
+                        rendererSettings.flareBrightness = d.flareBrightness;
+                        rendererSettings.flareFadeDuration = d.flareFadeDuration;
+                    });
             }
 
             ImGui::EndTabItem();
@@ -3109,11 +3727,26 @@ void MIDIRendererEnhanced::RenderSettings()
     AbstractMIDIRenderer::RenderSettings();
 }
 
+void MIDIRendererEnhanced::ApplyGraphicsPreset(int preset)
+{
+    if (preset < 0 || preset >= (int)graphicsPresets.size()) return;
+
+    const float prevSupersample = rendererSettings.supersample;
+    ApplyGraphicsPresetTo(rendererSettings, preset);
+
+    // supersampling is the only part that needs the render targets rebuilt, everything else is read every frame
+    if (initialized && prevSupersample != rendererSettings.supersample)
+        ApplyRenderSize();
+}
+
 void MIDIRendererEnhanced::ResetSettings()
 {
+    const float prevSupersample = rendererSettings.supersample;
     rendererSettings = EnhancedRendererSettings::Default();
 
     SetupUniforms();
+    if (initialized && prevSupersample != rendererSettings.supersample)
+        ApplyRenderSize();
 }
 
 glm::mat4 MIDIRendererEnhanced::GetViewMatrixFromEuler()
@@ -3271,6 +3904,7 @@ YAML::Node MIDIRendererEnhanced::GetSettings()
     }
     visual["ssaa"] = ssaaIdx;
     visual["exposure"] = rendererSettings.exposure;
+    visual["showAdvanced"] = rendererSettings.showAdvancedSettings;
 
     YAML::Node keyboard;
     keyboard["keyGlowFactor"] = rendererSettings.keyGlowFactor;
@@ -3281,6 +3915,10 @@ YAML::Node MIDIRendererEnhanced::GetSettings()
     keyboard["giStrength"] = rendererSettings.giStrength;
     keyboard["giRadius"] = rendererSettings.giRadius;
     keyboard["giSaberStrength"] = rendererSettings.giSaberStrength;
+    keyboard["giShadowsEnabled"] = rendererSettings.giShadowsEnabled;
+    keyboard["giShadowStrength"] = rendererSettings.giShadowStrength;
+    keyboard["giShadowSoftness"] = rendererSettings.giShadowSoftness;
+    keyboard["giShadowSteps"] = rendererSettings.giShadowSteps;
     keyboard["ssrEnabled"] = rendererSettings.ssrEnabled;
     keyboard["ssrStrength"] = rendererSettings.ssrStrength;
     keyboard["ssrMaxDistance"] = rendererSettings.ssrMaxDistance;
@@ -3363,6 +4001,7 @@ void MIDIRendererEnhanced::LoadSettings(const YAML::Node& node)
         ssaaVal = std::clamp<int>(ssaaVal, 0, supersampleValues.size() - 1);
         rendererSettings.supersample = std::get<1>(supersampleValues[ssaaVal]);
         LoadValue(visual, "exposure", rendererSettings.exposure);
+        LoadValue(visual, "showAdvanced", rendererSettings.showAdvancedSettings);
     }
 
     if (node["keyboard"])
@@ -3376,6 +4015,10 @@ void MIDIRendererEnhanced::LoadSettings(const YAML::Node& node)
         LoadValue(keyboard, "giStrength", rendererSettings.giStrength);
         LoadValue(keyboard, "giRadius", rendererSettings.giRadius);
         LoadValue(keyboard, "giSaberStrength", rendererSettings.giSaberStrength);
+        LoadValue(keyboard, "giShadowsEnabled", rendererSettings.giShadowsEnabled);
+        LoadValue(keyboard, "giShadowStrength", rendererSettings.giShadowStrength);
+        LoadValue(keyboard, "giShadowSoftness", rendererSettings.giShadowSoftness);
+        LoadValue(keyboard, "giShadowSteps", rendererSettings.giShadowSteps);
         LoadValue(keyboard, "ssrEnabled", rendererSettings.ssrEnabled);
         LoadValue(keyboard, "ssrStrength", rendererSettings.ssrStrength);
         LoadValue(keyboard, "ssrMaxDistance", rendererSettings.ssrMaxDistance);

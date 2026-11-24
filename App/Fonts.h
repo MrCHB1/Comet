@@ -1,11 +1,19 @@
 #pragma once
 
-#include <imgui.h>
+#include <vector>
+#include <string>
 
-namespace Fonts
+struct ImFont;
+
+class Fonts
 {
-	extern ImFont* DefaultFont;
-	extern ImFont* MonoFont;
-	
-	void LoadFonts();
-}
+public:
+	static ImFont* DefaultFont;
+	static ImFont* MonoFont;
+
+	static void LoadFonts();
+	static void MergeI18nFonts(float size);
+private:
+	static std::vector<std::vector<char>> i18nData;
+	static bool LoadI18nData(const std::string& path);
+};

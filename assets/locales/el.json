@@ -1,0 +1,192 @@
+{
+    "ID": "Ελληνικά",
+
+    "title.nomidi": "Δεν έχει φορτωθεί MIDI",
+
+    "menu.file": "Αρχείο",
+    "menu.file.open": "Άνοιγμα...",
+    "menu.file.render": "Απόδοση σε βίντεο...",
+    "menu.file.diagnose": "Διάγνωση MIDI...",
+    "menu.file.screenshot": "Λήψη στιγμιότυπου οθόνης",
+    "menu.file.quit": "Έξοδος",
+
+    "menu.play": "Αναπαραγωγή",
+    "menu.play.stop": "Διακοπή",
+    "menu.play.unload": "Διακοπή και εκφόρτωση",
+
+    "menu.view": "Προβολή",
+    "menu.view.counter": "Εμφάνιση μετρητή νοτών",
+
+    "menu.options": "Επιλογές",
+    "menu.options.settings": "Ρυθμίσεις...",
+
+    "menu.help": "Βοήθεια",
+    "menu.help.kofi": "Κεράστε στον ponluxime έναν καφέ",
+    "menu.help.update": "Έλεγχος για ενημερώσεις",
+
+    "nav.notesize": "Μέγεθος νότας (σε ticks)",
+    "nav.playspeed": "Ταχύτητα αναπαραγωγής (%)",
+
+    "dialog.ok": "ΟΚ",
+    "dialog.cancel": "Ακύρωση",
+    "dialog.close": "Κλείσιμο",
+    "dialog.applyclose": "Εφαρμογή και κλείσιμο",
+    "dialog.yes": "Ναι",
+    "dialog.no": "Όχι",
+
+    "dialog.render.title": "Απόδοση βίντεο",
+    "dialog.render.input": "Είσοδος",
+    "dialog.render.input.ffmpeg": "Εκτελέσιμο FFmpeg",
+    "dialog.render.input.ffmpeg.installed": "Το FFmpeg είναι εγκατεστημένο!",
+    "dialog.render.input.ffmpeg.get": "Λήψη FFmpeg",
+    "dialog.render.input.ffmpeg.detect": "Εντοπισμός FFmpeg",
+    "dialog.render.input.midi": "MIDI",
+    "dialog.render.input.midi.loaded": "Θα αποδοθεί το MIDI που είναι τώρα φορτωμένο",
+    "dialog.render.input.audio": "Συμπερίληψη ήχου",
+
+    "dialog.render.output": "Έξοδος",
+    "dialog.render.output.format": "Μορφή",
+    "dialog.render.output.gpu": "Κωδικοποίηση GPU",
+    "dialog.render.output.gpu.tooltip": "Χρήση κωδικοποιητών FFmpeg με επιτάχυνση υλικού, όταν είναι διαθέσιμοι.",
+    "dialog.render.output.gpu.unavailable": "Η κωδικοποίηση GPU δεν είναι διαθέσιμη. Βεβαιωθείτε ότι το FFmpeg είναι σωστά εγκατεστημένο και ότι τα προγράμματα οδήγησης είναι ενημερωμένα.",
+    "dialog.render.output.codec": "Κωδικοποιητής",
+    "dialog.render.output.advanced": "Προχωρημένες επιλογές",
+    "dialog.render.output.advanced.tooltip": "Πρόσθετες επιλογές κωδικοποίησης FFmpeg για προχωρημένους χρήστες. Χρησιμοποιήστε τις μόνο αν γνωρίζετε τι κάνετε.",
+
+    "dialog.render.encoding": "Κωδικοποίηση",
+    "dialog.render.encoding.preset": "Προεπιλογή",
+    "dialog.render.encoding.bitratemode": "Λειτουργία ρυθμού bit",
+    "dialog.render.encoding.brm.const": "Σταθερός",
+    "dialog.render.encoding.brm.var": "Μεταβλητός",
+    "dialog.render.encoding.bitrate": "Ρυθμός bit (Kbps)",
+    "dialog.render.encoding.crf": "CRF",
+
+    "dialog.render.rendering": "Απόδοση",
+    "dialog.render.rendering.resolution": "Ανάλυση",
+    "dialog.render.rendering.framerate": "Ρυθμός καρέ",
+    "dialog.render.rendering.outpath": "Διαδρομή εξόδου",
+    "dialog.render.rendering.mask": "Μάσκα διαφάνειας",
+    "dialog.render.rendering.renderrange": "Εύρος απόδοσης",
+    "dialog.render.rendering.renderrange.tooltip": "Αποδίδει το MIDI σε ένα καθορισμένο χρονικό διάστημα. Χρήσιμο για κοινή χρήση σύντομων προεπισκοπήσεων ενός ολόκληρου MIDI.",
+
+    "dialog.render.renderbtn": "Απόδοση!",
+    "dialog.render.renderbtn.tooltip": "Πατήστε «Esc» για να ακυρώσετε την απόδοση οποιαδήποτε στιγμή. Το βίντεο θα αποθηκευτεί.",
+
+    "dialog.render.error.noffmpeg": "Δεν βρέθηκε το FFmpeg!",
+    "dialog.render.error.nomidi": "Δεν έχει φορτωθεί MIDI",
+    "dialog.render.error.nooutpath": "Καθορίστε τη διαδρομή εξόδου του βίντεο.",
+    "dialog.render.error.nooutmaskpath": "Καθορίστε τη διαδρομή εξόδου της μάσκας διαφάνειας.",
+    "dialog.render.error.invalidrange": "Μη έγκυρο εύρος απόδοσης",
+    "dialog.render.error": "Δεν είναι δυνατή η απόδοση· ελέγξτε τα σφάλματα παραπάνω.",
+
+    "dialog.diagnose.title": "Διάγνωση MIDI",
+    "dialog.diagnose.alsorun": "Εκτέλεση επίσης:",
+    "dialog.diagnose.bmdiag": "Διάγνωση Black MIDI",
+    "dialog.diagnose.clickhere": "Αφήστε ένα αρχείο MIDI ή κάντε κλικ εδώ για να ξεκινήσετε",
+
+    "dialog.diagnose.status.stopped": "Η διάγνωση διακόπηκε.",
+    "dialog.diagnose.another": "Διάγνωση άλλου αρχείου",
+    "dialog.diagnose.copy": "Αντιγραφή στο πρόχειρο",
+
+    "dialog.diagnose.filesize": "Μέγεθος αρχείου",
+    "dialog.diagnose.resolution": "Ανάλυση",
+    "dialog.diagnose.tracks": "Κομμάτια",
+    "dialog.diagnose.notes": "Νότες",
+    "dialog.diagnose.memory": "Μνήμη για άνοιγμα",
+    "dialog.diagnose.tempo": "Τέμπο",
+    "dialog.diagnose.nps": "Στιγμιαίο μέγιστο NPS",
+    "dialog.diagnose.overlap": "Επικαλυπτόμενες νότες",
+
+    "dialog.settings.title": "Ρυθμίσεις",
+
+    "dialog.settings.app": "Εφαρμογή",
+    "dialog.settings.app.header": "ΡΥΘΜΙΣΕΙΣ ΕΦΑΡΜΟΓΗΣ",
+    "dialog.settings.app.general": "Γενικά",
+    "dialog.settings.app.general.language": "Γλώσσα",
+    "dialog.settings.app.general.vsync": "VSync",
+    "dialog.settings.app.general.fps": "Όριο FPS",
+    "dialog.settings.app.general.fps.tooltip": "0 = Χωρίς όριο FPS",
+
+    "dialog.settings.app.theme": "Θέμα",
+    "dialog.settings.app.theme.reload": "Επαναφόρτωση λίστας θεμάτων",
+    "dialog.settings.app.theme.open": "Άνοιγμα φακέλου θεμάτων",
+
+    "dialog.settings.app.nav": "Πλοήγηση",
+    "dialog.settings.app.nav.hide": "Μόνιμη απόκρυψη γραμμής πλοήγησης",
+    "dialog.settings.app.nav.hide.tooltip": "Η γραμμή πλοήγησης παραμένει κρυφή, εκτός αν το ποντίκι βρεθεί κοντά στο πάνω μέρος του παραθύρου.",
+    "dialog.settings.app.nav.forward": "Μετάβαση μπροστά (δευτ.)",
+    "dialog.settings.app.nav.backward": "Μετάβαση πίσω (δευτ.)",
+
+    "dialog.settings.visual": "Οπτικά",
+    "dialog.settings.visual.disclaimer": "Αυτές οι ρυθμίσεις θα εφαρμόζονται και κατά την απόδοση βίντεο!",
+    "dialog.settings.visual.header": "ΟΠΤΙΚΕΣ ΡΥΘΜΙΣΕΙΣ",
+    "dialog.settings.visual.renderer": "Μηχανή απόδοσης",
+    "dialog.settings.visual.renderer.settings": "Ρυθμίσεις μηχανής απόδοσης",
+    "dialog.settings.visual.renderer.settings.reset": "Επαναφορά ρυθμίσεων",
+
+    "dialog.settings.visual.colors": "Χρώματα νοτών",
+    "dialog.settings.visual.colors.use": "Χρήση χρωμάτων από",
+    "dialog.settings.visual.colors.use.0": "Πακέτο πόρων",
+    "dialog.settings.visual.colors.use.1": "Λίστα χρωμάτων",
+    "dialog.settings.visual.colors.palette": "Λίστα παλετών",
+    "dialog.settings.visual.colors.refresh": "Ανανέωση λίστας παλετών",
+    "dialog.settings.visual.colors.open": "Άνοιγμα φακέλου παλετών",
+    "dialog.settings.visual.colors.loop": "Επανάληψη χρωμάτων σε βρόχο",
+    "dialog.settings.visual.colors.shuffle": "Ανακάτεμα χρωμάτων",
+    "dialog.settings.visual.colors.seed": "Σπόρος",
+
+    "dialog.settings.visual.counter": "Μετρητής και στατιστικά",
+    "dialog.settings.visual.counter.appearance": "Εμφάνιση",
+    "dialog.settings.visual.counter.showcounter": "Εμφάνιση μετρητή νοτών",
+    "dialog.settings.visual.counter.showstats": "Εμφάνιση στατιστικών",
+    "dialog.settings.visual.counter.scale": "Κλίμακα",
+    "dialog.settings.visual.counter.align": "Στοίχιση",
+    "dialog.settings.visual.counter.align.0": "Πάνω αριστερά",
+    "dialog.settings.visual.counter.align.1": "Πάνω στο κέντρο",
+    "dialog.settings.visual.counter.align.2": "Πάνω δεξιά",
+    "dialog.settings.visual.counter.blur": "Θόλωμα φόντου",
+    "dialog.settings.visual.counter.font": "Γραμματοσειρά",
+    "dialog.settings.visual.counter.font.default": "Προεπιλογή",
+    "dialog.settings.visual.counter.font.directory": "Φάκελος γραμματοσειρών",
+
+    "dialog.settings.visual.counter.style": "Στυλ",
+    "dialog.settings.visual.counter.style.0": "Ultralight MIDI Player",
+    "dialog.settings.visual.counter.style.1": "MIDITrail",
+    "dialog.settings.visual.counter.background": "Χρώμα φόντου",
+    "dialog.settings.visual.counter.text": "Χρώμα κειμένου",
+
+    "dialog.settings.visual.counter.fields": "Πεδία",
+    "dialog.settings.visual.counter.fields.help": "Τα πεδία που σημειώνονται με αστερίσκο (*) παραλείπονται από τις αποδόσεις βίντεο.",
+
+    "dialog.settings.audio": "Ήχος",
+    "dialog.settings.audio.engine": "Μηχανή ήχου",
+    "dialog.settings.audio.engine.unsupported": "Αυτή η μηχανή δεν υποστηρίζεται στην πλατφόρμα σας.",
+
+    "dialog.settings.midi": "MIDI",
+    "dialog.settings.midi.threads": "Νήματα φόρτωσης MIDI",
+    "dialog.settings.midi.threads.0": "Ενιαίο νήμα",
+    "dialog.settings.midi.threads.1": "Πολλαπλά νήματα",
+    "dialog.settings.midi.time": "Φόρτωση βάσει χρόνου",
+
+    "dialog.update.available.title": "Διαθέσιμη ενημέρωση",
+    "dialog.update.available.content": "Υπάρχει διαθέσιμη νέα ενημέρωση ({})! Να ανοίξει το GitHub;",
+
+    "dialog.update.synced.title": "Έλεγχος ενημερώσεων",
+    "dialog.update.synced.content": "Το Comet είναι ήδη ενημερωμένο.",
+
+    "dialog.update.error.title": "Σφάλμα ενημέρωσης",
+    "dialog.update.error.content": "Παρουσιάστηκε σφάλμα κατά τον έλεγχο για ενημερώσεις.",
+
+    "counter.tick": "Tick",
+    "counter.time": "Χρόνος",
+    "counter.bpm": "BPM",
+    "counter.notes": "Νότες",
+    "counter.nps": "NPS",
+    "counter.poly": "Πολυφωνία",
+
+    "stats.fps": "FPS",
+    "stats.buffer": "Προσωρινή μνήμη",
+
+    "widget.file.browse": "Αναζήτηση...",
+    "general.open": "Άνοιγμα"
+}

@@ -16,6 +16,8 @@
 #include "UI/Themes/Themes.h"
 #include "Config/MIDIPlayerConfig.h"
 #include "UpdateChecker.h"
+#include "App/Localization/Localization.h"
+#include <format>
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -50,7 +52,7 @@ MainWindow::MainWindow(const char* title)
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
 	
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
-	ImGui_ImplOpenGL3_Init();
+	ImGui_ImplOpenGL3_Init(glslVersion.c_str());
 
 	InitializeAppResources();
 
@@ -79,54 +81,63 @@ void MainWindow::InitializeDialogs()
 	dialogManager.RegisterDialog<LoadingDialog>(midiApp.get());
 	dialogManager.RegisterDialog<RenderVideoDialog>(midiApp.get());
 	dialogManager.RegisterDialog<SettingsDialog>(midiApp.get());
-	dialogManager.RegisterDialog<MessageDialog>();
+	dialogManager.RegisterDialog<MessageDialog>(midiApp->GetLocalization());
 }
 
 void MainWindow::InitializeUI()
 {
-	SubMenu& fileMenu = menuBuilder.CreateMenu("File");
-	fileMenu.AddItem(new MenuButton("Open...", [this]() {
+	BuildMenuBar();
+}
+
+void MainWindow::BuildMenuBar()
+{
+	menuBuilder = MenuBuilder();
+
+	Localization* localization = midiApp->GetLocalization();
+
+	SubMenu& fileMenu = menuBuilder.CreateMenu(TRANSLATE("menu.file"));
+	fileMenu.AddItem(new MenuButton(TRANSLATE("menu.file.open"), [this]() {
 		std::string outPath;
 		Utils::ChooseFile(outPath, "mid");
 		if (outPath.empty()) return;
 		this->midiApp->LoadMIDI(outPath.c_str());
 		this->dialogManager.GetDialog<LoadingDialog>()->Open();
 	}));
-	fileMenu.AddItem(new MenuButton("Render to Video...", [this]() {
+	fileMenu.AddItem(new MenuButton(TRANSLATE("menu.file.render"), [this]() {
 		this->dialogManager.GetDialog<RenderVideoDialog>()->Open();
 	}));
 	// fileMenu.AddItem(new MenuButton("Play without Render..."));
-	fileMenu.AddItem(new MenuButton("Diagnose MIDI...", [this]() {
+	fileMenu.AddItem(new MenuButton(TRANSLATE("menu.file.diagnose"), [this]() {
 		this->dialogManager.GetDialog<DiagnosisDialog>()->Open();
 	}));
-	fileMenu.AddItem(new MenuButton("Take Screenshot", [this]() {
+	fileMenu.AddItem(new MenuButton(TRANSLATE("menu.file.screenshot"), [this]() {
 		std::cout << "Will be implemented soon" << std::endl;
 	}));
-	fileMenu.AddItem(new MenuButton("Quit", [this]() { glfwSetWindowShouldClose(window, GLFW_TRUE); }));
+	fileMenu.AddItem(new MenuButton(TRANSLATE("menu.file.quit"), [this]() { glfwSetWindowShouldClose(window, GLFW_TRUE); }));
 
-	SubMenu& playMenu = menuBuilder.CreateMenu("Play");
-	playMenu.AddItem(new MenuButton("Stop", [this]() {
+	SubMenu& playMenu = menuBuilder.CreateMenu(TRANSLATE("menu.play"));
+	playMenu.AddItem(new MenuButton(TRANSLATE("menu.play.stop"), [this]() {
 		auto timer = midiApp->GetTimer();
 		timer->Stop();
 	}));
-	playMenu.AddItem(new MenuButton("Stop and Unload", [this]() {
+	playMenu.AddItem(new MenuButton(TRANSLATE("menu.play.unload"), [this]() {
 		auto timer = midiApp->GetTimer();
 		timer->Stop();
 		midiApp->UnloadMIDI();
 	}));
 
-	SubMenu& viewMenu = menuBuilder.CreateMenu("View");
-	viewMenu.AddItem(new MenuCheckbox("Show note counter", &(midiApp->GetConfig()->render.showCounter)));
+	SubMenu& viewMenu = menuBuilder.CreateMenu(TRANSLATE("menu.view"));
+	viewMenu.AddItem(new MenuCheckbox(TRANSLATE("menu.view.counter"), &(midiApp->GetConfig()->render.showCounter)));
 
-	SubMenu& optionMenu = menuBuilder.CreateMenu("Options");
-	optionMenu.AddItem(new MenuButton("Settings...", [this]() {
+	SubMenu& optionMenu = menuBuilder.CreateMenu(TRANSLATE("menu.options"));
+	optionMenu.AddItem(new MenuButton(TRANSLATE("menu.options.settings"), [this]() {
 		this->dialogManager.GetDialog<SettingsDialog>()->Open();
 	}));
-	SubMenu& helpMenu = menuBuilder.CreateMenu("Help");
-	helpMenu.AddItem(new MenuButton("Buy ponluxime a coffee", [this]() {
+	SubMenu& helpMenu = menuBuilder.CreateMenu(TRANSLATE("menu.help"));
+	helpMenu.AddItem(new MenuButton(TRANSLATE("menu.help.kofi"), [this]() {
 		Utils::OpenURL("https://ko-fi.com/ponluxime");
 	}));
-	helpMenu.AddItem(new MenuButton("Check for Updates", [this]() {
+	helpMenu.AddItem(new MenuButton(TRANSLATE("menu.help.update"), [this, localization]() {
 		if (!this->updateChecker) return;
 		
 		auto result = this->updateChecker->CheckForUpdate();
@@ -137,8 +148,11 @@ void MainWindow::InitializeUI()
 		{
 			case UpdateChecker::UPDATE_AVAILABLE:
 			{
-				std::string msg = "A new update (" + result.retrievedVersion.ToString() + ") is available! Open github?";
-				msgDlg->Open("Update Available", msg, MessageDialog::ButtonType::YesNo, [result](MessageDialog::Result res)
+				std::string msg = std::vformat(
+					TRANSLATE("dialog.update.available.content"),
+					std::make_format_args(result.retrievedVersion.ToString())
+				);
+				msgDlg->Open(TRANSLATE("dialog.update.available.title"), msg, MessageDialog::ButtonType::YesNo, [result](MessageDialog::Result res)
 					{
 						if (res == MessageDialog::Result::Yes)
 						{
@@ -149,12 +163,18 @@ void MainWindow::InitializeUI()
 			}
 			case UpdateChecker::UP_TO_DATE:
 			{
-				msgDlg->Open("Update Check", "Comet is already up-to-date.", MessageDialog::ButtonType::OK);
+				msgDlg->Open(
+					TRANSLATE("dialog.update.synced.title"),
+					TRANSLATE("dialog.update.synced.content"),
+					MessageDialog::ButtonType::OK);
 				break;
 			}
 			case UpdateChecker::CHECK_ERROR:
 			{
-				msgDlg->Open("Update Error", "An error occurred while checking for an update.", MessageDialog::ButtonType::OK);
+				msgDlg->Open(
+					TRANSLATE("dialog.update.error.title"),
+					TRANSLATE("dialog.update.error.content"),
+					MessageDialog::ButtonType::OK);
 				break;
 			}
 		}
@@ -169,20 +189,46 @@ bool MainWindow::InitializeGLFW()
 		return false;
 	}
 
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
 	MIDIPlayerConfig* cfg = midiApp->GetConfig();
 	int width = cfg->render.GetWidth(), height = cfg->render.GetHeight();
 
-	window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+	// try the highest to lowest; first one the driver accept wins
+	struct GLVersionAttempt { int major, minor; };
+	static constexpr GLVersionAttempt attempts[] = {
+		{ 4, 3 }, { 4, 2 }, { 4, 1 }, { 4, 0 }, { 3, 3 }
+	};
+
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#ifdef __APPLE__
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+#endif
+
+	for (const auto& attempt : attempts)
+	{
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, attempt.major);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, attempt.minor);
+
+		window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+		if (window)
+		{
+			glMajor = attempt.major;
+			glMinor = attempt.minor;
+			break;
+		}
+#ifdef COMET_DEBUG
+		std::cerr << "OpenGL " << attempt.major << "." << attempt.minor
+			<< " context unavailable, trying lower version" << std::endl;
+#endif
+	}
+
 	if (!window)
 	{
-		std::cerr << "Failed to create GLFW window" << std::endl;
+		std::cerr << "Failed to create GLFW window (no supported OpenGL context, need 3.3+)" << std::endl;
 		glfwTerminate();
 		return false;
 	}
+
+	glslVersion = "#version " + std::to_string(glMajor * 100 + glMinor * 10); // 4.3 -> "#version 430"
 
 	glfwSetWindowUserPointer(window, midiApp.get());
 	glfwSetFramebufferSizeCallback(window, [](GLFWwindow* window, int w, int h)
@@ -196,7 +242,14 @@ bool MainWindow::InitializeGLFW()
 		});
 
 	glfwMakeContextCurrent(window);
-	gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+	{
+		std::cerr << "Failed to load OpenGL functions" << std::endl;
+		glfwDestroyWindow(window);
+		window = nullptr;
+		glfwTerminate();
+		return false;
+	}
 
 	return true;
 }
@@ -247,12 +300,20 @@ void MainWindow::PostInit()
 
 void MainWindow::SetTitleInfo(std::string midiName)
 {
-	titleInfo = midiName.empty() ? "No MIDI Loaded" : midiName;
+	Localization* localization = midiApp->GetLocalization();
+	titleInfo = midiName.empty() ? TRANSLATE("title.nomidi") : midiName;
 	glfwSetWindowTitle(window, (title + " | " + titleInfo).c_str());
 }
 
 void MainWindow::Run()
 {
+	// launch options
+	if (!options.midi.empty())
+	{
+		midiApp->LoadMIDI(options.midi.c_str());
+		dialogManager.GetDialog<LoadingDialog>()->Open();
+	}
+
 	while (!glfwWindowShouldClose(window))
 	{
 		double frameStartTime = glfwGetTime();
@@ -260,6 +321,12 @@ void MainWindow::Run()
 		glfwPollEvents();
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
+
+		if (midiApp->WasLocalizationDirty())
+		{
+			BuildMenuBar();
+			SetTitleInfo(midiApp->GetLastLoadedMIDIName());
+		}
 
 		if (!midiApp->IsRendering())
 		{

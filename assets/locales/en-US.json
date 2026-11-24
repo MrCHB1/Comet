@@ -1,0 +1,192 @@
+{
+    "ID": "English (US)",
+
+    "title.nomidi": "No MIDI Loaded",
+
+    "menu.file": "File",
+    "menu.file.open": "Open...",
+    "menu.file.render": "Render to video...",
+    "menu.file.diagnose": "Diagnose MIDI...",
+    "menu.file.screenshot": "Take screenshot",
+    "menu.file.quit": "Quit",
+
+    "menu.play": "Play",
+    "menu.play.stop": "Stop",
+    "menu.play.unload": "Stop and unload",
+
+    "menu.view": "View",
+    "menu.view.counter": "Show note counter",
+
+    "menu.options": "Options",
+    "menu.options.settings": "Settings...",
+
+    "menu.help": "Help",
+    "menu.help.kofi": "Buy ponluxime a coffee",
+    "menu.help.update": "Check for updates",
+
+    "nav.notesize": "Note size (in ticks)",
+    "nav.playspeed": "Playback speed (%)",
+
+    "dialog.ok": "Ok",
+    "dialog.cancel": "Cancel",
+    "dialog.close": "Close",
+    "dialog.applyclose": "Apply & Close",
+    "dialog.yes": "Yes",
+    "dialog.no": "No",
+
+    "dialog.render.title": "Render video",
+    "dialog.render.input": "Input",
+    "dialog.render.input.ffmpeg": "FFmpeg executable",
+    "dialog.render.input.ffmpeg.installed": "FFmpeg is installed!",
+    "dialog.render.input.ffmpeg.get": "Get FFmpeg",
+    "dialog.render.input.ffmpeg.detect": "Detect FFmpeg",
+    "dialog.render.input.midi": "MIDI",
+    "dialog.render.input.midi.loaded": "Will render the currently loaded MIDI",
+    "dialog.render.input.audio": "Include audio",
+
+    "dialog.render.output": "Output",
+    "dialog.render.output.format": "Format",
+    "dialog.render.output.gpu": "GPU encoding",
+    "dialog.render.output.gpu.tooltip": "Use hardware-accelerated FFmpeg encoders when available.",
+    "dialog.render.output.gpu.unavailable": "GPU encoding is unavailable. Ensure FFmpeg is installed properly and your drivers are updated.",
+    "dialog.render.output.codec": "Codec",
+    "dialog.render.output.advanced": "Advanced options",
+    "dialog.render.output.advanced.tooltip": "Additional FFmpeg encoding options for advanced users. Only use this if you know what you're doing.",
+
+    "dialog.render.encoding": "Encoding",
+    "dialog.render.encoding.preset": "Preset",
+    "dialog.render.encoding.bitratemode": "Bitrate mode",
+    "dialog.render.encoding.brm.const": "Constant",
+    "dialog.render.encoding.brm.var": "Variable",
+    "dialog.render.encoding.bitrate": "Bitrate (Kbps)",
+    "dialog.render.encoding.crf": "CRF",
+
+    "dialog.render.rendering": "Rendering",
+    "dialog.render.rendering.resolution": "Resolution",
+    "dialog.render.rendering.framerate": "Framerate",
+    "dialog.render.rendering.outpath": "Output path",
+    "dialog.render.rendering.mask": "Transparency mask",
+    "dialog.render.rendering.renderrange": "Render range",
+    "dialog.render.rendering.renderrange.tooltip": "Renders the MIDI at a specified time interval. Useful for sharing short previews of an entire MIDI.",
+
+    "dialog.render.renderbtn": "Render!",
+    "dialog.render.renderbtn.tooltip": "Press 'esc' to cancel the render at any time. Video will be saved.",
+
+    "dialog.render.error.noffmpeg": "No FFmpeg found!",
+    "dialog.render.error.nomidi": "No MIDI loaded",
+    "dialog.render.error.nooutpath": "Please specify the video's output path.",
+    "dialog.render.error.nooutmaskpath": "Please specify the transparency mask's output path.",
+    "dialog.render.error.invalidrange": "Invalid render range",
+    "dialog.render.error": "Cannot render; check above for errors.",
+
+    "dialog.diagnose.title": "Diagnose MIDI",
+    "dialog.diagnose.alsorun": "Also run:",
+    "dialog.diagnose.bmdiag": "Black MIDI Diagnosis",
+    "dialog.diagnose.clickhere": "Drop MIDI file or click here to start",
+
+    "dialog.diagnose.status.stopped": "Diagnosis stopped.",
+    "dialog.diagnose.another": "Diagnose another",
+    "dialog.diagnose.copy": "Copy to clipboard",
+
+    "dialog.diagnose.filesize": "File Size",
+    "dialog.diagnose.resolution": "Resolution",
+    "dialog.diagnose.tracks": "Tracks",
+    "dialog.diagnose.notes": "Notes",
+    "dialog.diagnose.memory": "Memory to Open",
+    "dialog.diagnose.tempo": "Tempo",
+    "dialog.diagnose.nps": "Moment Max NPS",
+    "dialog.diagnose.overlap": "Overlapping Notes",
+
+    "dialog.settings.title": "Settings",
+
+    "dialog.settings.app": "App",
+    "dialog.settings.app.header": "APP SETTINGS",
+    "dialog.settings.app.general": "General",
+    "dialog.settings.app.general.language": "Language",
+    "dialog.settings.app.general.vsync": "VSync",
+    "dialog.settings.app.general.fps": "FPS Limit",
+    "dialog.settings.app.general.fps.tooltip": "0 = No FPS Limit",
+
+    "dialog.settings.app.theme": "Theme",
+    "dialog.settings.app.theme.reload": "Reload theme list",
+    "dialog.settings.app.theme.open": "Open themes folder",
+
+    "dialog.settings.app.nav": "Navigation",
+    "dialog.settings.app.nav.hide": "Always hide navigation bar",
+    "dialog.settings.app.nav.hide.tooltip": "The navigation bar stays hidden unless the mouse hovers near the top of the window.",
+    "dialog.settings.app.nav.forward": "Jump forward (s)",
+    "dialog.settings.app.nav.backward": "Jump backward (s)",
+
+    "dialog.settings.visual": "Visual",
+    "dialog.settings.visual.disclaimer": "These settings will also apply when rendering videos!",
+    "dialog.settings.visual.header": "VISUAL SETTINGS",
+    "dialog.settings.visual.renderer": "Renderer",
+    "dialog.settings.visual.renderer.settings": "Renderer settings",
+    "dialog.settings.visual.renderer.settings.reset": "Reset settings",
+
+    "dialog.settings.visual.colors": "Note colors",
+    "dialog.settings.visual.colors.use": "Use colors from",
+    "dialog.settings.visual.colors.use.0": "Resource pack",
+    "dialog.settings.visual.colors.use.1": "Color list",
+    "dialog.settings.visual.colors.palette": "Palette list",
+    "dialog.settings.visual.colors.refresh": "Refresh palette list",
+    "dialog.settings.visual.colors.open": "Open palette folder",
+    "dialog.settings.visual.colors.loop": "Loop colors",
+    "dialog.settings.visual.colors.shuffle": "Shuffle colors",
+    "dialog.settings.visual.colors.seed": "Seed",
+
+    "dialog.settings.visual.counter": "Counter & Stats",
+    "dialog.settings.visual.counter.appearance": "Appearance",
+    "dialog.settings.visual.counter.showcounter": "Show note counter",
+    "dialog.settings.visual.counter.showstats": "Show statistics",
+    "dialog.settings.visual.counter.scale": "Scale",
+    "dialog.settings.visual.counter.align": "Alignment",
+    "dialog.settings.visual.counter.align.0": "Top Left",
+    "dialog.settings.visual.counter.align.1": "Top Center",
+    "dialog.settings.visual.counter.align.2": "Top Right",
+    "dialog.settings.visual.counter.blur": "Blur behind",
+    "dialog.settings.visual.counter.font": "Font",
+    "dialog.settings.visual.counter.font.default": "Default",
+    "dialog.settings.visual.counter.font.directory": "Font directory",
+
+    "dialog.settings.visual.counter.style": "Style",
+    "dialog.settings.visual.counter.style.0": "Ultralight MIDI Player",
+    "dialog.settings.visual.counter.style.1": "MIDITrail",
+    "dialog.settings.visual.counter.background": "Background color",
+    "dialog.settings.visual.counter.text": "Text color",
+
+    "dialog.settings.visual.counter.fields": "Fields",
+    "dialog.settings.visual.counter.fields.help": "Fields marked with an asterisk (*) are omitted from video renders.",
+
+    "dialog.settings.audio": "Audio",
+    "dialog.settings.audio.engine": "Audio engine",
+    "dialog.settings.audio.engine.unsupported": "This engine is not supported on your platform.",
+
+    "dialog.settings.midi": "MIDI",
+    "dialog.settings.midi.threads": "MIDI loading threads",
+    "dialog.settings.midi.threads.0": "Single-threaded",
+    "dialog.settings.midi.threads.1": "Multi-threaded",
+    "dialog.settings.midi.time": "Time-based loading",
+
+    "dialog.update.available.title": "Update Available",
+    "dialog.update.available.content": "A new update ({}) is available! Open github?",
+
+    "dialog.update.synced.title": "Update Check",
+    "dialog.update.synced.content": "Comet is already up-to-date.",
+
+    "dialog.update.error.title": "Update Error",
+    "dialog.update.error.content": "An error occurred while checking for an update.",
+
+    "counter.tick": "Tick",
+    "counter.time": "Time",
+    "counter.bpm": "BPM",
+    "counter.notes": "Notes",
+    "counter.nps": "NPS",
+    "counter.poly": "Polyphony",
+
+    "stats.fps": "FPS",
+    "stats.buffer": "Buffer",
+
+    "widget.file.browse": "Browse...",
+    "general.open": "Open"
+}

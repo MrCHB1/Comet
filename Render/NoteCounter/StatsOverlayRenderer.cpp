@@ -2,6 +2,7 @@
 #include "App/Fonts.h"
 #include "App/FontList.h"
 #include "App/MIDIApp.h"
+#include "App/Localization/Localization.h"
 #include "Utils.h"
 
 bool StatsOverlayRenderer::IsShown()
@@ -15,6 +16,8 @@ bool StatsOverlayRenderer::IsShown()
 void StatsOverlayRenderer::Render(float heightOffset)
 {
 	MIDIPlayerConfig* config = app->GetConfig();
+	Localization* localization = app->GetLocalization();
+
 	ImVec4 bgColor = config->overlayInfo.backgroundCol;
 	ImVec4 txtColor = config->overlayInfo.textCol;
 
@@ -64,25 +67,25 @@ void StatsOverlayRenderer::Render(float heightOffset)
 	{
 		ImGui::SetWindowFontScale(statsScale);
 
-		struct StatsRow { const char* label; char value[64]; };
+		struct StatsRow { std::string label; char value[64]; };
 		StatsRow rows[2];
 		int rowCount = 0;
 
 		{
 			OverlayUtils::FormatText(rows[rowCount].value, "%.1f", app->GetFPS());
-			rows[rowCount].label = "FPS";
+			rows[rowCount].label = TRANSLATE("stats.fps").c_str();
 			rowCount++;
 
 			double buffer = app->GetAudioBufferSeconds();
 			OverlayUtils::FormatText(rows[rowCount].value, buffer < -0.5 ? "N/A" : Utils::FormatDuration2(buffer * 1000).c_str(), buffer);
-			rows[rowCount].label = "Buffer";
+			rows[rowCount].label = TRANSLATE("stats.buffer").c_str();
 			rowCount++;
 		}
 
 		float labelColWidth = 0.0f, valueColWidth = 0.0f;
 		for (int i = 0; i < rowCount; i++)
 		{
-			labelColWidth = std::max(labelColWidth, ImGui::CalcTextSize(rows[i].label).x);
+			labelColWidth = std::max(labelColWidth, ImGui::CalcTextSize(rows[i].label.c_str()).x);
 			valueColWidth = std::max(valueColWidth, ImGui::CalcTextSize(rows[i].value).x);
 		}
 
@@ -101,7 +104,7 @@ void StatsOverlayRenderer::Render(float heightOffset)
 			{
 				ImGui::TableNextRow();
 				ImGui::TableSetColumnIndex(0);
-				ImGui::Text(rows[i].label);
+				ImGui::Text(rows[i].label.c_str());
 				ImGui::TableSetColumnIndex(1);
 				OverlayUtils::RightAlignedTableText(rows[i].value);
 			}

@@ -15,19 +15,21 @@ public:
 	void TogglePause();
 
 	void NavigateTo(double timeSeconds);
+	void ChangeSpeed(double speed);
 	
-	bool HasNavigatedRecently()
+	[[nodiscard]] bool HasNavigatedRecently()
 	{
-		bool nav = hasNavigated;
-		hasNavigated = false;
-		return nav;
+		return std::exchange(hasNavigated, false);
 	}
 
-	bool PauseRequestedRecently()
+	[[nodiscard]] bool PauseRequestedRecently()
 	{
-		bool pauseReq = pauseRequested;
-		pauseRequested = false;
-		return pauseReq;
+		return std::exchange(pauseRequested, false);
+	}
+
+	[[nodiscard]] bool SpeedChanged()
+	{
+		return std::exchange(speedChanged, false);
 	}
 
 	bool IsRunning() const { return running; }
@@ -36,6 +38,8 @@ public:
 	double Elapsed() const;
 	double GetPauseTime() const { return baseTime; }
 	double GetDeltaTime();
+
+	double GetSpeed() const { return speed; }
 
 	void ClearFlags()
 	{
@@ -49,9 +53,11 @@ private:
 		= clock::now();
 	double baseTime = 0.0; // accumulated time before the current run segment
 	double lastTime = 0.0; // last value returned by Elapsed/GetDeltaTime
+	double speed = 1.0;
 
 	bool running = false;
 	bool paused = true;
 	bool pauseRequested = false;
 	bool hasNavigated = false;
+	bool speedChanged = false;
 };

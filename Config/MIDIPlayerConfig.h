@@ -57,6 +57,7 @@ struct MIDIPlayerConfig
 	struct ConfigApp
 	{
 		size_t currThemeID = 0;
+		std::string language = "en-US";
 	};
 
 	struct ConfigOverlayInfo
@@ -87,6 +88,7 @@ struct MIDIPlayerConfig
 		bool timeBasedLoading = false;
 		bool loadNotesOnly = false;
 		bool usePlayThread = true;
+		float playSpeed = 1.0f;
 	};
 
 	struct ConfigNavigation

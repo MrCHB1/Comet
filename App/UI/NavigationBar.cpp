@@ -5,6 +5,7 @@
 #include "App/MIDIApp.h"
 #include "MIDI/Timer/MIDITimer.h"
 #include "App/UI/Widgets/ThinSlider.h"
+#include "App/Localization/Localization.h"
 
 #define NAVIGATION_ROWS 2
 #define MIN_MIDI_TIME_SECS -3.0f
@@ -56,7 +57,9 @@ void NavigationBar::Draw()
 {
 	if (!app->IsGLReady()) return;
 	TryLoadUITextures();
-
+	
+	auto* config = app->GetConfig();
+	Localization* localization = app->GetLocalization();
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
 
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 2));
@@ -170,9 +173,10 @@ void NavigationBar::Draw()
 
 			ImGui::SameLine();
 			VerticalSeparator(0.0f, true);
-			ImGui::SameLine();
 
+			ImGui::SameLine();
 			ImGui::SetNextItemWidth(170);
+
 			int viewTicks = static_cast<int>(renderView->viewTicks);
 
 			if (ThinSlider::Draw<int>("##navNoteSize", &viewTicks, 48, 7680, "", ImGuiSliderFlags_Logarithmic))
@@ -182,7 +186,25 @@ void NavigationBar::Draw()
 
 			if (ImGui::IsItemHovered())
 			{
-				ImGui::SetTooltip("Note size (in ticks)");
+				ImGui::SetTooltip(TRANSLATE("nav.notesize").c_str());
+			}
+
+			ImGui::SameLine();
+			ImGui::Dummy(ImVec2{ 7.5f, -FLT_MAX });
+			ImGui::SameLine();
+;			ImGui::SetNextItemWidth(170);
+
+			float playbackSpeed = static_cast<float>(config->midi.playSpeed);
+			if (ThinSlider::Draw<float>("##playbackSpeed", &playbackSpeed, 0.01f, 3.0f, "%.2f",
+				ImGuiSliderFlags_None, 0.25f, true, 1.0f))
+			{
+				config->midi.playSpeed = std::clamp(playbackSpeed, 0.01f, 3.0f);
+				timer->ChangeSpeed(config->midi.playSpeed);
+			}
+
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip(TRANSLATE("nav.playspeed").c_str());
 			}
 		}
 

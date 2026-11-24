@@ -40,11 +40,17 @@
 #include "Models.h"
 #include "UI/Themes/Themes.h"
 #include "FontList.h"
+#include "Localization/Localization.h"
+#include "App/Fonts.h"
 
 MIDIApp::MIDIApp(MainWindow* mainWindow)
 {
 	config = MIDIPlayerConfig{};
 	config.LoadConfigOrDefault();
+
+	localization = std::make_unique<Localization>();
+	localization->PreloadLanguages();
+	SetLanguage(config.app.language);
 
 	renderView = std::make_shared<RenderView>();
 	timer = std::make_shared<MIDITimer>();
@@ -73,6 +79,16 @@ MIDIApp::~MIDIApp()
 	}
 	config.SaveConfig();
 	Models::UnloadModels();
+}
+
+void MIDIApp::SetLanguage(const std::string& id)
+{
+	std::string lang = id;
+	if (!localization->LanguageExists(id)) lang = "en-US";
+
+	config.app.language = lang;
+	localization->LoadLanguage(lang);
+	localizationDirty = true;
 }
 
 bool MIDIApp::IsGLReady() const
@@ -341,13 +357,17 @@ void MIDIApp::LoadResources()
 void MIDIApp::BuildFontAtlas()
 {
 	fontList = std::make_unique<FontList>();
-
 	auto& io = ImGui::GetIO();
-	io.Fonts->AddFontDefault();
 
+	// 1. default UI font (18px so it matches the CJK font), then CJK fallback
+	ImFontConfig defCfg;
+	defCfg.SizePixels = 18.0f;
+	io.Fonts->AddFontDefault(&defCfg);
+	Fonts::MergeI18nFonts(18.0f);
+
+	// 2. each user-selectable font, each followed by its own CJK fallback
 	fontList->RegisterFontsIntoAtlas(io.Fonts, 18.0f);
 }
-
 void MIDIApp::LoadColorPalettes()
 {
 	if (colorList == nullptr)

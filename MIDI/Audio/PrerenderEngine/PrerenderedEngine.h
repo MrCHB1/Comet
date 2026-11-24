@@ -70,7 +70,7 @@ private:
         return diff;
     }
 
-    void EventGeneratorLoop();
+    void EventGeneratorLoop(MIDISequence* src, uint64_t id);
     void RenderLoop(double startTime);
     // checks for timer pauses/navigation on a 10ms interval and adjusts the prerenderer as necessary (i think it's a weird way to do this lol)
     void TimerLoop();
@@ -89,7 +89,7 @@ private:
     double GetPlayerTime()
     {
         std::lock_guard<std::mutex> lock(bufferMutex);
-        return startTime + bufferReadPos / 48000.0;
+        return startTime + ((double)bufferReadPos / (double)SAMPLE_RATE) * renderSpeed;
     }
 
     void WrappedCopy(float* src, int pos, int srcCount, float* dst, int pos2, int count);
@@ -118,6 +118,9 @@ private:
     std::atomic_bool muted{ false };
 
     double startTime = 0.0;
+
+    // speed
+    std::atomic<double> renderSpeed{ 1.0 };   // speed the current buffer contents were rendered at
 
     // shared Event State
     std::vector<PrecalculatedEvent> prerenderedEvents;
@@ -166,7 +169,8 @@ private:
     double releaseRate = 1.0;
     std::atomic<double> preVolume{ 1.0 };
 
-    MIDISequence* lastSeq = nullptr;
+    uint64_t eventsSeqID = 0;
+    bool eventsValid = false;
 };
 #else
 class PrerenderedEngine : public AudioEngine

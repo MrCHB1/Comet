@@ -3,6 +3,8 @@
 #include <array>
 #include <algorithm>
 #include <iostream>
+#include "App/MIDIApp.h"
+#include "App/Localization/Localization.h"
 
 void BasicDiagnosis::Run()
 {

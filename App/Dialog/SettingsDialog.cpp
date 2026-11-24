@@ -22,6 +22,7 @@
 #include "MIDI/Audio/MIDIAudio.h"
 
 #include "App/UI/Layout/ForumLayout.h"
+#include "App/Localization/Localization.h"
 
 namespace
 {
@@ -30,7 +31,7 @@ namespace
 	template <typename Enum, typename DrawContentFn>
 	void DrawSubTabs(const char* id, const char* heading,
 		Enum& selected, float sidebarWidth,
-		std::initializer_list<std::pair<const char*, Enum>> tabs,
+		std::initializer_list<std::pair<std::string, Enum>> tabs,
 		DrawContentFn&& drawContent)
 	{
 		ImGui::PushID(id);
@@ -49,7 +50,7 @@ namespace
 
 			for (const auto& [label, value] : tabs)
 			{
-				if (ImGui::Selectable(label, selected == value)) selected = value;
+				if (ImGui::Selectable(label.c_str(), selected == value)) selected = value;
 			}
 		}
 		ImGui::EndChild();
@@ -65,10 +66,21 @@ namespace
 
 		ImGui::PopID();
 	}
+
+	class IDScope
+	{
+	public:
+		IDScope(const char* id) { ImGui::PushID(id); }
+		~IDScope() { ImGui::PopID(); }
+
+		IDScope& operator=(const IDScope&&) = delete;
+	};
 }
 
 void SettingsDialog::DrawContent()
 {
+	Localization* localization = app->GetLocalization();
+
 	const float footerHeight =
 		ImGui::GetFrameHeightWithSpacing() + 2.0f * ImGui::GetStyle().ItemSpacing.y;
 
@@ -76,37 +88,53 @@ void SettingsDialog::DrawContent()
 	{
 		if (ImGui::BeginTabBar("MainTabs"))
 		{
-			if (ImGui::BeginTabItem("App"))
 			{
-				DrawAppTab();
+				IDScope id("app");
+				if (ImGui::BeginTabItem(TRANSLATE("dialog.settings.app").c_str()))
+				{
+					DrawAppTab();
 
-				ImGui::EndTabItem();
+					ImGui::EndTabItem();
+				}
 			}
-			if (ImGui::BeginTabItem("Visual"))
+
 			{
-				DrawVisualTab();
+				IDScope id("visual");
+				if (ImGui::BeginTabItem(TRANSLATE("dialog.settings.visual").c_str()))
+				{
+					DrawVisualTab();
 
-				ImGui::EndTabItem();
+					ImGui::EndTabItem();
+				}
 			}
-			if (ImGui::BeginTabItem("Audio"))
+			
 			{
-				DrawAudioTab();
+				IDScope id("audio");
+				if (ImGui::BeginTabItem(TRANSLATE("dialog.settings.audio").c_str()))
+				{
+					DrawAudioTab();
 
-				ImGui::EndTabItem();
+					ImGui::EndTabItem();
+				}
 			}
-			if (ImGui::BeginTabItem("MIDI"))
+
 			{
-				DrawMIDITab();
+				IDScope id("midi");
+				if (ImGui::BeginTabItem(TRANSLATE("dialog.settings.midi").c_str()))
+				{
+					DrawMIDITab();
 
-				ImGui::EndTabItem();
+					ImGui::EndTabItem();
+				}
 			}
+
 			ImGui::EndTabBar();
 		}
 	}
 
 	ImGui::EndChild();
 	ImGui::Separator();
-	if (ImGui::Button("Apply & Close"))
+	if (ImGui::Button(TRANSLATE("dialog.applyclose").c_str()))
 	{
 		ImGui::CloseCurrentPopup();
 	}
@@ -115,6 +143,8 @@ void SettingsDialog::DrawContent()
 void SettingsDialog::DrawAppTab()
 {
 	auto config = app->GetConfig();
+	Localization* localization = app->GetLocalization();
+
 	ThemesList* themesList = app->GetThemeList();
 
 	enum AppSubTab
@@ -126,20 +156,40 @@ void SettingsDialog::DrawAppTab()
 
 	static AppSubTab appSubTab = General;
 
-	DrawSubTabs("AppSettings", "APP SETTINGS",
+	DrawSubTabs("AppSettings",
+		TRANSLATE("dialog.settings.app.header").c_str(),
 		appSubTab, 160.0f, {
-			{ "General", General },
-			{ "Theme", Theme },
-			{ "Navigation", Navigation }
+			{ TRANSLATE("dialog.settings.app.general"), General },
+			{ TRANSLATE("dialog.settings.app.theme"), Theme },
+			{ TRANSLATE("dialog.settings.app.nav"), Navigation }
 		},
 		[&] {
 			switch (appSubTab)
 			{
 			case General:
 			{
-				ForumLayout layout("##rendering");
+				ForumLayout layout("##generalTab");
 
-				layout.AddField("##vsync", "VSync",
+				layout.AddField("##language",
+					TRANSLATE("dialog.settings.app.general.language").c_str(),
+					[&]()
+					{
+						auto* curr = localization->GetCurrentLanguage();
+						if (!curr) return;
+						if (ImGui::BeginCombo("", curr->label.c_str()))
+						{
+							for (const auto& lang : localization->GetLanguageList())
+							{
+								if (ImGui::Selectable(lang.label.c_str(), lang.id == curr->id))
+									app->SetLanguage(lang.id);
+							}
+
+							ImGui::EndCombo();
+						}
+					});
+
+				layout.AddField("##vsync",
+					TRANSLATE("dialog.settings.app.general.vsync").c_str(),
 					[&]()
 					{
 						bool vsync = config->render.GetVSync();
@@ -150,7 +200,9 @@ void SettingsDialog::DrawAppTab()
 						}
 					});
 
-				layout.AddFieldWithTooltip("##fpsLimit", "FPS Limit", "0 = No FPS Limit",
+				layout.AddFieldWithTooltip("##fpsLimit",
+					TRANSLATE("dialog.settings.app.general.fps").c_str(),
+					TRANSLATE("dialog.settings.app.general.fps.tooltip").c_str(),
 					[&]()
 					{
 						int fpsLimit = config->render.GetFPSLimit();
@@ -166,12 +218,12 @@ void SettingsDialog::DrawAppTab()
 			{
 				size_t themeIdx = 0;
 
-				if (ImGui::Button("Reload theme list"))
+				if (ImGui::Button(TRANSLATE("dialog.settings.app.theme.reload").c_str()))
 					themesList->ReloadThemesList();
 
 				ImGui::SameLine();
 
-				if (ImGui::Button("Open themes folder"))
+				if (ImGui::Button(TRANSLATE("dialog.settings.app.theme.open").c_str()))
 					themesList->OpenThemeListFolder();
 
 				ImGui::Separator();
@@ -250,13 +302,15 @@ void SettingsDialog::DrawAppTab()
 				ForumLayout layout("##navigation");
 
 				layout.AddFieldWithTooltip("##hideNavigationBar",
-					"Always hide navigation bar", "The navigation bar stays hidden unless the mouse hovers near the top of the window.",
+					TRANSLATE("dialog.settings.app.nav.hide").c_str(),
+					TRANSLATE("dialog.settings.app.nav.hide.tooltip").c_str(),
 					[&]()
 					{
 						ImGui::Checkbox("", &config->navigation.alwaysHideBar);
 					});
 
-				layout.AddField("##forwardSecs", "Jump forward secs",
+				layout.AddField("##forwardSecs",
+					TRANSLATE("dialog.settings.app.nav.forward").c_str(),
 					[&]()
 					{
 						float jumpForwardSecs = config->navigation.seekForwardSeconds;
@@ -266,7 +320,8 @@ void SettingsDialog::DrawAppTab()
 						}
 					});
 
-				layout.AddField("##backwardSecs", "Jump backward secs",
+				layout.AddField("##backwardSecs",
+					TRANSLATE("dialog.settings.app.nav.backward").c_str(),
 					[&]()
 					{
 						float jumpBackwardSecs = config->navigation.seekBackwardSeconds;
@@ -285,8 +340,9 @@ void SettingsDialog::DrawAppTab()
 void SettingsDialog::DrawVisualTab()
 {
 	auto config = app->GetConfig();
+	Localization* localization = app->GetLocalization();
 
-	ImGui::Text("These settings will also apply when rendering videos!");
+	ImGui::Text(TRANSLATE("dialog.settings.visual.disclaimer").c_str());
 	ImGui::Separator();
 
 	enum VisualSubTab
@@ -298,11 +354,12 @@ void SettingsDialog::DrawVisualTab()
 
 	static VisualSubTab visualSubTab = Renderer;
 
-	DrawSubTabs("VisualSettings", "VISUAL SETTINGS",
+	DrawSubTabs("VisualSettings",
+		TRANSLATE("dialog.settings.visual.header").c_str(),
 		visualSubTab, 160.0f, {
-			{ "Renderer", Renderer },
-			{ "Note Colors", NoteColors },
-			{ "Counter & Stats", CounterAndStats }
+			{ TRANSLATE("dialog.settings.visual.renderer"), Renderer },
+			{ TRANSLATE("dialog.settings.visual.colors"), NoteColors },
+			{ TRANSLATE("dialog.settings.visual.counter"), CounterAndStats }
 		},
 		[&] {
 			switch (visualSubTab)
@@ -325,7 +382,8 @@ void SettingsDialog::DrawVisualTab()
 							} \
 						}
 
-					layout.AddField("##rendererCombo", "Renderer",
+					layout.AddField("##rendererCombo",
+						TRANSLATE("dialog.settings.visual.renderer").c_str(),
 						[&]()
 						{
 							std::string currentRenderer = ToString(currRenderer);
@@ -350,7 +408,9 @@ void SettingsDialog::DrawVisualTab()
 
 				ImGui::Spacing();
 
-				if (ImGui::CollapsingHeader("Renderer Settings", ImGuiTreeNodeFlags_DefaultOpen))
+				if (ImGui::CollapsingHeader(
+					TRANSLATE("dialog.settings.visual.renderer.settings").c_str(),
+					ImGuiTreeNodeFlags_DefaultOpen))
 				{
 					app->GetRenderer()->RenderSettings();
 				}
@@ -368,16 +428,21 @@ void SettingsDialog::DrawVisualTab()
 					bool setColorsFromList = false;
 
 					ForumLayout layout("##noteColors");
-					layout.AddField("##colorRadio", "Use colors from",
+					layout.AddField("##colorRadio",
+						TRANSLATE("dialog.settings.visual.colors.use").c_str(),
 						[&]()
 						{
-							if (ImGui::RadioButton("Resource pack", !config->render.GetUseColorsFromImage()))
+							if (ImGui::RadioButton(
+								TRANSLATE("dialog.settings.visual.colors.use.0").c_str(),
+								!config->render.GetUseColorsFromImage()))
 							{
 								config->render.SetUseColorsFromImage(false);
 								setColorsFromPack = true;
 							}
 
-							if (ImGui::RadioButton("Color list", config->render.GetUseColorsFromImage()))
+							if (ImGui::RadioButton(
+								TRANSLATE("dialog.settings.visual.colors.use.1").c_str(), 
+								config->render.GetUseColorsFromImage()))
 							{
 								config->render.SetUseColorsFromImage(true);
 								setColorsFromList = true;
@@ -408,18 +473,18 @@ void SettingsDialog::DrawVisualTab()
 					}
 
 					ImGui::BeginDisabled(!config->render.GetUseColorsFromImage());
-					layout.AddHeader("Palette list");
+					layout.AddHeader(TRANSLATE("dialog.settings.visual.colors.palette").c_str());
 					{
 						ForumLayoutBreak break_(&layout);
 
-						if (ImGui::Button("Refresh palette list"))
+						if (ImGui::Button(TRANSLATE("dialog.settings.visual.colors.refresh").c_str()))
 						{
 							colorList->ReloadList();
 							auto& entry = colorList->GetCurrentPalette();
 							app->GetRenderer()->LoadColors(entry.palette);
 						}
 						ImGui::SameLine();
-						if (ImGui::Button("Open palette folder"))
+						if (ImGui::Button(TRANSLATE("dialog.settings.visual.colors.open").c_str()))
 						{
 							Utils::OpenFolder("./colors");
 						}
@@ -495,7 +560,8 @@ void SettingsDialog::DrawVisualTab()
 						ImGui::EndChild();
 					}
 
-					layout.AddField("##loopColors", "Loop colors",
+					layout.AddField("##loopColors",
+						TRANSLATE("dialog.settings.visual.colors.loop").c_str(),
 						[&]()
 						{
 							if (ImGui::Checkbox("", &config->render.loopColors))
@@ -506,7 +572,8 @@ void SettingsDialog::DrawVisualTab()
 							}
 						});
 
-					layout.AddField("##shuffleColors", "Shuffle colors",
+					layout.AddField("##shuffleColors",
+						TRANSLATE("dialog.settings.visual.colors.shuffle").c_str(),
 						[&]()
 						{
 							if (ImGui::Checkbox("", &config->render.shuffleColors))
@@ -521,7 +588,8 @@ void SettingsDialog::DrawVisualTab()
 
 					if (config->render.shuffleColors)
 					{
-						layout.AddField("##shuffleSeed", "Seed",
+						layout.AddField("##shuffleSeed",
+							TRANSLATE("dialog.settings.visual.colors.seed").c_str(),
 							[&]()
 							{
 								if (ImGui::InputInt("##shuffleSeed", &config->render.shuffleSeed))
@@ -548,40 +616,41 @@ void SettingsDialog::DrawVisualTab()
 				const NoteCounterAlignment alignment = config->overlayInfo.overlayAlignment;
 				const NoteCounterStyle style = config->overlayInfo.overlayStyle;
 
-				SECTION_HEADER("Appearance");
-
-				BEGIN_SECTION("##nc_appearance")
 				{
-					SETUP_SECTION;
+					ForumLayout layout("##counterSettings");
+					layout.AddHeader(TRANSLATE("dialog.settings.visual.counter.appearance").c_str());
 
-					SECTION_ENTRY(
-						SECTION_LABEL("Show note counter"),
-						ImGui::Checkbox("##showNoteCounter", &config->render.showCounter);
-					);
-
-					SECTION_ENTRY(
-						SECTION_LABEL("Show statistics"),
-						ImGui::Checkbox("##showStats", &config->render.showStats);
-					);
-
-					SECTION_ENTRY(
-						SECTION_LABEL("Scale"),
+					layout.AddField("##showNoteCounter",
+						TRANSLATE("dialog.settings.visual.counter.showcounter").c_str(),
+						[&]()
 						{
-							ImGui::SliderFloat(
-								"##counterScale",
+							ImGui::Checkbox("", &config->render.showCounter);
+						});
+
+					layout.AddField("##showStatistics",
+						TRANSLATE("dialog.settings.visual.counter.showstats").c_str(),
+						[&]()
+						{
+							ImGui::Checkbox("", &config->render.showStats);
+						});
+
+					layout.AddField("##scale",
+						TRANSLATE("dialog.settings.visual.counter.scale").c_str(),
+						[&]()
+						{
+							ImGui::SliderFloat("",
 								&config->overlayInfo.scale,
 								config->overlayInfo.MIN_SCALE,
 								config->overlayInfo.MAX_SCALE
-							);
-						}
-					);
+								);
+						});
 
-					SECTION_ENTRY(
-						SECTION_LABEL("Alignment"),
+					layout.AddField("##alignment",
+						TRANSLATE("dialog.settings.visual.counter.align").c_str(),
+						[&]()
 						{
-
 							if (ImGui::RadioButton(
-								"Top Left",
+								TRANSLATE("dialog.settings.visual.counter.align.0").c_str(),
 								alignment == NoteCounterAlignment::TopLeft))
 							{
 								config->overlayInfo.overlayAlignment = NoteCounterAlignment::TopLeft;
@@ -594,7 +663,7 @@ void SettingsDialog::DrawVisualTab()
 							ImGui::SameLine();
 
 							if (ImGui::RadioButton(
-								"Top Center",
+								TRANSLATE("dialog.settings.visual.counter.align.1").c_str(),
 								alignment == NoteCounterAlignment::TopCenter))
 							{
 								config->overlayInfo.overlayAlignment = NoteCounterAlignment::TopCenter;
@@ -605,25 +674,28 @@ void SettingsDialog::DrawVisualTab()
 							ImGui::SameLine();
 
 							if (ImGui::RadioButton(
-								"Top Right",
+								TRANSLATE("dialog.settings.visual.counter.align.2").c_str(),
 								alignment == NoteCounterAlignment::TopRight))
 							{
 								config->overlayInfo.overlayAlignment = NoteCounterAlignment::TopRight;
 							}
-						}
-					);
+						});
 
-					SECTION_ENTRY(
-						SECTION_LABEL("Blur behind"),
-						ImGui::Checkbox(
-							"##blurBehind",
-							&config->overlayInfo.blurBehind
-						);
-					);
-
-					SECTION_ENTRY(SECTION_LABEL("Font"),
+					layout.AddField("##blurBehind",
+						TRANSLATE("dialog.settings.visual.counter.blur").c_str(),
+						[&]()
 						{
-							std::string currentFontName = "Default";
+							ImGui::Checkbox("", &config->overlayInfo.blurBehind);
+						});
+
+					layout.AddField("##font",
+						TRANSLATE("dialog.settings.visual.counter.font").c_str(),
+						[&]()
+						{
+							const std::string defaultEntry =
+								TRANSLATE("dialog.settings.visual.counter.font.default");
+
+							std::string currentFontName = defaultEntry;
 
 							for (const auto& f : fonts)
 							{
@@ -634,12 +706,9 @@ void SettingsDialog::DrawVisualTab()
 								}
 							}
 
-							if (ImGui::BeginCombo(
-								"##counterFontCombo",
-								currentFontName.c_str()))
+							if (ImGui::BeginCombo("##fontCombo", currentFontName.c_str()))
 							{
-								if (ImGui::Selectable(
-									"Default",
+								if (ImGui::Selectable(defaultEntry.c_str(),
 									config->overlayInfo.selectedFontPath.empty()))
 								{
 									config->overlayInfo.selectedFontPath.clear();
@@ -647,15 +716,10 @@ void SettingsDialog::DrawVisualTab()
 
 								for (const auto& f : fonts)
 								{
-									const bool isSelected =
-										config->overlayInfo.selectedFontPath == f.path;
+									const bool isSelected = config->overlayInfo.selectedFontPath == f.path;
 
-									if (ImGui::Selectable(
-										f.name.c_str(),
-										isSelected))
-									{
+									if (ImGui::Selectable(f.name.c_str(), isSelected))
 										config->overlayInfo.selectedFontPath = f.path;
-									}
 
 									if (isSelected)
 										ImGui::SetItemDefaultFocus();
@@ -665,29 +729,22 @@ void SettingsDialog::DrawVisualTab()
 							}
 						});
 
-					SECTION_ENTRY(SECTION_LABEL("Font directory"),
+					layout.AddField("##directory",
+						TRANSLATE("dialog.settings.visual.counter.font.directory").c_str(),
+						[&]()
 						{
-							if (ImGui::Button("Open"))
-							{
+							if (ImGui::Button(TRANSLATE("general.open").c_str()))
 								Utils::OpenFolder("./assets/fonts/");
-							}
 						});
 
-					END_SECTION;
-				}
+					std::string counterStyleLabel = TRANSLATE("dialog.settings.visual.counter.style");
+					layout.AddHeader(counterStyleLabel.c_str());
 
-
-				SECTION_HEADER("Style");
-
-				BEGIN_SECTION("##nc_style")
-				{
-					SETUP_SECTION;
-
-					SECTION_ENTRY(
-						SECTION_LABEL("Style"),
+					layout.AddField("##counterStyle", counterStyleLabel.c_str(),
+						[&]()
 						{
 							if (ImGui::RadioButton(
-								"Ultralight MIDI Player",
+								TRANSLATE("dialog.settings.visual.counter.style.0").c_str(),
 								style == NoteCounterStyle::UMP))
 							{
 								config->overlayInfo.overlayStyle = NoteCounterStyle::UMP;
@@ -701,58 +758,64 @@ void SettingsDialog::DrawVisualTab()
 							ImGui::SameLine();
 
 							if (ImGui::RadioButton(
-								"MIDITrail",
+								TRANSLATE("dialog.settings.visual.counter.style.1").c_str(),
 								style == NoteCounterStyle::MIDITrail))
 							{
 								config->overlayInfo.overlayStyle = NoteCounterStyle::MIDITrail;
 							}
-						}
-					);
+						});
 
-					SECTION_ENTRY(
-						SECTION_LABEL("Background color"),
+					layout.AddField("##ncBg",
+						TRANSLATE("dialog.settings.visual.counter.background").c_str(),
+						[&]()
 						{
 							ImVec4 backgroundColor = config->overlayInfo.backgroundCol;
-							if (ImGui::ColorEdit4("##ncBg", &backgroundColor.x, ImGuiColorEditFlags_AlphaBar))
+							if (ImGui::ColorEdit4("", &backgroundColor.x, ImGuiColorEditFlags_AlphaBar))
 							{
 								config->overlayInfo.backgroundCol = backgroundColor;
 							}
-						}
-					);
+						});
 
-					SECTION_ENTRY(
-						SECTION_LABEL("Text color"),
+					layout.AddField("##ncTxt",
+						TRANSLATE("dialog.settings.visual.counter.text").c_str(),
+						[&]()
 						{
 							ImVec4 textColor = config->overlayInfo.textCol;
-							if (ImGui::ColorEdit3("##ncTxtCol", &textColor.x))
+							if (ImGui::ColorEdit3("", &textColor.x))
 							{
 								config->overlayInfo.textCol = textColor;
 							}
-						}
-					);
+						});
 
-					END_SECTION;
+					layout.AddHeader(TRANSLATE("dialog.settings.visual.counter.fields").c_str());
 				}
 
-				SECTION_HEADER("Fields");
-				ImGui::TextDisabled("Fields marked with an asterisk (*) are omitted from video renders.");
+				ImGui::TextDisabled(
+					TRANSLATE("dialog.settings.visual.counter.fields.help").c_str());
 				ImGui::Spacing();
 
-				BEGIN_SECTION("##nc_fields")
+				if (ImGui::BeginTable("##ncFields", 2,
+					ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadInnerX))
 				{
 					ImGui::TableNextRow();
-					ImGui::TableSetColumnIndex(0); ImGui::Checkbox("Tick", &counter->tick.shown);
-					ImGui::TableSetColumnIndex(1); ImGui::Checkbox("Time", &counter->timeSeconds.shown);
+					ImGui::TableSetColumnIndex(0);
+					ImGui::Checkbox(TRANSLATE("counter.tick").c_str(), &counter->tick.shown);
+					ImGui::TableSetColumnIndex(1);
+					ImGui::Checkbox(TRANSLATE("counter.time").c_str(), &counter->timeSeconds.shown);
 
 					ImGui::TableNextRow();
-					ImGui::TableSetColumnIndex(0); ImGui::Checkbox("BPM", &counter->bpm.shown);
-					ImGui::TableSetColumnIndex(1); ImGui::Checkbox("Notes", &counter->notesPassed.shown);
+					ImGui::TableSetColumnIndex(0);
+					ImGui::Checkbox(TRANSLATE("counter.bpm").c_str(), &counter->bpm.shown);
+					ImGui::TableSetColumnIndex(1);
+					ImGui::Checkbox(TRANSLATE("counter.notes").c_str(), &counter->notesPassed.shown);
 
 					ImGui::TableNextRow();
-					ImGui::TableSetColumnIndex(0); ImGui::Checkbox("NPS", &counter->notesPerSecond.shown);
-					ImGui::TableSetColumnIndex(1); ImGui::Checkbox("Polyphony", &counter->polyphony.shown);
+					ImGui::TableSetColumnIndex(0);
+					ImGui::Checkbox(TRANSLATE("counter.nps").c_str(), &counter->notesPerSecond.shown);
+					ImGui::TableSetColumnIndex(1);
+					ImGui::Checkbox(TRANSLATE("counter.poly").c_str(), &counter->polyphony.shown);
 
-					END_SECTION;
+					ImGui::EndTable();
 				}
 
 				break;
@@ -764,45 +827,46 @@ void SettingsDialog::DrawVisualTab()
 void SettingsDialog::DrawAudioTab()
 {
 	MIDIAudio* midiAudio = app->GetMIDIAudio();
+	Localization* localization = app->GetLocalization();
 
-	// ImGui::Text("Audio Engine");
-	BEGIN_SECTION("##audioEngine")
 	{
-		SETUP_SECTION;
+		ForumLayout layout("##audioEngine");
 
-		SECTION_ENTRY(
-			SECTION_LABEL("Audio engine"),
+		layout.AddField("##engine",
+			TRANSLATE("dialog.settings.audio.engine").c_str(),
+			[&]()
 			{
 				AudioEngineList& engineList = midiAudio->GetEngineList();
-				size_t engineIndex = 0;
-				for (auto& engine : engineList)
+				if (ImGui::BeginCombo("", midiAudio->GetCurrentEngine()->GetName().c_str()))
 				{
-					if (engine == nullptr)
+					size_t engineIndex = 0;
+					for (auto& engine : engineList)
 					{
+						if (engine == nullptr)
+						{
+							engineIndex++;
+							continue;
+						}
+
+						AudioEngineType type = (AudioEngineType)engineIndex;
+
+						bool isSupported = engine->IsSupported();
+
+						ImGui::BeginDisabled(!isSupported);
+						if (ImGui::Selectable(engine->GetName().c_str(), midiAudio->GetCurrentEngineType() == type))
+							midiAudio->SwitchEngine(type);
+
+						if (!isSupported)
+							ImGui::SetItemTooltip(TRANSLATE("dialog.settings.audio.engine.unsupported").c_str());
+						ImGui::EndDisabled();
+
+						ImGui::Spacing();
+
 						engineIndex++;
-						continue;
 					}
-
-					AudioEngineType type = (AudioEngineType)engineIndex;
-
-					bool isSupported = engine->IsSupported();
-
-					ImGui::BeginDisabled(!isSupported);
-					if (ImGui::RadioButton(engine->GetName().c_str(), midiAudio->GetCurrentEngineType() == type))
-						midiAudio->SwitchEngine(type);
-
-					if (!isSupported)
-						ImGui::SetItemTooltip("This engine is not supported on your platform.");
-					ImGui::EndDisabled();
-
-					ImGui::Spacing();
-
-					engineIndex++;
+					ImGui::EndCombo();
 				}
-			}
-		);
-
-		END_SECTION;
+			});
 	}
 	
 	if (ImGui::CollapsingHeader("Engine Settings", ImGuiTreeNodeFlags_DefaultOpen))
@@ -814,27 +878,25 @@ void SettingsDialog::DrawAudioTab()
 void SettingsDialog::DrawMIDITab()
 {
 	auto* config = app->GetConfig();
+	Localization* localization = app->GetLocalization();
 
-	BEGIN_SECTION("##midiSettings")
-	{
-		SETUP_SECTION;
+	ForumLayout layout("##midiSettings");
 
-		SECTION_ENTRY(
-			SECTION_LABEL("MIDI loading threads"),
-			{
-				if (ImGui::RadioButton("Single-threaded", !config->midi.multithreadedLoading))
-					config->midi.multithreadedLoading = false;
+	layout.AddField("##midiThreads",
+		TRANSLATE("dialog.settings.midi.threads").c_str(),
+		[&]()
+		{
+			if (ImGui::RadioButton(TRANSLATE("dialog.settings.midi.threads.0").c_str(), !config->midi.multithreadedLoading))
+				config->midi.multithreadedLoading = false;
 
-				if (ImGui::RadioButton("Multi-threaded", config->midi.multithreadedLoading))
-					config->midi.multithreadedLoading = true;
-			}
-		);
+			if (ImGui::RadioButton(TRANSLATE("dialog.settings.midi.threads.1").c_str(), config->midi.multithreadedLoading))
+				config->midi.multithreadedLoading = true;
+		});
 
-		SECTION_ENTRY(
-			SECTION_LABEL("Time-based loading"),
-			{ ImGui::Checkbox("##timebasedLoading", &config->midi.timeBasedLoading); }
-		);
-
-		END_SECTION;
-	}
+	layout.AddField("##timebasedLoading",
+		TRANSLATE("dialog.settings.midi.time").c_str(),
+		[&]()
+		{
+			ImGui::Checkbox("##timebasedLoading", &config->midi.timeBasedLoading);
+		});
 }

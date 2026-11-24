@@ -539,6 +539,7 @@ void MaestroEngine::PlayerLoop(std::shared_ptr<MIDITimer> timer)
         int64_t timelineNs = 0;
         MaestroTime ticks = 0;
         Clock::time_point wall;
+        double speed;
     } anchor;
 
     bool synced = false;
@@ -550,7 +551,8 @@ void MaestroEngine::PlayerLoop(std::shared_ptr<MIDITimer> timer)
         const int64_t delta = ns - anchor.timelineNs;
         if (delta <= 0)
             return anchor.ticks;
-        return anchor.ticks + rt->ns_to_ticks(static_cast<uint64_t>(delta));
+        const double wallDelta = static_cast<double>(delta) / anchor.speed;
+        return anchor.ticks + rt->ns_to_ticks(static_cast<uint64_t>(wallDelta));
     };
 
     auto idleWait = [&](int64_t ns)
@@ -578,6 +580,7 @@ void MaestroEngine::PlayerLoop(std::shared_ptr<MIDITimer> timer)
         tail.store(head.load(std::memory_order_acquire), std::memory_order_release);
 
         anchor.timelineNs = SecondsToNs(timer->Elapsed());
+        anchor.speed = std::max(timer->GetSpeed(), 0.01);
         anchor.wall = Clock::now();
         anchor.ticks = rt->now() + rt->ns_to_ticks(static_cast<uint64_t>(latencyNs));
 
@@ -593,6 +596,9 @@ void MaestroEngine::PlayerLoop(std::shared_ptr<MIDITimer> timer)
         synced = true;
         nextPlayNs = anchor.timelineNs;   // first window is due immediately
     };
+
+    double pendingSpeed = 1.0;
+    Clock::time_point pendingSince = Clock::now();
 
     while (!stopFlag.load())
     {
@@ -613,11 +619,30 @@ void MaestroEngine::PlayerLoop(std::shared_ptr<MIDITimer> timer)
 
         if (synced)
         {
-            const int64_t predicted = anchor.timelineNs +
-                std::chrono::duration_cast<std::chrono::nanoseconds>(wallNow - anchor.wall).count();
+            const double timerSpeed = std::max(timer->GetSpeed(), 0.01);
 
-            if (std::llabs(nowNs - predicted) > JUMP_NS)
-                synced = false;   // timer was moved
+            if (timerSpeed != pendingSpeed)
+            {
+                pendingSpeed = timerSpeed;
+                pendingSince = wallNow;
+            }
+
+            if (timerSpeed != anchor.speed)
+            {
+                // speed changed: wait until it settles, then re-anchor like a seek
+                if (wallNow - pendingSince > std::chrono::milliseconds(100))
+                    synced = false;
+            }
+            else
+            {
+                const int64_t wallNsSinceAnchor =
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(wallNow - anchor.wall).count();
+                const int64_t predicted = anchor.timelineNs +
+                    static_cast<int64_t>(wallNsSinceAnchor * anchor.speed);
+
+                if (std::llabs(nowNs - predicted) > JUMP_NS)
+                    synced = false;
+            }
         }
 
         if (!synced)
@@ -629,9 +654,12 @@ void MaestroEngine::PlayerLoop(std::shared_ptr<MIDITimer> timer)
 
         bool behind = false;
 
+        const int64_t aheadSong = static_cast<int64_t>(aheadNs * anchor.speed);
+        const int64_t refillSong = static_cast<int64_t>(refillNs * anchor.speed);
+
         if (nowNs >= nextPlayNs)
         {
-            const int64_t endNs = nowNs + aheadNs;
+            const int64_t endNs = nowNs + aheadSong;
             const uint32_t ep = static_cast<uint32_t>(curEpoch);
 
             // read "done" before head: if it is set, head already includes the final push
@@ -683,15 +711,17 @@ void MaestroEngine::PlayerLoop(std::shared_ptr<MIDITimer> timer)
 #endif
 
             // if the generator is behind, retry soon instead of waiting a full interval
-            nextPlayNs = behind ? nowNs : nowNs + refillNs;
+            nextPlayNs = behind ? nowNs : nowNs + refillSong;
         }
 
-        const int64_t timelineNow = nowNs +
+        const int64_t wallSinceNow =
             std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - wallNow).count();
-        const int64_t remaining = nextPlayNs - timelineNow;
+        const int64_t timelineNow = nowNs + static_cast<int64_t>(wallSinceNow * anchor.speed);
+        const int64_t remainingWall =
+            static_cast<int64_t>((nextPlayNs - timelineNow) / anchor.speed);
 
-        if (remaining > 0)
-            idleWait(std::min(remaining, POLL_NS));
+        if (remainingWall > 0)
+            idleWait(std::min(remainingWall, POLL_NS));
         else if (behind)
             idleWait(1'000'000);
     }

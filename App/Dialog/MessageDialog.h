@@ -3,6 +3,8 @@
 #include <string>
 #include <functional>
 
+class Localization;
+
 class MessageDialog : public Dialog
 {
 public:
@@ -19,7 +21,8 @@ public:
 		No
 	};
 
-	MessageDialog() : Dialog("message_dialog") {}
+	MessageDialog(Localization* localization) : Dialog("message_dialog"),
+		localization(localization) {}
 
 	const char* GetTitle() override
 	{
@@ -43,4 +46,6 @@ private:
 	std::string message = "";
 	ButtonType buttonType = ButtonType::OK;
 	std::function<void(Result)> onResult = nullptr;
+
+	Localization* localization;
 };
